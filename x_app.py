@@ -110,7 +110,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{page_title}</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <style>
+    <style id="core-style">
         :root {{ --bg: #f2f2f7; --card: #ffffff; --text: #0f1419; --muted: #536471; --border: #eff3f4; --x-blue: #1d9bf0; }}
         body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }}
         .nav-back {{ display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: var(--card); border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }}
@@ -121,7 +121,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
         
         .sync-status {{ padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; display: none; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }}
         
-        /* 修復：擴大移動端觸控熱區，防止點擊無效 */
         .anno-toggle {{ display: inline-block; padding: 4px 8px; margin-left: 4px; cursor: pointer; opacity: 0.3; font-size: 0.9rem; vertical-align: middle; transition: all 0.2s; user-select: none; -webkit-tap-highlight-color: transparent; }}
         .anno-toggle:hover {{ opacity: 0.9; transform: scale(1.1); }}
         .anno-toggle.has-anno {{ opacity: 1; }}
@@ -167,10 +166,48 @@ def generate_page_wrapper(content_html, page_title, now_str):
         {content_html}
     </div>
     
-    <script>
+    <script id="core-engine">
         let syncTimeout = null;
 
-        // 排隊觸發批注同步
+        // DOM 淨身出戶函數：剝離插件污染，還原按鈕狀態
+        function getCleanHTMLSnapshot() {{
+            document.querySelectorAll('.anno-edit').forEach(ta => {{ ta.textContent = ta.value; }});
+            
+            const clone = document.documentElement.cloneNode(true);
+            
+            const syncStatus = clone.querySelector('#sync-status');
+            if (syncStatus) {{
+                syncStatus.removeAttribute('style'); // 強制剝離 inline 樣式，恢復隱藏
+                syncStatus.innerText = '📡 同步中...';
+            }}
+            
+            // 剝離非核心腳本 (Tampermonkey 等)
+            clone.querySelectorAll('script').forEach(s => {{
+                if (!s.src.includes('marked.min.js') && s.id !== 'core-engine') s.remove();
+            }});
+            // 剝離非核心樣式 (Relingo/DarkReader 等)
+            clone.querySelectorAll('style').forEach(s => {{
+                if (s.id !== 'core-style') s.remove();
+            }});
+            
+            // 剝離 body 下被惡意塞入的懸浮球/遮罩層
+            const body = clone.querySelector('body');
+            Array.from(body.children).forEach(child => {{
+                if (child.id === 'core-engine') return;
+                if (!child.classList.contains('nav-back') && !child.classList.contains('container')) {{
+                    child.remove();
+                }}
+            }});
+            
+            // 隔離渲染污染：清空視圖區，只依賴 textarea 文本。加載時由 marked 重新渲染
+            clone.querySelectorAll('.anno-box').forEach(box => {{
+                const view = box.querySelector('.anno-view');
+                if (view) view.innerHTML = ''; 
+            }});
+            
+            return '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + clone.innerHTML + '\\n</html>';
+        }}
+
         function scheduleSync() {{
             const statusMsg = document.getElementById('sync-status');
             statusMsg.style.display = 'inline-block';
@@ -183,7 +220,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
             syncTimeout = setTimeout(() => {{ syncToGitHub(); }}, 3000);
         }}
 
-        // 批注固化與推送核心
         async function syncToGitHub() {{
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
@@ -195,10 +231,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
             statusMsg.style.backgroundColor = '#2ea44f';
             statusMsg.innerText = '📡 同步中...';
 
-            document.querySelectorAll('.anno-edit').forEach(ta => {{ ta.textContent = ta.value; }});
-            
-            // 修復 JS 換行報錯：強制合為單行字串
-            const htmlSnapshot = '<!DOCTYPE html><html lang="zh-CN">' + document.documentElement.innerHTML + '</html>';
+            const htmlSnapshot = getCleanHTMLSnapshot();
             
             const pathParts = window.location.pathname.split('/');
             const fileName = pathParts.pop();
@@ -247,7 +280,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
             }}
         }}
 
-        // 初始化批注 UI 事件
         function initAnnotations() {{
             document.querySelectorAll('.content-wrap').forEach(wrap => {{
                 const view = wrap.querySelector('.anno-view');
@@ -263,7 +295,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
                     try {{ view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; }} catch(e){{}}
                 }}
 
-                // 修復：阻止冒泡與默認事件，增加延遲 Focus 處理虛擬鍵盤彈起衝突
                 toggle.onclick = (e) => {{
                     e.preventDefault();
                     e.stopPropagation();
@@ -305,7 +336,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
                     }}
                 }}, {{passive: false}});
 
-                // 修復：Blur 時增加延時，避免手機端佈局跳轉引起的瞬間閃退
                 edit.addEventListener('blur', () => {{
                     setTimeout(() => {{
                         const newVal = edit.value.trim();
@@ -335,7 +365,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
         
         window.addEventListener('load', initAnnotations);
 
-        // 翻譯功能也進行了升級以兼容 DOM 快照
         async function translateAll() {{
             const btn = document.getElementById('translate-btn');
             if(btn.hasAttribute('disabled')) return;
@@ -395,7 +424,8 @@ def generate_page_wrapper(content_html, page_title, now_str):
             
             if (ghToken && ghOwner && ghRepo) {{
                 try {{
-                    document.querySelectorAll('.anno-edit').forEach(ta => {{ ta.textContent = ta.value; }});
+                    const htmlSnapshot = getCleanHTMLSnapshot();
+                    
                     const pathParts = window.location.pathname.split('/');
                     const fileName = pathParts.pop();
                     const month = pathParts.pop();
@@ -404,9 +434,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
 
                     btn.innerText = '🌐 已翻譯並固化';
                     btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
-                    
-                    // 修復 JS 換行報錯：強制合為單行字串
-                    const htmlSnapshot = '<!DOCTYPE html><html lang="zh-CN">' + document.documentElement.innerHTML + '</html>';
 
                     const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {{ headers: {{ 'Authorization': 'Bearer ' + ghToken }} }});
                     if (fileRes.ok) {{
@@ -500,7 +527,7 @@ def save_batch_tweets_local(username, tweet_ids, now_obj):
 
 
 def generate_index():
-    """日曆樞紐生成器 + 前端 JS (前端動態生成的頁面外殼與批注 UI 同步適配)"""
+    """日曆樞紐生成器 + 前端 JS"""
     archive_data = {}
     if os.path.exists(BASE_DIR):
         years = [d for d in os.listdir(BASE_DIR) if d.isdigit()]
@@ -876,7 +903,7 @@ def generate_index():
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>${pageTitle}</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"><\\/script>
-    <style>
+    <style id="core-style">
         :root { --bg: #f2f2f7; --card: #ffffff; --text: #0f1419; --muted: #536471; --border: #eff3f4; --x-blue: #1d9bf0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
         .nav-back { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: var(--card); border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
@@ -931,8 +958,42 @@ def generate_index():
         ${contentHtml}
     </div>
     
-    <script>
+    <script id="core-engine">
         let syncTimeout = null;
+
+        function getCleanHTMLSnapshot() {
+            document.querySelectorAll('.anno-edit').forEach(ta => { ta.textContent = ta.value; });
+            const clone = document.documentElement.cloneNode(true);
+            
+            const syncStatus = clone.querySelector('#sync-status');
+            if (syncStatus) {
+                syncStatus.removeAttribute('style');
+                syncStatus.innerText = '📡 同步中...';
+            }
+            
+            clone.querySelectorAll('script').forEach(s => {
+                if (!s.src.includes('marked.min.js') && s.id !== 'core-engine') s.remove();
+            });
+            clone.querySelectorAll('style').forEach(s => {
+                if (s.id !== 'core-style') s.remove();
+            });
+            
+            const body = clone.querySelector('body');
+            Array.from(body.children).forEach(child => {
+                if (child.id === 'core-engine') return;
+                if (!child.classList.contains('nav-back') && !child.classList.contains('container')) {
+                    child.remove();
+                }
+            });
+            
+            clone.querySelectorAll('.anno-box').forEach(box => {
+                const view = box.querySelector('.anno-view');
+                if (view) view.innerHTML = ''; 
+            });
+            
+            return '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + clone.innerHTML + '\\n</html>';
+        }
+
         function scheduleSync() {
             const statusMsg = document.getElementById('sync-status');
             statusMsg.style.display = 'inline-block';
@@ -955,8 +1016,8 @@ def generate_index():
             statusMsg.style.backgroundColor = '#2ea44f';
             statusMsg.innerText = '📡 同步中...';
 
-            document.querySelectorAll('.anno-edit').forEach(ta => { ta.textContent = ta.value; });
-            const htmlSnapshot = '<!DOCTYPE html><html lang="zh-CN">' + document.documentElement.innerHTML + '</html>';
+            const htmlSnapshot = getCleanHTMLSnapshot();
+            
             const pathParts = window.location.pathname.split('/');
             const fileName = pathParts.pop();
             const month = pathParts.pop();
@@ -1117,7 +1178,8 @@ def generate_index():
             
             if (ghToken && ghOwner && ghRepo) {
                 try {
-                    document.querySelectorAll('.anno-edit').forEach(ta => { ta.textContent = ta.value; });
+                    const htmlSnapshot = getCleanHTMLSnapshot();
+                    
                     const pathParts = window.location.pathname.split('/');
                     const fileName = pathParts.pop();
                     const month = pathParts.pop();
@@ -1127,8 +1189,6 @@ def generate_index():
                     btn.innerText = '🌐 已翻譯並固化';
                     btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
                     
-                    const htmlSnapshot = '<!DOCTYPE html><html lang="zh-CN">' + document.documentElement.innerHTML + '</html>';
-
                     const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, { headers: { 'Authorization': 'Bearer ' + ghToken } });
                     if (fileRes.ok) {
                         const fileData = await fileRes.json();
