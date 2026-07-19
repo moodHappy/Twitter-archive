@@ -95,7 +95,7 @@
     </div>
 
     <script>
-        const archiveData = /*DATA_START*/{"2026":{"7":{}}}/*DATA_END*/;
+        const archiveData = /*DATA_START*/{}/*DATA_END*/;
         const today = new Date();
         
         const AppState = {
@@ -335,7 +335,7 @@
         }
         // ------------------------------------
 
-        // X 推文前端抓取邏輯 (四重代理備援 + 瀑布流組裝)
+        // X 推文前端抓取邏輯 (四重代理備援 + 原創過濾)
         document.getElementById('xUrlInput').addEventListener('keypress', async function (e) {
             if (e.key === 'Enter') {
                 const url = this.value.trim();
@@ -370,7 +370,7 @@
                 this.disabled = true;
 
                 try {
-                    // 若為批量，使用代理取得最新推文 ID
+                    // 若為批量，使用代理取得最新原創推文 ID
                     if (isBatch) {
                         loadingBar.style.width = '15%';
                         try {
@@ -405,8 +405,14 @@
                                         const parsed = JSON.parse(match[1]);
                                         const timelineEntries = parsed.props?.pageProps?.timeline?.entries || [];
                                         timelineEntries.forEach(entry => {
-                                            const tid = entry.content?.tweet?.id_str;
-                                            if (tid && !tweetIdsToProcess.includes(tid)) tweetIdsToProcess.push(tid);
+                                            const tweet = entry.content?.tweet;
+                                            const tid = tweet?.id_str;
+                                            const screenName = tweet?.user?.screen_name;
+                                            
+                                            // 強制校驗：排除轉發推文，只保留原創
+                                            if (tid && screenName && screenName.toLowerCase() === username.toLowerCase() && !tweetIdsToProcess.includes(tid)) {
+                                                tweetIdsToProcess.push(tid);
+                                            }
                                         });
                                         if (tweetIdsToProcess.length > 0) break;
                                     }
@@ -454,7 +460,9 @@
                         finalHtmlOutput = generatePageWrapper(combinedCardsHtml, `Tweets by @${username}`, hhmmStr);
                         filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_batch_${username}_x.html`;
                         fileRelPath = `${yearStr}/${monthStr}/${filename}`;
-                        indexTitle = `🐦 推文集：@${username}`;
+                        
+                        // 加入時間戳綴飾
+                        indexTitle = `🐦 ${hhmmStr} 推文集：@${username}`;
                         
                     } else {
                         // 單推文模式
@@ -468,7 +476,9 @@
                         finalHtmlOutput = generatePageWrapper(singleCardHtml, `Tweet by ${tweet.user_name}`, hhmmStr);
                         filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_${tweetId}_x.html`;
                         fileRelPath = `${yearStr}/${monthStr}/${filename}`;
-                        indexTitle = `🐦 靈感推文：${hhmmStr}`;
+                        
+                        // 加入時間戳綴飾
+                        indexTitle = `🐦 ${hhmmStr} 靈感推文`;
                     }
 
                     // 上傳組裝好的單一 HTML 檔案
@@ -515,7 +525,7 @@
 
                     forceRender(); 
                     loadingBar.style.width = '100%';
-                    alert(`🎉 成功！已為您歸檔 ${isBatch ? '帳號瀑布流' : '單條推文'}。`);
+                    alert(`🎉 成功！已為您歸檔最新的原創 ${isBatch ? '帳號瀑布流' : '單條推文'}。`);
                     this.value = '';
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
 
