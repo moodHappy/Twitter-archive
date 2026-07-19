@@ -97,7 +97,7 @@ def generate_tweet_card(tweet_data, tweet_id):
         </div>"""
 
 def generate_page_wrapper(content_html, page_title, now_str):
-    """生成完整 HTML 頁面外殼"""
+    """生成完整 HTML 頁面外殼 (包含一鍵翻譯與自我固化邏輯)"""
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -108,8 +108,10 @@ def generate_page_wrapper(content_html, page_title, now_str):
     <style>
         :root {{ --bg: #f2f2f7; --card: #ffffff; --text: #0f1419; --muted: #536471; --border: #eff3f4; --x-blue: #1d9bf0; }}
         body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }}
-        .nav-back {{ padding: 15px; text-align: center; background: var(--card); border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }}
-        .nav-back a {{ text-decoration: none; color: white; background: #000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; }}
+        .nav-back {{ display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: var(--card); border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }}
+        .nav-back a {{ text-decoration: none; color: white; background: #000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }}
+        .translate-btn {{ background: #f2f2f7; color: #0f1419; border: 1px solid #ccc; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: 0.2s; flex-shrink: 0; outline: none; }}
+        .translate-btn:active {{ background: #e5e5ea; transform: scale(0.95); }}
         .container {{ max-width: 600px; margin: 0 auto; padding: 20px 15px 50px 15px; }}
         .tweet-card {{ background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 25px; }}
         .header {{ display: flex; align-items: center; margin-bottom: 12px; }}
@@ -126,11 +128,103 @@ def generate_page_wrapper(content_html, page_title, now_str):
     </style>
 </head>
 <body>
-    <div class="nav-back"><a href="../../index.html">🔙 返回日曆樞紐</a></div>
+    <div class="nav-back">
+        <a href="../../index.html">🔙 返回</a>
+        <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 一鍵翻譯</button>
+    </div>
     <div class="container">
         <div class="time-stamp">歸檔時間: {now_str}</div>
         {content_html}
     </div>
+    
+    <script>
+        async function translateAll() {{
+            const btn = document.getElementById('translate-btn');
+            if(btn.disabled) return;
+            btn.innerText = '⏳ 翻譯中...';
+            btn.disabled = true;
+
+            let translatedCount = 0;
+            const contents = document.querySelectorAll('.content');
+            for (let content of contents) {{
+                if (content.getAttribute('data-translated') === 'true') continue;
+                const text = content.innerText;
+                if (!text.trim()) continue;
+
+                try {{
+                    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=' + encodeURIComponent(text);
+                    const res = await fetch(url);
+                    const data = await res.json();
+                    let translatedText = '';
+                    data[0].forEach(item => {{ if (item[0]) translatedText += item[0]; }});
+
+                    const transDiv = document.createElement('div');
+                    transDiv.className = 'translated-content';
+                    transDiv.style.cssText = 'color: #0f1419; font-size: 1.05rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
+                    transDiv.innerHTML = '<strong>🌐 翻譯：</strong><br>' + translatedText;
+                    
+                    content.parentNode.insertBefore(transDiv, content.nextSibling);
+                    content.setAttribute('data-translated', 'true');
+                    translatedCount++;
+                }} catch (e) {{
+                    console.error('翻譯失敗:', e);
+                }}
+            }}
+            
+            if (translatedCount === 0) {{
+                btn.innerText = '✅ 已全部翻譯';
+                return;
+            }}
+
+            btn.innerText = '⏳ 固化至雲端...';
+            
+            // 讀取樞紐首頁設定好的 GitHub Token
+            const ghToken = localStorage.getItem('GH_TOKEN');
+            const ghOwner = localStorage.getItem('GH_OWNER');
+            const ghRepo = localStorage.getItem('GH_REPO');
+            
+            if (ghToken && ghOwner && ghRepo) {{
+                try {{
+                    // 解析當前文件的存放路徑
+                    const pathParts = window.location.pathname.split('/');
+                    const fileName = pathParts.pop();
+                    const month = pathParts.pop();
+                    const year = pathParts.pop();
+                    const fileRelPath = `${{year}}/${{month}}/${{fileName}}`;
+
+                    // 恢復按鈕外觀狀態，避免將【固化中】字樣也存進源碼
+                    btn.innerText = '🌐 已翻譯並固化';
+                    btn.disabled = true;
+                    btn.style.background = '#e8f5fd';
+                    btn.style.color = '#1d9bf0';
+                    btn.style.border = '1px solid #1d9bf0';
+                    
+                    // 獲取當前完整注入翻譯後的 DOM HTML 結構
+                    const htmlSnapshot = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + document.documentElement.innerHTML + '\\n</html>';
+
+                    // 請求 API 獲取檔案 SHA 並進行覆寫
+                    const fileRes = await fetch(`https://api.github.com/repos/${{ghOwner}}/${{ghRepo}}/contents/docs/${{fileRelPath}}`, {{ headers: {{ 'Authorization': `Bearer ${{ghToken}}` }} }});
+                    if (fileRes.ok) {{
+                        const fileData = await fileRes.json();
+                        await fetch(`https://api.github.com/repos/${{ghOwner}}/${{ghRepo}}/contents/docs/${{fileRelPath}}`, {{
+                            method: 'PUT',
+                            headers: {{ 'Authorization': `Bearer ${{ghToken}}`, 'Content-Type': 'application/json' }},
+                            body: JSON.stringify({{ 
+                                message: `Auto-solidify translation for ${{fileName}}`, 
+                                content: btoa(unescape(encodeURIComponent(htmlSnapshot))),
+                                sha: fileData.sha
+                            }})
+                        }});
+                    }}
+                }} catch(e) {{
+                    console.error('固化失敗', e);
+                    btn.innerText = '⚠️ 僅本地翻譯';
+                }}
+            }} else {{
+                btn.innerText = '✅ 翻譯完成';
+            }}
+        }}
+    </script>
 </body>
 </html>"""
 
@@ -490,7 +584,7 @@ def generate_index():
             } catch(e) { console.error(e); alert('刪除同步失敗: ' + e.message); document.getElementById('loadingBar').style.width = '0%'; }
         }
 
-        // --- 核心：HTML 模板組裝函數 ---
+        // --- 核心：HTML 模板組裝函數 (前端) ---
         function generateTweetCard(tweet, tweetId) {
             const author = tweet.user_name || 'Unknown';
             const handle = tweet.user_screen_name || 'unknown';
@@ -549,8 +643,10 @@ def generate_index():
     <style>
         :root { --bg: #f2f2f7; --card: #ffffff; --text: #0f1419; --muted: #536471; --border: #eff3f4; --x-blue: #1d9bf0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
-        .nav-back { padding: 15px; text-align: center; background: var(--card); border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .nav-back a { text-decoration: none; color: white; background: #000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; }
+        .nav-back { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: var(--card); border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .nav-back a { text-decoration: none; color: white; background: #000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
+        .translate-btn { background: #f2f2f7; color: #0f1419; border: 1px solid #ccc; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: 0.2s; flex-shrink: 0; outline: none; }
+        .translate-btn:active { background: #e5e5ea; transform: scale(0.95); }
         .container { max-width: 600px; margin: 0 auto; padding: 20px 15px 50px 15px; }
         .tweet-card { background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 25px; }
         .header { display: flex; align-items: center; margin-bottom: 12px; }
@@ -567,11 +663,98 @@ def generate_index():
     </style>
 </head>
 <body>
-    <div class="nav-back"><a href="../../index.html">🔙 返回日曆樞紐</a></div>
+    <div class="nav-back">
+        <a href="../../index.html">🔙 返回</a>
+        <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 一鍵翻譯</button>
+    </div>
     <div class="container">
         <div class="time-stamp">歸檔時間: ${now_str}</div>
         ${contentHtml}
     </div>
+    
+    <script>
+        async function translateAll() {
+            const btn = document.getElementById('translate-btn');
+            if(btn.disabled) return;
+            btn.innerText = '⏳ 翻譯中...';
+            btn.disabled = true;
+
+            let translatedCount = 0;
+            const contents = document.querySelectorAll('.content');
+            for (let content of contents) {
+                if (content.getAttribute('data-translated') === 'true') continue;
+                const text = content.innerText;
+                if (!text.trim()) continue;
+
+                try {
+                    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=' + encodeURIComponent(text);
+                    const res = await fetch(url);
+                    const data = await res.json();
+                    let translatedText = '';
+                    data[0].forEach(item => { if (item[0]) translatedText += item[0]; });
+
+                    const transDiv = document.createElement('div');
+                    transDiv.className = 'translated-content';
+                    transDiv.style.cssText = 'color: #0f1419; font-size: 1.05rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
+                    transDiv.innerHTML = '<strong>🌐 翻譯：</strong><br>' + translatedText;
+                    
+                    content.parentNode.insertBefore(transDiv, content.nextSibling);
+                    content.setAttribute('data-translated', 'true');
+                    translatedCount++;
+                } catch (e) {
+                    console.error('翻譯失敗:', e);
+                }
+            }
+            
+            if (translatedCount === 0) {
+                btn.innerText = '✅ 已全部翻譯';
+                return;
+            }
+
+            btn.innerText = '⏳ 固化至雲端...';
+            
+            const ghToken = localStorage.getItem('GH_TOKEN');
+            const ghOwner = localStorage.getItem('GH_OWNER');
+            const ghRepo = localStorage.getItem('GH_REPO');
+            
+            if (ghToken && ghOwner && ghRepo) {
+                try {
+                    const pathParts = window.location.pathname.split('/');
+                    const fileName = pathParts.pop();
+                    const month = pathParts.pop();
+                    const year = pathParts.pop();
+                    const fileRelPath = \`\${year}/\${month}/\${fileName}\`;
+
+                    btn.innerText = '🌐 已翻譯並固化';
+                    btn.disabled = true;
+                    btn.style.background = '#e8f5fd';
+                    btn.style.color = '#1d9bf0';
+                    btn.style.border = '1px solid #1d9bf0';
+                    
+                    const htmlSnapshot = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + document.documentElement.innerHTML + '\\n</html>';
+
+                    const fileRes = await fetch(\`https://api.github.com/repos/\${ghOwner}/\${ghRepo}/contents/docs/\${fileRelPath}\`, { headers: { 'Authorization': \`Bearer \${ghToken}\` } });
+                    if (fileRes.ok) {
+                        const fileData = await fileRes.json();
+                        await fetch(\`https://api.github.com/repos/\${ghOwner}/\${ghRepo}/contents/docs/\${fileRelPath}\`, {
+                            method: 'PUT',
+                            headers: { 'Authorization': \`Bearer \${ghToken}\`, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                message: \`Auto-solidify translation for \${fileName}\`, 
+                                content: btoa(unescape(encodeURIComponent(htmlSnapshot))),
+                                sha: fileData.sha
+                            })
+                        });
+                    }
+                } catch(e) {
+                    console.error('固化失敗', e);
+                    btn.innerText = '⚠️ 僅本地翻譯';
+                }
+            } else {
+                btn.innerText = '✅ 翻譯完成';
+            }
+        }
+    \\x3C/script>
 </body>
 </html>`;
         }
@@ -787,7 +970,7 @@ def generate_index():
 
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首頁日曆 WebApp (原創過濾 + 時間戳修正版) 已生成更新！")
+    print("🚀 首頁日曆 WebApp (原創過濾 + 一鍵翻譯固化版) 已生成更新！")
 
 def git_push_to_github(msg="Auto-archive"):
     """自動調用本地系統的 Git 指令將更新推送到 GitHub"""
