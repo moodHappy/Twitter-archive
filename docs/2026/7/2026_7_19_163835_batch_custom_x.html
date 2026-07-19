@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="referrer" content="no-referrer">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Custom Batch Tweets</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style id="core-style">
+        :root { --bg: #f2f2f7; --card: #ffffff; --text: #0f1419; --muted: #536471; --border: #eff3f4; --x-blue: #1d9bf0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+        .nav-back { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: var(--card); border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .nav-back a { text-decoration: none; color: white; background: #000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
+        .translate-btn { background: #f2f2f7; color: #0f1419; border: 1px solid #ccc; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: 0.2s; flex-shrink: 0; outline: none; }
+        .translate-btn:active { background: #e5e5ea; transform: scale(0.95); }
+        .translate-btn[disabled] { opacity: 0.8; cursor: not-allowed; }
+        
+        .sync-status { padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; display: none; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+        
+        .anno-toggle { display: inline-block; padding: 4px 8px; margin-left: 4px; cursor: pointer; opacity: 0.3; font-size: 0.9rem; vertical-align: middle; transition: all 0.2s; user-select: none; -webkit-tap-highlight-color: transparent; }
+        .anno-toggle:hover { opacity: 0.9; transform: scale(1.1); }
+        .anno-toggle.has-anno { opacity: 1; }
+        .anno-toggle::after { content: "🔴"; }
+        
+        .anno-box { display: none; margin-top: 10px; background: #f8f6ff; border-left: 4px solid #8e7cc3; padding: 12px 16px; border-radius: 0 6px 6px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.02); text-align: left; }
+        .anno-view { font-size: 1.05rem; line-height: 1.6; color: #4a4a4a; min-height: 24px; }
+        .anno-edit { width: 100%; min-height: 120px; padding: 10px; font-family: monospace; font-size: 1rem; border: 1px dashed #8e7cc3; border-radius: 6px; box-sizing: border-box; resize: vertical; display: none; background: #fff; color: #333; outline: none; }
+        .anno-edit:focus { border: 1px solid #8e7cc3; box-shadow: 0 0 0 3px rgba(142,124,195,0.1); }
+        .markdown-body p { margin-top: 0; margin-bottom: 8px; }
+        .markdown-body p:last-child { margin-bottom: 0; }
+        .markdown-body p:empty { display: none; }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 { color: #8e7cc3; font-size: 1.15rem; margin: 10px 0 8px 0; border-bottom: 1px dashed #e0d8f0; padding-bottom: 4px; }
+        .markdown-body ul, .markdown-body ol { margin: 0 0 8px 0; padding-left: 20px; }
+        .markdown-body blockquote { margin: 0 0 10px 0; padding: 10px 15px; background: rgba(142,124,195,0.1); border-left: 4px solid #8e7cc3; color: #555; }
+
+        .container { max-width: 600px; margin: 0 auto; padding: 20px 15px 50px 15px; }
+        .tweet-card { background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 25px; }
+        .header { display: flex; align-items: center; margin-bottom: 12px; }
+        .names { display: flex; flex-direction: column; }
+        .name { font-weight: 700; font-size: 1.1rem; color: var(--text); }
+        .handle { color: var(--muted); font-size: 0.95rem; margin-top: 2px; }
+        .content { font-size: 1.1rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
+        .media-container { margin-top: 10px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; background: #000; }
+        .media-item { width: 100%; height: auto; display: block; max-height: 500px; object-fit: contain; }
+        .stats { margin-top: 15px; color: var(--muted); font-size: 0.95rem; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px; font-weight: 500; margin-bottom: 15px; }
+        .btn-link { display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }
+        .btn-link:active { transform: scale(0.98); background: #1a8cd8; }
+        .time-stamp { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="nav-back">
+        <a href="../../index.html">🔙 返回</a>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <span class="sync-status" id="sync-status">📡 同步中...</span>
+            <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 一鍵翻譯</button>
+        </div>
+    </div>
+    <div class="container">
+        <div class="time-stamp">歸檔時間: 16:38</div>
+        
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">Massimo</span>
+                    <span class="handle">@Rainmaker1973</span>
+                </div>
+            </div>
+            <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
+                <div class="content" style="margin-bottom:0;">White blood cell wandering between red blood cells and checking for harmful organisms.<span class="anno-toggle"></span></div>
+                <div class="anno-box" style="display:none;">
+                    <div class="anno-view markdown-body"></div>
+                    <textarea class="anno-edit" style="display:none;"></textarea>
+                </div>
+            </div>
+            <div class="media-container"><video controls src="https://video.twimg.com/ext_tw_video/1236059282015014913/pu/vid/640x640/2985tyGhHjAIrAKO.mp4" poster="https://pbs.twimg.com/ext_tw_video_thumb/1236059282015014913/pu/img/EfY8mjdoyBeD68r8.jpg" class="media-item" preload="metadata" playsinline></video></div>
+            <div class="stats">
+                <span>❤️ 184 喜歡</span>
+                <span>🔁 30 轉發</span>
+            </div>
+            <a href="https://x.com/Rainmaker1973/status/2078739112551387219" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+        </div>
+    </div>
+    
+    <script id="core-engine">
+        let syncTimeout = null;
+
+        function getCleanHTMLSnapshot() {
+            document.querySelectorAll('.anno-edit').forEach(ta => { ta.textContent = ta.value; });
+            const clone = document.documentElement.cloneNode(true);
+            
+            const syncStatus = clone.querySelector('#sync-status');
+            if (syncStatus) {
+                syncStatus.removeAttribute('style');
+                syncStatus.innerText = '📡 同步中...';
+            }
+            
+            clone.querySelectorAll('script').forEach(s => {
+                if (!s.src.includes('marked.min.js') && s.id !== 'core-engine') s.remove();
+            });
+            clone.querySelectorAll('style').forEach(s => {
+                if (s.id !== 'core-style') s.remove();
+            });
+            
+            const body = clone.querySelector('body');
+            Array.from(body.children).forEach(child => {
+                if (child.id === 'core-engine') return;
+                if (!child.classList.contains('nav-back') && !child.classList.contains('container')) {
+                    child.remove();
+                }
+            });
+            
+            clone.querySelectorAll('.anno-box').forEach(box => {
+                const view = box.querySelector('.anno-view');
+                if (view) view.innerHTML = ''; 
+            });
+            
+            return '<!DOCTYPE html>
+<html lang="zh-CN">
+' + clone.innerHTML + '
+</html>';
+        }
+
+        function scheduleSync() {
+            const statusMsg = document.getElementById('sync-status');
+            statusMsg.style.display = 'inline-block';
+            statusMsg.style.backgroundColor = '#f39c12';
+            statusMsg.innerText = '⏳ 自動同步中...';
+            statusMsg.style.cursor = 'default';
+            statusMsg.onclick = null;
+            if (syncTimeout) clearTimeout(syncTimeout);
+            syncTimeout = setTimeout(() => { syncToGitHub(); }, 3000);
+        }
+
+        async function syncToGitHub() {
+            const ghToken = localStorage.getItem('GH_TOKEN');
+            const ghOwner = localStorage.getItem('GH_OWNER');
+            const ghRepo = localStorage.getItem('GH_REPO');
+            if(!ghToken) return alert('缺少 GitHub Token，無法同步批注！請先在日曆首頁配置。');
+            
+            const statusMsg = document.getElementById('sync-status');
+            statusMsg.style.display = 'inline-block';
+            statusMsg.style.backgroundColor = '#2ea44f';
+            statusMsg.innerText = '📡 同步中...';
+
+            const htmlSnapshot = getCleanHTMLSnapshot();
+            
+            const pathParts = window.location.pathname.split('/');
+            const fileName = pathParts.pop();
+            const month = pathParts.pop();
+            const year = pathParts.pop();
+            const fileRelPath = year + '/' + month + '/' + fileName;
+
+            try {
+                const getRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), {
+                    headers: { 'Authorization': 'Bearer ' + ghToken }, cache: 'no-store'
+                });
+                let sha = '';
+                if (getRes.ok) { const fileData = await getRes.json(); sha = fileData.sha; }
+
+                const putRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {
+                    method: 'PUT',
+                    headers: { 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: 'Auto-save annotation', content: btoa(unescape(encodeURIComponent(htmlSnapshot))), sha: sha })
+                });
+
+                if(putRes.ok) {
+                    statusMsg.style.backgroundColor = '#2ea44f';
+                    statusMsg.innerText = '✅ 雲端已同步';
+                    setTimeout(() => { if (statusMsg.innerText === '✅ 雲端已同步') statusMsg.style.display = 'none'; }, 3000);
+                } else { throw new Error('Put failed'); }
+            } catch(e) {
+                console.error(e);
+                statusMsg.style.backgroundColor = '#e74c3c';
+                statusMsg.innerText = '❌ 同步失敗(點擊重試)';
+                statusMsg.style.cursor = 'pointer';
+                statusMsg.onclick = () => { statusMsg.onclick = null; statusMsg.style.cursor = 'default'; syncToGitHub(); };
+            }
+        }
+
+        function initAnnotations() {
+            document.querySelectorAll('.content-wrap').forEach(wrap => {
+                const view = wrap.querySelector('.anno-view');
+                const edit = wrap.querySelector('.anno-edit');
+                const toggle = wrap.querySelector('.anno-toggle');
+                const box = wrap.querySelector('.anno-box');
+
+                if (!view || !edit || !toggle || !box) return;
+
+                const rawText = edit.value.trim();
+                if (rawText) {
+                    toggle.classList.add('has-anno');
+                    try { view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; } catch(e){}
+                }
+
+                toggle.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (box.style.display === 'block') { 
+                        box.style.display = 'none'; 
+                    } else {
+                        box.style.display = 'block';
+                        if (!edit.value.trim()) { 
+                            view.style.display = 'none'; 
+                            edit.style.display = 'block'; 
+                            setTimeout(() => { edit.focus(); }, 150); 
+                        } else { 
+                            view.style.display = 'block'; 
+                            edit.style.display = 'none'; 
+                        }
+                    }
+                };
+
+                const triggerEdit = (e) => { 
+                    if(e) { e.preventDefault(); e.stopPropagation(); }
+                    view.style.display = 'none'; 
+                    edit.style.display = 'block'; 
+                    edit.value = edit.value; 
+                    setTimeout(() => { edit.focus(); }, 150); 
+                };
+                view.addEventListener('dblclick', triggerEdit);
+
+                let lastTap = 0;
+                view.addEventListener('touchstart', e => {
+                    if (e.touches.length === 2) { triggerEdit(e); } 
+                    else if (e.touches.length === 1) {
+                        const currentTime = new Date().getTime();
+                        if (currentTime - lastTap < 500 && currentTime - lastTap > 0) { 
+                            e.preventDefault();
+                            box.style.display = 'none'; 
+                        }
+                        lastTap = currentTime;
+                    }
+                }, {passive: false});
+
+                edit.addEventListener('blur', () => {
+                    setTimeout(() => {
+                        const newVal = edit.value.trim();
+                        try { view.innerHTML = newVal ? ((typeof marked !== 'undefined') ? marked.parse(newVal) : newVal) : ''; } catch(e){}
+                        edit.style.display = 'none';
+                        if (newVal) { view.style.display = 'block'; toggle.classList.add('has-anno'); } 
+                        else { view.style.display = 'none'; box.style.display = 'none'; toggle.classList.remove('has-anno'); }
+
+                        if (edit.getAttribute('data-old-val') !== newVal) {
+                            edit.setAttribute('data-old-val', newVal);
+                            scheduleSync(); 
+                        }
+                    }, 150);
+                });
+                edit.setAttribute('data-old-val', rawText);
+            });
+        }
+        window.addEventListener('load', initAnnotations);
+
+        async function translateAll() {
+            const btn = document.getElementById('translate-btn');
+            if(btn.hasAttribute('disabled')) return;
+            btn.innerText = '⏳ 翻譯中...';
+            btn.setAttribute('disabled', 'true');
+
+            let translatedCount = 0;
+            const contents = document.querySelectorAll('.content');
+            for (let i = 0; i < contents.length; i++) {
+                const content = contents[i];
+                if (content.getAttribute('data-translated') === 'true') continue;
+                const text = content.innerText.replace('🔴', '');
+                
+                let textToTranslate = text.replace(/https?:\/\/[^\s]+/g, '').trim();
+                let checkText = textToTranslate.replace(/\p{Extended_Pictographic}/gu, '').trim();
+                
+                if (!checkText) continue;
+
+                try {
+                    const res = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'q=' + encodeURIComponent(textToTranslate)
+                    });
+                    
+                    const data = await res.json();
+                    let translatedText = '';
+                    if (data && data[0]) {
+                        data[0].forEach(item => { if (item[0]) translatedText += item[0]; });
+                    }
+
+                    if (translatedText) {
+                        const transDiv = document.createElement('div');
+                        transDiv.className = 'translated-content';
+                        transDiv.style.cssText = 'color: #0f1419; font-size: 1.05rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
+                        transDiv.innerHTML = translatedText;
+                        
+                        content.parentNode.insertBefore(transDiv, content.nextSibling);
+                        content.setAttribute('data-translated', 'true');
+                        translatedCount++;
+                    }
+                } catch (e) { console.error('翻譯失敗:', e); }
+            }
+            
+            if (translatedCount === 0) { btn.innerText = '✅ 已全部翻譯'; return; }
+            btn.innerText = '⏳ 固化至雲端...';
+            
+            const ghToken = localStorage.getItem('GH_TOKEN');
+            const ghOwner = localStorage.getItem('GH_OWNER');
+            const ghRepo = localStorage.getItem('GH_REPO');
+            
+            if (ghToken && ghOwner && ghRepo) {
+                try {
+                    const htmlSnapshot = getCleanHTMLSnapshot();
+                    
+                    const pathParts = window.location.pathname.split('/');
+                    const fileName = pathParts.pop();
+                    const month = pathParts.pop();
+                    const year = pathParts.pop();
+                    const fileRelPath = year + '/' + month + '/' + fileName;
+
+                    btn.innerText = '🌐 已翻譯並固化';
+                    btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
+                    
+                    const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, { headers: { 'Authorization': 'Bearer ' + ghToken } });
+                    if (fileRes.ok) {
+                        const fileData = await fileRes.json();
+                        await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {
+                            method: 'PUT',
+                            headers: { 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                message: 'Auto-solidify translation for ' + fileName, 
+                                content: btoa(unescape(encodeURIComponent(htmlSnapshot))),
+                                sha: fileData.sha
+                            })
+                        });
+                    }
+                } catch(e) { console.error('固化失敗', e); btn.innerText = '⚠️ 僅本地翻譯'; }
+            } else { btn.innerText = '✅ 翻譯完成'; }
+        }
+    </script>
+</body>
+</html>
