@@ -330,7 +330,7 @@
 <body>
     <div class="nav-back">
         <a href="../../index.html">🔙 返回</a>
-        <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 翻譯</button>
+        <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 一鍵翻譯</button>
     </div>
     <div class="container">
         <div class="time-stamp">歸檔時間: ${now_str}</div>
@@ -341,47 +341,19 @@
         async function translateAll() {
             const btn = document.getElementById('translate-btn');
             if(btn.hasAttribute('disabled')) return;
-            btn.innerText = '⏳ 處理中...';
+            btn.innerText = '⏳ 翻譯中...';
             btn.setAttribute('disabled', 'true');
 
             let translatedCount = 0;
             const contents = document.querySelectorAll('.content');
-            
             for (let i = 0; i < contents.length; i++) {
                 const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
-                
-                const originalText = content.innerText;
-                if (!originalText.trim()) continue;
-
-                // 1. 安全分離並剔除 HTTP 鏈接
-                let lines = originalText.split('\n');
-                let cleanedLines = [];
-                for(let j=0; j<lines.length; j++) {
-                    let words = lines[j].split(' ');
-                    let cleanWords = [];
-                    for(let k=0; k<words.length; k++) {
-                        if(words[k].indexOf('http') !== 0) {
-                            cleanWords.push(words[k]);
-                        }
-                    }
-                    cleanedLines.push(cleanWords.join(' '));
-                }
-                let textToTranslate = cleanedLines.join('\n');
-
-                // 2. 剔除表情符號 (Surrogate Pairs)
-                textToTranslate = textToTranslate.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '').trim();
-
-                // 3. 智能校驗：如果沒有實體文字(僅剩標點)，則不進行翻譯
-                const hasWords = /[a-zA-Z0-9\u4E00-\u9FA5\u3040-\u30FF\u0400-\u04FF]/.test(textToTranslate);
-
-                if (!textToTranslate || !hasWords) {
-                    content.setAttribute('data-translated', 'true');
-                    continue; // 智能跳過
-                }
+                const text = content.innerText;
+                if (!text.trim()) continue;
 
                 try {
-                    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=' + encodeURIComponent(textToTranslate);
+                    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=' + encodeURIComponent(text);
                     const res = await fetch(url);
                     const data = await res.json();
                     let translatedText = '';
@@ -389,12 +361,11 @@
                         data[0].forEach(item => { if (item[0]) translatedText += item[0]; });
                     }
 
-                    if (translatedText.trim()) {
+                    if (translatedText) {
                         const transDiv = document.createElement('div');
                         transDiv.className = 'translated-content';
-                        // 原生沈浸式樣式：同字體、同顏色，極淡分割線
-                        transDiv.style.cssText = 'color: #0f1419; font-size: 1.1rem; margin-top: 10px; padding-top: 10px; border-top: 1px solid #eff3f4; white-space: pre-wrap; word-wrap: break-word;';
-                        transDiv.innerText = translatedText.trim();
+                        transDiv.style.cssText = 'color: #0f1419; font-size: 1.05rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
+                        transDiv.innerHTML = '<strong>🌐 翻譯：</strong><br>' + translatedText;
                         
                         content.parentNode.insertBefore(transDiv, content.nextSibling);
                         content.setAttribute('data-translated', 'true');
@@ -423,12 +394,13 @@
                     const month = pathParts.pop();
                     const year = pathParts.pop();
                     
+                    // 完全捨棄模板字串，避免逃逸衝突
                     const fileRelPath = year + '/' + month + '/' + fileName;
 
-                    btn.innerText = '✅ 翻譯已固化';
+                    btn.innerText = '🌐 已翻譯並固化';
                     btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
                     
-                    const htmlSnapshot = '<!DOCTYPE html>\n<html lang="zh-CN">\n' + document.documentElement.innerHTML + '\n</html>';
+                    const htmlSnapshot = '<!DOCTYPE html><html lang="zh-CN">' + document.documentElement.innerHTML + '</html>';
 
                     const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, { headers: { 'Authorization': 'Bearer ' + ghToken } });
                     if (fileRes.ok) {
