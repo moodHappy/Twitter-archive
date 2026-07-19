@@ -3,7 +3,6 @@ import requests
 import json
 import re
 import subprocess
-import time
 from datetime import datetime, timezone, timedelta
 
 # ================= 配置區 =================
@@ -15,10 +14,10 @@ AUTO_PUSH_GITHUB = True  # 開啟 Python 端自動 Push 到 GitHub 的功能
 def get_user_tweet_ids(username, limit=10):
     """通過公開 Syndication API 或備用 RSS 獲取用戶最新推文 ID"""
     print(f"⏳ 正在解析 @{username} 的時間線...")
-    url = f"https://syndication.twitter.com/srv/timeline-profile/screen-name/{username}"
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
     
     try:
+        url = f"https://syndication.twitter.com/srv/timeline-profile/screen-name/{username}"
         res = requests.get(url, headers=headers, timeout=10)
         match = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', res.text)
         if match:
@@ -35,8 +34,8 @@ def get_user_tweet_ids(username, limit=10):
         print(f"⚠️ 解析主節點失敗: {e}")
     
     print("⏳ 嘗試使用備用 RSS 節點解析...")
-    rss_url = f"https://rsshub.rssforever.com/twitter/user/{username}/exclude_rts_replies"
     try:
+        rss_url = f"https://rsshub.rssforever.com/twitter/user/{username}/exclude_rts_replies"
         res = requests.get(rss_url, headers=headers, timeout=10)
         ids = re.findall(r'status/(\d+)', res.text)
         seen = set()
@@ -47,19 +46,8 @@ def get_user_tweet_ids(username, limit=10):
     
     return []
 
-def save_tweet_local(tweet_data, tweet_id, now_obj):
-    """在本地生成極簡推文卡片 HTML"""
-    year_str, month_str = str(now_obj.year), str(now_obj.month)
-    target_dir = os.path.join(BASE_DIR, year_str, month_str)
-    os.makedirs(target_dir, exist_ok=True)
-
-    # 檔名加入秒數與推文ID防止批量處理時衝突
-    time_hms = now_obj.strftime('%H%M%S')
-    filename = f"{now_obj.year}_{now_obj.month}_{now_obj.day}_{time_hms}_{tweet_id}_x.html"
-    html_path = os.path.join(target_dir, filename)
-    now_str = now_obj.strftime("%Y-%m-%d %H:%M")
-
-    # 提取數據
+def generate_tweet_card(tweet_data, tweet_id):
+    """生成單個推文卡片的 HTML 結構"""
     author = tweet_data.get('user_name', 'Unknown')
     handle = tweet_data.get('user_screen_name', 'unknown')
     text = tweet_data.get('text', '')
@@ -70,7 +58,6 @@ def save_tweet_local(tweet_data, tweet_id, now_obj):
     media_urls = tweet_data.get('mediaURLs', [])
     original_url = f"https://x.com/{handle}/status/{tweet_id}"
 
-    # 處理媒體附件 (極簡還原版)
     media_html = ""
     if media_extended:
         for media in media_extended:
@@ -88,20 +75,39 @@ def save_tweet_local(tweet_data, tweet_id, now_obj):
             else:
                 media_html += f'<div class="media-container"><img src="{m_url}" class="media-item" loading="lazy"></div>'
 
-    html_content = f"""<!DOCTYPE html>
+    return f"""
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">{author}</span>
+                    <span class="handle">@{handle}</span>
+                </div>
+            </div>
+            <div class="content">{text}</div>
+            {media_html}
+            <div class="stats">
+                <span>❤️ {likes:,} 喜歡</span>
+                <span>🔁 {retweets:,} 轉發</span>
+            </div>
+            <a href="{original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+        </div>"""
+
+def generate_page_wrapper(content_html, page_title, now_str):
+    """生成完整 HTML 頁面外殼"""
+    return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="referrer" content="no-referrer">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tweet by {author}</title>
+    <title>{page_title}</title>
     <style>
         :root {{ --bg: #f2f2f7; --card: #ffffff; --text: #0f1419; --muted: #536471; --border: #eff3f4; --x-blue: #1d9bf0; }}
         body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }}
         .nav-back {{ padding: 15px; text-align: center; background: var(--card); border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }}
         .nav-back a {{ text-decoration: none; color: white; background: #000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; }}
         .container {{ max-width: 600px; margin: 0 auto; padding: 20px 15px 50px 15px; }}
-        .tweet-card {{ background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); }}
+        .tweet-card {{ background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 25px; }}
         .header {{ display: flex; align-items: center; margin-bottom: 12px; }}
         .names {{ display: flex; flex-direction: column; }}
         .name {{ font-weight: 700; font-size: 1.1rem; color: var(--text); }}
@@ -119,45 +125,79 @@ def save_tweet_local(tweet_data, tweet_id, now_obj):
     <div class="nav-back"><a href="../../index.html">🔙 返回日曆樞紐</a></div>
     <div class="container">
         <div class="time-stamp">歸檔時間: {now_str}</div>
-        <div class="tweet-card">
-            <div class="header">
-                <div class="names">
-                    <span class="name">{author}</span>
-                    <span class="handle">@{handle}</span>
-                </div>
-            </div>
-            <div class="content">{text}</div>
-            {media_html}
-            <div class="stats">
-                <span>❤️ {likes:,} 喜歡</span>
-                <span>🔁 {retweets:,} 轉發</span>
-            </div>
-            <a href="{original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
-        </div>
+        {content_html}
     </div>
 </body>
 </html>"""
 
-    with open(html_path, "w", encoding="utf-8") as f:
-        f.write(html_content)
-    print(f"✅ 語料已歸檔: {html_path}")
-
-def process_tweet_id(tweet_id, d_time):
-    """處理單個推文 ID"""
+def save_single_tweet_local(tweet_id, now_obj):
+    """處理並保存單條推文"""
     api_url = f"https://api.vxtwitter.com/Twitter/status/{tweet_id}"
     try:
         res = requests.get(api_url, timeout=15).json()
         if 'error' in res:
-            print(f"❌ 抓取失敗 [{tweet_id}]: {res.get('error')}")
+            print(f"❌ 抓取失敗: {res.get('error')}")
             return False
-        save_tweet_local(res, tweet_id, d_time)
+        
+        year_str, month_str = str(now_obj.year), str(now_obj.month)
+        target_dir = os.path.join(BASE_DIR, year_str, month_str)
+        os.makedirs(target_dir, exist_ok=True)
+
+        time_hms = now_obj.strftime('%H%M%S')
+        filename = f"{now_obj.year}_{now_obj.month}_{now_obj.day}_{time_hms}_{tweet_id}_x.html"
+        html_path = os.path.join(target_dir, filename)
+        now_str = now_obj.strftime("%Y-%m-%d %H:%M")
+
+        card_html = generate_tweet_card(res, tweet_id)
+        page_html = generate_page_wrapper(card_html, f"Tweet by {res.get('user_name', 'Unknown')}", now_str)
+
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write(page_html)
+        print(f"✅ 單條推文已歸檔: {html_path}")
         return True
     except Exception as e:
-        print(f"❌ 網絡異常 [{tweet_id}]: {e}")
+        print(f"❌ 網絡異常: {e}")
         return False
 
+def save_batch_tweets_local(username, tweet_ids, now_obj):
+    """處理並保存帳號推文瀑布流 (多合一 HTML)"""
+    year_str, month_str = str(now_obj.year), str(now_obj.month)
+    target_dir = os.path.join(BASE_DIR, year_str, month_str)
+    os.makedirs(target_dir, exist_ok=True)
+
+    time_hms = now_obj.strftime('%H%M%S')
+    filename = f"{now_obj.year}_{now_obj.month}_{now_obj.day}_{time_hms}_batch_{username}_x.html"
+    html_path = os.path.join(target_dir, filename)
+    now_str = now_obj.strftime("%Y-%m-%d %H:%M")
+
+    cards_html = ""
+    success_count = 0
+
+    print(f"⏳ 正在生成 @{username} 的瀑布流卡片...")
+    for tid in tweet_ids:
+        api_url = f"https://api.vxtwitter.com/Twitter/status/{tid}"
+        try:
+            res = requests.get(api_url, timeout=10).json()
+            if 'error' not in res:
+                cards_html += generate_tweet_card(res, tid)
+                success_count += 1
+        except Exception:
+            pass
+
+    if success_count == 0:
+        print("❌ 無法獲取任何推文詳情，放棄生成。")
+        return False
+
+    page_html = generate_page_wrapper(cards_html, f"Tweets by @{username}", now_str)
+
+    with open(html_path, "w", encoding="utf-8") as f:
+        f.write(page_html)
+    print(f"✅ 瀑布流集錦已生成 (包含 {success_count} 條): {html_path}")
+    return True
+
+
 def generate_index():
-    """日曆樞紐生成器 + 支援動態更新的 X 前端控制台"""
+    """日曆樞紐生成器 + 前端 JS"""
     archive_data = {}
     if os.path.exists(BASE_DIR):
         years = [d for d in os.listdir(BASE_DIR) if d.isdigit()]
@@ -175,7 +215,12 @@ def generate_index():
                             time_str = f"{parts[3][:2]}:{parts[3][2:4]}"
                             file_path = f"{year}/{month}/{file}"
                             
-                            title = f"🐦 靈感推文：{time_str}"
+                            # 動態判斷是單推文還是瀑布流集錦
+                            if "batch" in file:
+                                username = file.split('_batch_')[1].replace('_x.html', '')
+                                title = f"🐦 推文集：@{username}"
+                            else:
+                                title = f"🐦 靈感推文：{time_str}"
 
                             if f_year not in archive_data: archive_data[f_year] = {}
                             if f_month not in archive_data[f_year]: archive_data[f_year][f_month] = {}
@@ -441,7 +486,94 @@ def generate_index():
             } catch(e) { console.error(e); alert('刪除同步失敗: ' + e.message); document.getElementById('loadingBar').style.width = '0%'; }
         }
 
-        // X 推文前端抓取邏輯 (四重代理備援防攔截)
+        // --- 核心：HTML 模板組裝函數 ---
+        function generateTweetCard(tweet, tweetId) {
+            const author = tweet.user_name || 'Unknown';
+            const handle = tweet.user_screen_name || 'unknown';
+            const text = tweet.text || '';
+            const likes = tweet.likes || 0;
+            const retweets = tweet.retweets || 0;
+            const mediaExtended = tweet.media_extended || [];
+            const mediaUrls = tweet.mediaURLs || [];
+            const original_url = `https://x.com/${handle}/status/${tweetId}`;
+            
+            let media_html = "";
+            if (mediaExtended.length > 0) {
+                mediaExtended.forEach(media => {
+                    if (media.type === 'video' || media.type === 'gif') {
+                        media_html += `<div class="media-container"><video controls src="${media.url}" poster="${media.thumbnail_url || ''}" class="media-item" preload="metadata" playsinline></video></div>`;
+                    } else {
+                        media_html += `<div class="media-container"><img src="${media.url}" class="media-item" loading="lazy"></div>`;
+                    }
+                });
+            } else if (mediaUrls.length > 0) {
+                mediaUrls.forEach(url => {
+                    if (url.includes('.mp4')) {
+                        media_html += `<div class="media-container"><video controls src="${url}" class="media-item" preload="metadata" playsinline></video></div>`;
+                    } else {
+                        media_html += `<div class="media-container"><img src="${url}" class="media-item" loading="lazy"></div>`;
+                    }
+                });
+            }
+
+            return `
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">${author}</span>
+                    <span class="handle">@${handle}</span>
+                </div>
+            </div>
+            <div class="content">${text}</div>
+            ${media_html}
+            <div class="stats">
+                <span>❤️ ${likes} 喜歡</span>
+                <span>🔁 ${retweets} 轉發</span>
+            </div>
+            <a href="${original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+        </div>`;
+        }
+
+        function generatePageWrapper(contentHtml, pageTitle, now_str) {
+            return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="referrer" content="no-referrer">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>${pageTitle}</title>
+    <style>
+        :root { --bg: #f2f2f7; --card: #ffffff; --text: #0f1419; --muted: #536471; --border: #eff3f4; --x-blue: #1d9bf0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+        .nav-back { padding: 15px; text-align: center; background: var(--card); border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .nav-back a { text-decoration: none; color: white; background: #000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px 15px 50px 15px; }
+        .tweet-card { background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 25px; }
+        .header { display: flex; align-items: center; margin-bottom: 12px; }
+        .names { display: flex; flex-direction: column; }
+        .name { font-weight: 700; font-size: 1.1rem; color: var(--text); }
+        .handle { color: var(--muted); font-size: 0.95rem; margin-top: 2px; }
+        .content { font-size: 1.1rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; margin-bottom: 15px; }
+        .media-container { margin-top: 10px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; background: #000; }
+        .media-item { width: 100%; height: auto; display: block; max-height: 500px; object-fit: contain; }
+        .stats { margin-top: 15px; color: var(--muted); font-size: 0.95rem; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px; font-weight: 500; margin-bottom: 15px; }
+        .btn-link { display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }
+        .btn-link:active { transform: scale(0.98); background: #1a8cd8; }
+        .time-stamp { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="nav-back"><a href="../../index.html">🔙 返回日曆樞紐</a></div>
+    <div class="container">
+        <div class="time-stamp">歸檔時間: ${now_str}</div>
+        ${contentHtml}
+    </div>
+</body>
+</html>`;
+        }
+        // ------------------------------------
+
+        // X 推文前端抓取邏輯 (四重代理備援 + 瀑布流組裝)
         document.getElementById('xUrlInput').addEventListener('keypress', async function (e) {
             if (e.key === 'Enter') {
                 const url = this.value.trim();
@@ -451,11 +583,13 @@ def generate_index():
                 
                 let tweetIdsToProcess = [];
                 let isBatch = false;
+                let username = "";
 
                 if (statusMatch) {
                     tweetIdsToProcess.push(statusMatch[1]);
                 } else if (userMatch && !['i', 'home', 'explore', 'notifications'].includes(userMatch[1].toLowerCase())) {
                     isBatch = true;
+                    username = userMatch[1];
                 } else {
                     return alert('❌ 無法識別的 X (Twitter) 鏈接或格式不正確');
                 }
@@ -474,11 +608,9 @@ def generate_index():
                 this.disabled = true;
 
                 try {
+                    // 若為批量，使用代理取得最新推文 ID
                     if (isBatch) {
-                        const username = userMatch[1];
                         loadingBar.style.width = '15%';
-
-                        // 備援 1: RSSHub (通常支援 CORS 且最不易被攔截)
                         try {
                             const rssUrl = `https://rsshub.rssforever.com/twitter/user/${username}/exclude_rts_replies`;
                             const rssRes = await fetch(rssUrl);
@@ -493,7 +625,6 @@ def generate_index():
 
                         loadingBar.style.width = '25%';
 
-                        // 備援 2~4: Syndication API + 多種跨域代理
                         if (tweetIdsToProcess.length === 0) {
                             const synUrl = encodeURIComponent(`https://syndication.twitter.com/srv/timeline-profile/screen-name/${username}`);
                             const proxies = [
@@ -527,41 +658,68 @@ def generate_index():
                         }
                     }
 
-                    // 處理搜集到的推文
+                    // 準備全域變數
                     const now = new Date();
                     const yearStr = AppState.year.toString();
                     const monthStr = AppState.month.toString();
                     const dayStr = AppState.day.toString();
-                    const newItems = [];
-
-                    for (let i = 0; i < tweetIdsToProcess.length; i++) {
-                        loadingBar.style.width = `${30 + (60 / tweetIdsToProcess.length) * i}%`;
-                        const tweetId = tweetIdsToProcess[i];
+                    const hhmmStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+                    const hhmmssFile = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0') + String(now.getSeconds()).padStart(2, '0');
+                    
+                    let filename = "";
+                    let fileRelPath = "";
+                    let finalHtmlOutput = "";
+                    let indexTitle = "";
+                    
+                    // 根據模式組裝 HTML
+                    if (isBatch) {
+                        let combinedCardsHtml = "";
+                        let validCount = 0;
                         
+                        for (let i = 0; i < tweetIdsToProcess.length; i++) {
+                            loadingBar.style.width = `${30 + (50 / tweetIdsToProcess.length) * i}%`;
+                            const tweetId = tweetIdsToProcess[i];
+                            const vRes = await fetch(`https://api.vxtwitter.com/Twitter/status/${tweetId}`);
+                            const tweet = await vRes.json();
+                            if (tweet.error) continue;
+                            
+                            combinedCardsHtml += generateTweetCard(tweet, tweetId);
+                            validCount++;
+                        }
+                        
+                        if (validCount === 0) throw new Error("所有推文數據抓取失敗");
+                        
+                        finalHtmlOutput = generatePageWrapper(combinedCardsHtml, `Tweets by @${username}`, hhmmStr);
+                        filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_batch_${username}_x.html`;
+                        fileRelPath = `${yearStr}/${monthStr}/${filename}`;
+                        indexTitle = `🐦 推文集：@${username}`;
+                        
+                    } else {
+                        // 單推文模式
+                        loadingBar.style.width = '60%';
+                        const tweetId = tweetIdsToProcess[0];
                         const vRes = await fetch(`https://api.vxtwitter.com/Twitter/status/${tweetId}`);
                         const tweet = await vRes.json();
-                        if (tweet.error) continue;
-
-                        const d = new Date(now.getTime() - i * 60000); 
-                        const hhmmStr = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-                        const hhmmssFile = String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0') + String(d.getSeconds()).padStart(2, '0');
+                        if (tweet.error) throw new Error(tweet.error);
                         
-                        const filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_${tweetId}_x.html`;
-                        const fileRelPath = `${yearStr}/${monthStr}/${filename}`;
-
-                        const htmlOutput = generateBaseHTMLString(tweet, tweetId, AppState.year, AppState.month, AppState.day, hhmmStr);
-
-                        await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/${fileRelPath}`, {
-                            method: 'PUT',
-                            headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ message: `Add tweet by ${tweet.user_name}`, content: btoa(unescape(encodeURIComponent(htmlOutput))) })
-                        });
-
-                        newItems.push({ time: hhmmStr, path: fileRelPath, title: `🐦 靈感推文：${hhmmStr}` });
+                        const singleCardHtml = generateTweetCard(tweet, tweetId);
+                        finalHtmlOutput = generatePageWrapper(singleCardHtml, `Tweet by ${tweet.user_name}`, hhmmStr);
+                        filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_${tweetId}_x.html`;
+                        fileRelPath = `${yearStr}/${monthStr}/${filename}`;
+                        indexTitle = `🐦 靈感推文：${hhmmStr}`;
                     }
 
-                    if (newItems.length === 0) throw new Error("API 節點阻擋，無法抓取到資料");
+                    // 上傳組裝好的單一 HTML 檔案
+                    loadingBar.style.width = '85%';
+                    const putHtmlRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/${fileRelPath}`, {
+                        method: 'PUT',
+                        headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: `Add ${isBatch ? 'batch' : 'single'} tweet HTML`, content: btoa(unescape(encodeURIComponent(finalHtmlOutput))) })
+                    });
+                    
+                    if (!putHtmlRes.ok) throw new Error("HTML 文件上傳 GitHub 失敗");
 
+                    // 更新 index.html 樞紐
                     loadingBar.style.width = '95%';
                     const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `Bearer ${ghToken}` } });
                     const idxData = await idxRes.json();
@@ -575,14 +733,15 @@ def generate_index():
                     if (!archiveObj[yearStr][monthStr]) archiveObj[yearStr][monthStr] = {};
                     if (!archiveObj[yearStr][monthStr][dayStr]) archiveObj[yearStr][monthStr][dayStr] = [];
                     
-                    archiveObj[yearStr][monthStr][dayStr] = [...newItems, ...archiveObj[yearStr][monthStr][dayStr]];
+                    const newItem = { time: hhmmStr, path: fileRelPath, title: indexTitle };
+                    archiveObj[yearStr][monthStr][dayStr].unshift(newItem);
 
                     const newIdxContent = idxContent.substring(0, dataStart) + JSON.stringify(archiveObj) + idxContent.substring(dataEnd);
                     
                     const putIdxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
                         method: 'PUT',
                         headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: `Batch update index.html`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
+                        body: JSON.stringify({ message: `Update index.html with new ${isBatch ? 'batch' : 'single'} entry`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
                     });
                     
                     if (!putIdxRes.ok) throw new Error("更新 index.html 失敗！");
@@ -590,11 +749,11 @@ def generate_index():
                     if (!archiveData[yearStr]) archiveData[yearStr] = {};
                     if (!archiveData[yearStr][monthStr]) archiveData[yearStr][monthStr] = {};
                     if (!archiveData[yearStr][monthStr][dayStr]) archiveData[yearStr][monthStr][dayStr] = [];
-                    archiveData[yearStr][monthStr][dayStr] = [...newItems, ...archiveData[yearStr][monthStr][dayStr]];
+                    archiveData[yearStr][monthStr][dayStr].unshift(newItem);
 
                     forceRender(); 
                     loadingBar.style.width = '100%';
-                    alert(`🎉 抓取成功！共歸檔 ${newItems.length} 條推文。`);
+                    alert(`🎉 成功！已為您歸檔 ${isBatch ? '帳號瀑布流' : '單條推文'}。`);
                     this.value = '';
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
 
@@ -606,89 +765,6 @@ def generate_index():
                 }
             }
         });
-
-        // 模板：生成極簡版子頁面 HTML
-        function generateBaseHTMLString(tweet, tweetId, sYear, sMonth, sDay, hhmmStr) {
-            const author = tweet.user_name || 'Unknown';
-            const handle = tweet.user_screen_name || 'unknown';
-            const text = tweet.text || '';
-            const likes = tweet.likes || 0;
-            const retweets = tweet.retweets || 0;
-            const mediaExtended = tweet.media_extended || [];
-            const mediaUrls = tweet.mediaURLs || [];
-            const original_url = `https://x.com/${handle}/status/${tweetId}`;
-            
-            const now_str = `${sYear}-${String(sMonth).padStart(2,'0')}-${String(sDay).padStart(2,'0')} ${hhmmStr}`;
-
-            let media_html = "";
-            if (mediaExtended.length > 0) {
-                mediaExtended.forEach(media => {
-                    if (media.type === 'video' || media.type === 'gif') {
-                        media_html += `<div class="media-container"><video controls src="${media.url}" poster="${media.thumbnail_url || ''}" class="media-item" preload="metadata" playsinline></video></div>`;
-                    } else {
-                        media_html += `<div class="media-container"><img src="${media.url}" class="media-item" loading="lazy"></div>`;
-                    }
-                });
-            } else if (mediaUrls.length > 0) {
-                mediaUrls.forEach(url => {
-                    if (url.includes('.mp4')) {
-                        media_html += `<div class="media-container"><video controls src="${url}" class="media-item" preload="metadata" playsinline></video></div>`;
-                    } else {
-                        media_html += `<div class="media-container"><img src="${url}" class="media-item" loading="lazy"></div>`;
-                    }
-                });
-            }
-
-            return `<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="referrer" content="no-referrer">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tweet by ${author}</title>
-    <style>
-        :root { --bg: #f2f2f7; --card: #ffffff; --text: #0f1419; --muted: #536471; --border: #eff3f4; --x-blue: #1d9bf0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
-        .nav-back { padding: 15px; text-align: center; background: var(--card); border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .nav-back a { text-decoration: none; color: white; background: #000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px 15px 50px 15px; }
-        .tweet-card { background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); }
-        .header { display: flex; align-items: center; margin-bottom: 12px; }
-        .names { display: flex; flex-direction: column; }
-        .name { font-weight: 700; font-size: 1.1rem; color: var(--text); }
-        .handle { color: var(--muted); font-size: 0.95rem; margin-top: 2px; }
-        .content { font-size: 1.1rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; margin-bottom: 15px; }
-        .media-container { margin-top: 10px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; background: #000; }
-        .media-item { width: 100%; height: auto; display: block; max-height: 500px; object-fit: contain; }
-        .stats { margin-top: 15px; color: var(--muted); font-size: 0.95rem; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px; font-weight: 500; margin-bottom: 15px; }
-        .btn-link { display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }
-        .btn-link:active { transform: scale(0.98); background: #1a8cd8; }
-        .time-stamp { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }
-    </style>
-</head>
-<body>
-    <div class="nav-back"><a href="../../index.html">🔙 返回日曆樞紐</a></div>
-    <div class="container">
-        <div class="time-stamp">歸檔時間: ${now_str}</div>
-        <div class="tweet-card">
-            <div class="header">
-                <div class="names">
-                    <span class="name">${author}</span>
-                    <span class="handle">@${handle}</span>
-                </div>
-            </div>
-            <div class="content">${text}</div>
-            ${media_html}
-            <div class="stats">
-                <span>❤️ ${likes} 喜歡</span>
-                <span>🔁 ${retweets} 轉發</span>
-            </div>
-            <a href="${original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
-        </div>
-    </div>
-</body>
-</html>`;
-        }
     </script>
 </body>
 </html>"""
@@ -697,7 +773,7 @@ def generate_index():
 
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首頁日曆 WebApp 已生成更新！")
+    print("🚀 首頁日曆 WebApp (瀑布流升級版) 已生成更新！")
 
 def git_push_to_github(msg="Auto-archive"):
     """自動調用本地系統的 Git 指令將更新推送到 GitHub"""
@@ -728,8 +804,8 @@ def main():
 
     print("\n=======================================")
     print("🐦 X (Twitter) 語料日曆 - 後台錄入")
-    print("提示1：粘貼 [單推文鏈接] 即可抓取該條推文")
-    print("提示2：粘貼 [帳號首頁鏈接] 將自動抓取該帳號最新 10 條推文！")
+    print("提示1：粘貼 [單推文鏈接] 即可抓取單條推文")
+    print("提示2：粘貼 [帳號首頁鏈接] 將為您生成該帳號的 10合1 瀑布流網頁！")
     print("=======================================")
 
     while True:
@@ -746,7 +822,7 @@ def main():
 
         if status_match:
             tweet_id = status_match.group(1)
-            if process_tweet_id(tweet_id, now):
+            if save_single_tweet_local(tweet_id, now):
                 generate_index()
                 git_push_to_github(f"Archive single tweet {tweet_id}")
         
@@ -761,18 +837,9 @@ def main():
                 print("❌ 找不到該帳號的推文或解析時間線失敗。")
                 continue
             
-            print(f"✅ 成功獲取 {len(tweet_ids)} 條推文，準備依序歸檔...")
-            success_count = 0
-            for i, tid in enumerate(tweet_ids):
-                # 人為製造秒級時間差，避免檔名與顯示時間重疊
-                d_time = now - timedelta(minutes=i)
-                if process_tweet_id(tid, d_time):
-                    success_count += 1
-                    time.sleep(0.5)
-            
-            if success_count > 0:
+            if save_batch_tweets_local(username, tweet_ids, now):
                 generate_index()
-                git_push_to_github(f"Batch archive {success_count} tweets from {username}")
+                git_push_to_github(f"Batch archive {len(tweet_ids)} tweets from {username}")
         else:
             print("❌ 無法識別的鏈接格式。")
 
