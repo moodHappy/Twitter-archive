@@ -96,7 +96,7 @@
     </div>
 
     <script>
-        const archiveData = /*DATA_START*/{"2026":{"7":{"19":[{"time":"11:43","path":"2026/7/2026_7_19_1143_x.html","title":"🐦 靈感推文: Massimo"}]}}}/*DATA_END*/;
+        const archiveData = /*DATA_START*/{"2026": {"7": {"19": [{"time": "11:43", "path": "2026/7/2026_7_19_1143_x.html", "title": "\ud83d\udc26 \u9748\u611f\u63a8\u6587"}, {"time": "11:40", "path": "2026/7/2026_7_19_1140_x.html", "title": "\ud83d\udc26 \u9748\u611f\u63a8\u6587"}]}}}/*DATA_END*/;
         const today = new Date();
         
         const AppState = {
@@ -249,7 +249,7 @@
             } catch(e) { console.error(e); alert('刪除同步失敗: ' + e.message); document.getElementById('loadingBar').style.width = '0%'; }
         }
 
-        // X 推文前端抓取邏輯 (增加錯誤提示機制)
+        // X 推文前端抓取邏輯
         document.getElementById('xUrlInput').addEventListener('keypress', async function (e) {
             if (e.key === 'Enter') {
                 const url = this.value.trim();
@@ -291,7 +291,6 @@
 
                     loadingBar.style.width = '75%';
                     
-                    // 強化錯誤攔截: 若 GitHub API 拒絕, 會進入 if(!putHtmlRes.ok)
                     const putHtmlRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/${fileRelPath}`, {
                         method: 'PUT',
                         headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' },
@@ -352,13 +351,14 @@
             }
         });
 
-        // 模板：生成子頁面 HTML
+        // 模板：生成子頁面 HTML (與 Python 端保持同步更新)
         function generateBaseHTMLString(tweet, tweetId, sYear, sMonth, sDay) {
             const author = tweet.user_name || 'Unknown';
             const handle = tweet.user_screen_name || 'unknown';
             const text = tweet.text || '';
             const likes = tweet.likes || 0;
             const retweets = tweet.retweets || 0;
+            const mediaExtended = tweet.media_extended || [];
             const mediaUrls = tweet.mediaURLs || [];
             const original_url = `https://x.com/${handle}/status/${tweetId}`;
             
@@ -366,12 +366,32 @@
             const now_str = `${sYear}-${String(sMonth).padStart(2,'0')}-${String(sDay).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 
             let media_html = "";
-            if (mediaUrls.length > 0) {
+            if (mediaExtended.length > 0) {
+                mediaExtended.forEach(media => {
+                    if (media.type === 'video' || media.type === 'gif') {
+                        media_html += `<div class="media-container">
+                            <video controls src="${media.url}" poster="${media.thumbnail_url || ''}" class="media-item" preload="metadata" playsinline></video>
+                            <a href="${media.url}" target="_blank" class="download-link">🔗 播放器若破圖，點此直接開啟/下載影片原始檔</a>
+                        </div>`;
+                    } else {
+                        media_html += `<div class="media-container">
+                            <img src="${media.url}" class="media-item" loading="lazy">
+                            <a href="${media.url}" target="_blank" class="download-link">🔗 查看圖片原圖</a>
+                        </div>`;
+                    }
+                });
+            } else if (mediaUrls.length > 0) {
                 mediaUrls.forEach(url => {
                     if (url.includes('.mp4')) {
-                        media_html += `<div class="media-container"><video controls src="${url}" class="media-item" preload="metadata"></video></div>`;
+                        media_html += `<div class="media-container">
+                            <video controls src="${url}" class="media-item" preload="metadata" playsinline></video>
+                            <a href="${url}" target="_blank" class="download-link">🔗 播放器若破圖，點此直接開啟/下載影片原始檔</a>
+                        </div>`;
                     } else {
-                        media_html += `<div class="media-container"><img src="${url}" class="media-item" loading="lazy"></div>`;
+                        media_html += `<div class="media-container">
+                            <img src="${url}" class="media-item" loading="lazy">
+                            <a href="${url}" target="_blank" class="download-link">🔗 查看圖片原圖</a>
+                        </div>`;
                     }
                 });
             }
@@ -380,6 +400,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <meta name="referrer" content="no-referrer">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Tweet by ${author}</title>
     <style>
@@ -394,10 +415,13 @@
         .name { font-weight: 700; font-size: 1.1rem; color: var(--text); }
         .handle { color: var(--muted); font-size: 0.95rem; margin-top: 2px; }
         .content { font-size: 1.1rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; margin-bottom: 15px; }
-        .media-container { margin-top: 10px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; }
-        .media-item { width: 100%; height: auto; display: block; max-height: 500px; object-fit: cover; background: #000; }
+        .media-container { margin-top: 10px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; background: #000; }
+        .media-item { width: 100%; height: auto; display: block; max-height: 500px; object-fit: contain; }
+        .download-link { display: block; text-align: center; font-size: 0.85rem; color: #fff; background: #333; padding: 10px; text-decoration: none; font-weight: bold; transition: background 0.2s; }
+        .download-link:active { background: #555; }
         .stats { margin-top: 15px; color: var(--muted); font-size: 0.95rem; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px; font-weight: 500; margin-bottom: 15px; }
-        .btn-link { display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }
+        .comment-section { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 12px; border: 1px dashed #ccc; text-align: center; font-size: 0.9rem; color: var(--muted); }
+        .btn-link { display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; margin-top: 10px; transition: transform 0.2s; }
         .btn-link:active { transform: scale(0.98); background: #1a8cd8; }
         .time-stamp { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }
     </style>
@@ -419,7 +443,13 @@
                 <span>❤️ ${likes} 喜歡</span>
                 <span>🔁 ${retweets} 轉發</span>
             </div>
-            <a href="${original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+            
+            <div class="comment-section">
+                💬 <strong>評論區無法由免費 API 自動抓取</strong><br>
+                如需查看對應評論，請點擊下方按鈕前往 X 原文。<br>
+                <span style="font-size: 0.8rem; color: #999;">(若發現神評論，建議單獨複製該評論連結重新錄入系統)</span>
+                <a href="${original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及所有評論</a>
+            </div>
         </div>
     </div>
 </body>
