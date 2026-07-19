@@ -48,12 +48,11 @@ def save_tweet_local(tweet_data, tweet_id, now_obj):
     likes = tweet_data.get('likes', 0)
     retweets = tweet_data.get('retweets', 0)
     
-    # 優先獲取詳細的媒體資訊
     media_extended = tweet_data.get('media_extended', [])
     media_urls = tweet_data.get('mediaURLs', [])
     original_url = f"https://x.com/{handle}/status/{tweet_id}"
 
-    # 處理媒體附件
+    # 處理媒體附件 (加入直達下載連結，無視播放器破圖)
     media_html = ""
     if media_extended:
         for media in media_extended:
@@ -61,15 +60,27 @@ def save_tweet_local(tweet_data, tweet_id, now_obj):
             m_url = media.get('url', '')
             if m_type in ['video', 'gif']:
                 poster = media.get('thumbnail_url', '')
-                media_html += f'<div class="media-container"><video controls src="{m_url}" poster="{poster}" class="media-item" preload="metadata" playsinline></video></div>'
+                media_html += f'''<div class="media-container">
+                    <video controls src="{m_url}" poster="{poster}" class="media-item" preload="metadata" playsinline></video>
+                    <a href="{m_url}" target="_blank" class="download-link">🔗 播放器若破圖，點此直接開啟/下載影片原始檔</a>
+                </div>'''
             else:
-                media_html += f'<div class="media-container"><img src="{m_url}" class="media-item" loading="lazy"></div>'
+                media_html += f'''<div class="media-container">
+                    <img src="{m_url}" class="media-item" loading="lazy">
+                    <a href="{m_url}" target="_blank" class="download-link">🔗 查看圖片原圖</a>
+                </div>'''
     elif media_urls: # 容錯備用邏輯
         for m_url in media_urls:
             if '.mp4' in m_url:
-                media_html += f'<div class="media-container"><video controls src="{m_url}" class="media-item" preload="metadata" playsinline></video></div>'
+                media_html += f'''<div class="media-container">
+                    <video controls src="{m_url}" class="media-item" preload="metadata" playsinline></video>
+                    <a href="{m_url}" target="_blank" class="download-link">🔗 播放器若破圖，點此直接開啟/下載影片原始檔</a>
+                </div>'''
             else:
-                media_html += f'<div class="media-container"><img src="{m_url}" class="media-item" loading="lazy"></div>'
+                media_html += f'''<div class="media-container">
+                    <img src="{m_url}" class="media-item" loading="lazy">
+                    <a href="{m_url}" target="_blank" class="download-link">🔗 查看圖片原圖</a>
+                </div>'''
 
     html_content = f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -92,8 +103,11 @@ def save_tweet_local(tweet_data, tweet_id, now_obj):
         .content {{ font-size: 1.1rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; margin-bottom: 15px; }}
         .media-container {{ margin-top: 10px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; background: #000; }}
         .media-item {{ width: 100%; height: auto; display: block; max-height: 500px; object-fit: contain; }}
+        .download-link {{ display: block; text-align: center; font-size: 0.85rem; color: #fff; background: #333; padding: 10px; text-decoration: none; font-weight: bold; transition: background 0.2s; }}
+        .download-link:active {{ background: #555; }}
         .stats {{ margin-top: 15px; color: var(--muted); font-size: 0.95rem; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px; font-weight: 500; margin-bottom: 15px; }}
-        .btn-link {{ display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }}
+        .comment-section {{ margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 12px; border: 1px dashed #ccc; text-align: center; font-size: 0.9rem; color: var(--muted); }}
+        .btn-link {{ display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; margin-top: 10px; transition: transform 0.2s; }}
         .btn-link:active {{ transform: scale(0.98); background: #1a8cd8; }}
         .time-stamp {{ text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }}
     </style>
@@ -115,7 +129,13 @@ def save_tweet_local(tweet_data, tweet_id, now_obj):
                 <span>❤️ {likes:,} 喜歡</span>
                 <span>🔁 {retweets:,} 轉發</span>
             </div>
-            <a href="{original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+            
+            <div class="comment-section">
+                💬 <strong>評論區無法由免費 API 自動抓取</strong><br>
+                如需查看對應評論，請點擊下方按鈕前往 X 原文。<br>
+                <span style="font-size: 0.8rem; color: #999;">(若發現神評論，建議單獨複製該評論連結重新錄入系統)</span>
+                <a href="{original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及所有評論</a>
+            </div>
         </div>
     </div>
 </body>
@@ -532,17 +552,29 @@ def generate_index():
             if (mediaExtended.length > 0) {
                 mediaExtended.forEach(media => {
                     if (media.type === 'video' || media.type === 'gif') {
-                        media_html += `<div class="media-container"><video controls src="${media.url}" poster="${media.thumbnail_url || ''}" class="media-item" preload="metadata" playsinline></video></div>`;
+                        media_html += `<div class="media-container">
+                            <video controls src="${media.url}" poster="${media.thumbnail_url || ''}" class="media-item" preload="metadata" playsinline></video>
+                            <a href="${media.url}" target="_blank" class="download-link">🔗 播放器若破圖，點此直接開啟/下載影片原始檔</a>
+                        </div>`;
                     } else {
-                        media_html += `<div class="media-container"><img src="${media.url}" class="media-item" loading="lazy"></div>`;
+                        media_html += `<div class="media-container">
+                            <img src="${media.url}" class="media-item" loading="lazy">
+                            <a href="${media.url}" target="_blank" class="download-link">🔗 查看圖片原圖</a>
+                        </div>`;
                     }
                 });
             } else if (mediaUrls.length > 0) {
                 mediaUrls.forEach(url => {
                     if (url.includes('.mp4')) {
-                        media_html += `<div class="media-container"><video controls src="${url}" class="media-item" preload="metadata" playsinline></video></div>`;
+                        media_html += `<div class="media-container">
+                            <video controls src="${url}" class="media-item" preload="metadata" playsinline></video>
+                            <a href="${url}" target="_blank" class="download-link">🔗 播放器若破圖，點此直接開啟/下載影片原始檔</a>
+                        </div>`;
                     } else {
-                        media_html += `<div class="media-container"><img src="${url}" class="media-item" loading="lazy"></div>`;
+                        media_html += `<div class="media-container">
+                            <img src="${url}" class="media-item" loading="lazy">
+                            <a href="${url}" target="_blank" class="download-link">🔗 查看圖片原圖</a>
+                        </div>`;
                     }
                 });
             }
@@ -568,8 +600,11 @@ def generate_index():
         .content { font-size: 1.1rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; margin-bottom: 15px; }
         .media-container { margin-top: 10px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; background: #000; }
         .media-item { width: 100%; height: auto; display: block; max-height: 500px; object-fit: contain; }
+        .download-link { display: block; text-align: center; font-size: 0.85rem; color: #fff; background: #333; padding: 10px; text-decoration: none; font-weight: bold; transition: background 0.2s; }
+        .download-link:active { background: #555; }
         .stats { margin-top: 15px; color: var(--muted); font-size: 0.95rem; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px; font-weight: 500; margin-bottom: 15px; }
-        .btn-link { display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }
+        .comment-section { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 12px; border: 1px dashed #ccc; text-align: center; font-size: 0.9rem; color: var(--muted); }
+        .btn-link { display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; margin-top: 10px; transition: transform 0.2s; }
         .btn-link:active { transform: scale(0.98); background: #1a8cd8; }
         .time-stamp { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }
     </style>
@@ -591,7 +626,13 @@ def generate_index():
                 <span>❤️ ${likes} 喜歡</span>
                 <span>🔁 ${retweets} 轉發</span>
             </div>
-            <a href="${original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+            
+            <div class="comment-section">
+                💬 <strong>評論區無法由免費 API 自動抓取</strong><br>
+                如需查看對應評論，請點擊下方按鈕前往 X 原文。<br>
+                <span style="font-size: 0.8rem; color: #999;">(若發現神評論，建議單獨複製該評論連結重新錄入系統)</span>
+                <a href="${original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及所有評論</a>
+            </div>
         </div>
     </div>
 </body>
