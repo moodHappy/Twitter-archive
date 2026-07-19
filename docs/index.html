@@ -8,10 +8,12 @@
         :root { --bg: #f5f5f7; --text: #333; --muted: #888; --primary: #1d9bf0; --border: #e0e0e0; --card: #fff; }
         body, html { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; -webkit-font-smoothing: antialiased; background: var(--bg); margin: 0; padding: 0; color: var(--text); }
         .container { max-width: 600px; margin: 0 auto; padding-bottom: 20px; }
+        
         .manual-fetch-bar { background: var(--card); padding: 12px 15px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 20; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         .fetch-input { flex: 1; padding: 10px 15px; border: 1px solid #ccc; border-radius: 20px; font-size: 14px; outline: none; background: #f9f9f9; transition: border 0.2s; }
         .fetch-input:focus { border-color: var(--primary); background: #fff; }
         .settings-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 5px; }
+        
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; padding: 20px; }
         .modal-content { background: var(--card); border-radius: 16px; padding: 20px; width: 100%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
         .modal-title { margin: 0 0 15px 0; font-size: 18px; font-weight: bold; }
@@ -22,6 +24,7 @@
         .btn { padding: 8px 16px; border-radius: 8px; border: none; font-size: 14px; font-weight: bold; cursor: pointer; }
         .btn-cancel { background: #eee; color: #333; }
         .btn-save { background: var(--primary); color: #fff; }
+        
         .controls { background: var(--bg); padding: 15px 20px; display: flex; justify-content: center; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); }
         .control-btn { background: var(--primary); color: #fff; border: none; border-radius: 6px; padding: 8px 12px; font-size: 14px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
         .control-btn:active { opacity: 0.8; transform: scale(0.95); }
@@ -38,28 +41,31 @@
         .dot { width: 5px; height: 5px; background-color: var(--primary); border-radius: 50%; position: absolute; bottom: 6px; display: none; }
         .day-cell.has-news .dot { display: block; }
         .news-section { padding: 0 15px; }
+        
         .news-item-wrapper { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
         .news-item { flex: 1; background: var(--card); border-radius: 14px; padding: 18px 16px; margin-bottom: 0; display: flex; justify-content: space-between; align-items: center; text-decoration: none; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.03); border-left: 4px solid var(--primary); transition: all 0.2s; overflow: hidden; }
         .news-item:active { transform: scale(0.98); background: #fafafa; }
         .news-title { font-size: 15px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; font-weight: bold; flex: 1; }
         .news-time { font-size: 12px; color: var(--muted); flex-shrink: 0; margin-left: 10px; }
         .delete-btn { background: #ff3b30; color: white; border: none; border-radius: 10px; padding: 0 15px; height: 54px; font-size: 16px; cursor: pointer; display: none; transition: all 0.2s; flex-shrink: 0; }
+        
         .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; background: var(--card); border-radius: 14px; }
+        
         #loadingBar { height: 3px; background: var(--primary); width: 0%; transition: width 0.3s; position: absolute; top: 0; left: 0; z-index: 30; }
     </style>
 </head>
 <body>
     <div id="loadingBar"></div>
     <div class="manual-fetch-bar">
-        <input type="text" id="xUrlInput" class="fetch-input" placeholder="粘貼 X 鏈接，回車歸檔至 GitHub..." autocomplete="off">
+        <input type="text" id="xUrlInput" class="fetch-input" placeholder="粘貼 X 鏈接，回車歸檔..." autocomplete="off">
         <button class="settings-btn" id="openSettingsBtn">⚙️</button>
     </div>
 
     <div class="modal-overlay" id="settingsModal">
         <div class="modal-content">
             <h3 class="modal-title">GitHub 雲端同步配置</h3>
-            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">只需填寫 GitHub 信息，即可在網頁端直接同步推文。</p>
-            <div class="form-group"><label>GitHub Access Token (需勾選 Repo 權限)</label><input type="password" id="cfgGhToken" placeholder="ghp_..."></div>
+            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">只需填寫 GitHub Token，即可在網頁端直接同步推文。</p>
+            <div class="form-group"><label>GitHub Personal Access Token</label><input type="password" id="cfgGhToken" placeholder="ghp_..."></div>
             <div class="form-group"><label>GitHub 用戶名</label><input type="text" id="cfgGhOwner" value="moodHappy" placeholder="例如: moodHappy"></div>
             <div class="form-group"><label>GitHub 倉庫名</label><input type="text" id="cfgGhRepo" placeholder="例如: x-vibe"></div>
             <div class="modal-actions">
@@ -93,14 +99,22 @@
         const archiveData = /*DATA_START*/{}/*DATA_END*/;
         const today = new Date();
         
-        const AppState = { year: today.getFullYear(), month: today.getMonth() + 1, day: today.getDate(), deleteMode: false };
+        const AppState = {
+            year: today.getFullYear(),
+            month: today.getMonth() + 1,
+            day: today.getDate(),
+            deleteMode: false
+        };
 
         function initSelects() {
-            const yearSelect = document.getElementById('yearSelect'); yearSelect.innerHTML = '';
+            const yearSelect = document.getElementById('yearSelect');
+            yearSelect.innerHTML = '';
             const allYears = new Set(Object.keys(archiveData).map(Number));
             for(let i = -5; i <= 50; i++) allYears.add(today.getFullYear() + i);
+            
             Array.from(allYears).sort((a, b) => b - a).forEach(y => { 
-                const opt = document.createElement('option'); opt.value = y; opt.textContent = y + ' 年'; yearSelect.appendChild(opt); 
+                const opt = document.createElement('option'); 
+                opt.value = y; opt.textContent = y + ' 年'; yearSelect.appendChild(opt); 
             });
         }
 
@@ -111,13 +125,16 @@
             document.getElementById('yearSelect').value = AppState.year;
             document.getElementById('monthSelect').value = AppState.month;
 
-            const daysGrid = document.getElementById('daysGrid'); const newsList = document.getElementById('newsList');
+            const daysGrid = document.getElementById('daysGrid');
+            const newsList = document.getElementById('newsList');
+
             daysGrid.innerHTML = ''; newsList.innerHTML = '';
 
             try {
                 const firstDay = new Date(AppState.year, AppState.month - 1, 1).getDay() || 7;
                 for (let i = 1; i < firstDay; i++) { 
-                    const emptyCell = document.createElement('div'); emptyCell.className = 'day-cell empty'; daysGrid.appendChild(emptyCell); 
+                    const emptyCell = document.createElement('div'); 
+                    emptyCell.className = 'day-cell empty'; daysGrid.appendChild(emptyCell); 
                 }
                 
                 const monthData = (archiveData[AppState.year] && archiveData[AppState.year][AppState.month]) || {};
@@ -162,8 +179,7 @@
                                 await syncDeleteToGithub(pathToDelete);
                             }
                         };
-                        wrapper.appendChild(delBtn);
-                        newsList.appendChild(wrapper);
+                        wrapper.appendChild(delBtn); newsList.appendChild(wrapper);
                     });
                 } else {
                     newsList.innerHTML = '<div class="empty-state">當日暫無推文歸檔 🕊️</div>';
@@ -202,34 +218,38 @@
             localStorage.setItem('GH_OWNER', document.getElementById('cfgGhOwner').value.trim());
             localStorage.setItem('GH_REPO', document.getElementById('cfgGhRepo').value.trim());
             document.getElementById('settingsModal').style.display = 'none';
-            alert('✅ 配置已保存在本地瀏覽器！');
+            alert('配置已本地保存！');
         });
 
         async function syncDeleteToGithub(fileRelPath) {
-            const ghToken = localStorage.getItem('GH_TOKEN'); const ghOwner = localStorage.getItem('GH_OWNER'); const ghRepo = localStorage.getItem('GH_REPO');
-            if (!ghToken) return alert('本地已刪除，但未配置 GitHub Token，雲端文件不會變更。');
+            const ghToken = localStorage.getItem('GH_TOKEN');
+            const ghOwner = localStorage.getItem('GH_OWNER');
+            const ghRepo = localStorage.getItem('GH_REPO');
+            if (!ghToken || !ghOwner || !ghRepo) return alert('本地已刪除，但未配置 GitHub Token，遠端不會變更。');
             try {
                 const loadingBar = document.getElementById('loadingBar'); loadingBar.style.width = '20%';
                 const targetFilePath = `docs/${fileRelPath}`;
-                const fileRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${targetFilePath}`, { headers: { 'Authorization': `token ${ghToken}` } });
+                const fileRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${targetFilePath}`, { headers: { 'Authorization': `Bearer ${ghToken}` } });
                 if (fileRes.ok) {
                     const fileData = await fileRes.json();
-                    await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${targetFilePath}`, { method: 'DELETE', headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ message: `Delete tweet html: ${fileRelPath}`, sha: fileData.sha }) });
+                    await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${targetFilePath}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ message: `Delete tweet html: ${fileRelPath}`, sha: fileData.sha }) });
                 }
                 loadingBar.style.width = '60%';
-                const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `token ${ghToken}` } });
+                const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `Bearer ${ghToken}` } });
                 const idxData = await idxRes.json();
-                const idxContent = decodeURIComponent(escape(atob(idxData.content)));
-                const dataStart = idxContent.indexOf('/*DATA_START*/') + 14; const dataEnd = idxContent.indexOf('/*DATA_END*/');
+                const idxContent = decodeURIComponent(escape(atob(idxData.content.replace(/\n/g, ''))));
+                
+                const dataStart = idxContent.indexOf('/*DATA_START*/') + 14;
+                const dataEnd = idxContent.indexOf('/*DATA_END*/');
                 const newIdxContent = idxContent.substring(0, dataStart) + JSON.stringify(archiveData) + idxContent.substring(dataEnd);
                 
                 loadingBar.style.width = '90%';
-                await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { method: 'PUT', headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ message: `Update index.html after deletion`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha }) });
+                await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { method: 'PUT', headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ message: `Update index.html after deletion`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha }) });
                 loadingBar.style.width = '100%'; setTimeout(() => { loadingBar.style.width = '0%'; }, 1000);
-            } catch(e) { console.error(e); alert("刪除同步失敗: " + e.message); document.getElementById('loadingBar').style.width = '0%'; }
+            } catch(e) { console.error(e); alert('刪除同步失敗: ' + e.message); document.getElementById('loadingBar').style.width = '0%'; }
         }
 
-        // ================= 核心修復：前端生成 GitHub 邏輯 =================
+        // X 推文前端抓取邏輯 (增加錯誤提示機制)
         document.getElementById('xUrlInput').addEventListener('keypress', async function (e) {
             if (e.key === 'Enter') {
                 const url = this.value.trim();
@@ -241,7 +261,7 @@
                 const ghOwner = localStorage.getItem('GH_OWNER');
                 const ghRepo = localStorage.getItem('GH_REPO');
                 if (!ghToken || !ghOwner || !ghRepo) {
-                    alert('請先點擊齒輪 ⚙️ 配置 GitHub 信息，否則無法生成在 GitHub！');
+                    alert('請先點擊齒輪⚙️配置 GitHub 信息！');
                     document.getElementById('settingsModal').style.display = 'flex';
                     return;
                 }
@@ -252,14 +272,11 @@
 
                 try {
                     loadingBar.style.width = '30%';
-                    // 【修復1】：使用 allorigins 代理，徹底解決瀏覽器跨域(CORS)攔截報錯問題！
-                    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://api.vxtwitter.com/Twitter/status/${tweetId}`)}`;
-                    const vRes = await fetch(proxyUrl);
-                    if (!vRes.ok) throw new Error("代理請求推文數據失敗，請稍後重試");
+                    const vRes = await fetch(`https://api.vxtwitter.com/Twitter/status/${tweetId}`);
                     const tweet = await vRes.json();
                     if (tweet.error) throw new Error(tweet.error);
 
-                    loadingBar.style.width = '50%';
+                    loadingBar.style.width = '60%';
                     const htmlOutput = generateBaseHTMLString(tweet, tweetId, AppState.year, AppState.month, AppState.day);
 
                     const now = new Date();
@@ -267,32 +284,31 @@
                     const monthStr = AppState.month.toString();
                     const dayStr = AppState.day.toString();
                     const hhmmStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-                    // 【修復2】：精確到秒數，防止你手速太快同1分鐘內提交兩次導致 API 報錯
-                    const hhmmssFile = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0') + String(now.getSeconds()).padStart(2, '0');
+                    const hhmmFile = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
                     
-                    const filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_x.html`;
+                    const filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmFile}_x.html`;
                     const fileRelPath = `${yearStr}/${monthStr}/${filename}`;
 
-                    loadingBar.style.width = '70%';
-                    // 【修復3】：向 GitHub 寫入文件，增加精准報錯。GitHub 會自動創建不存在的目錄
-                    const putRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/${fileRelPath}`, {
+                    loadingBar.style.width = '75%';
+                    
+                    // 強化錯誤攔截: 若 GitHub API 拒絕, 會進入 if(!putHtmlRes.ok)
+                    const putHtmlRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/${fileRelPath}`, {
                         method: 'PUT',
-                        headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
+                        headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' },
                         body: JSON.stringify({ message: `Add tweet by ${tweet.user_name}`, content: btoa(unescape(encodeURIComponent(htmlOutput))) })
                     });
                     
-                    if (!putRes.ok) {
-                        const errData = await putRes.json();
-                        throw new Error(`生成文件夾/文件失敗 (GitHub 拒絕了請求): ${errData.message}。
-請檢查你的 Token 是否勾選了 'repo' 權限！`);
+                    if (!putHtmlRes.ok) {
+                        const errData = await putHtmlRes.json();
+                        throw new Error(`建立 HTML 失敗: ${errData.message}`);
                     }
 
                     loadingBar.style.width = '85%';
-                    const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `token ${ghToken}` } });
-                    if (!idxRes.ok) throw new Error("獲取 index.html 失敗，請確保倉庫名填寫完全正確");
+                    const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `Bearer ${ghToken}` } });
+                    if (!idxRes.ok) throw new Error("讀取遠端 index.html 失敗，請確認 Token 權限。");
                     
                     const idxData = await idxRes.json();
-                    const idxContent = decodeURIComponent(escape(atob(idxData.content)));
+                    const idxContent = decodeURIComponent(escape(atob(idxData.content.replace(/\n/g, ''))));
 
                     const dataStart = idxContent.indexOf('/*DATA_START*/') + 14;
                     const dataEnd = idxContent.indexOf('/*DATA_END*/');
@@ -308,13 +324,14 @@
                     const newIdxContent = idxContent.substring(0, dataStart) + JSON.stringify(archiveObj) + idxContent.substring(dataEnd);
                     
                     loadingBar.style.width = '95%';
-                    await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
+                    const putIdxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
                         method: 'PUT',
-                        headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
+                        headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' },
                         body: JSON.stringify({ message: `Update index.html with new tweet`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
                     });
+                    
+                    if (!putIdxRes.ok) throw new Error("更新 index.html 失敗！");
 
-                    // 更新本地內存樹並重繪
                     if (!archiveData[yearStr]) archiveData[yearStr] = {};
                     if (!archiveData[yearStr][monthStr]) archiveData[yearStr][monthStr] = {};
                     if (!archiveData[yearStr][monthStr][dayStr]) archiveData[yearStr][monthStr][dayStr] = [];
@@ -322,13 +339,12 @@
 
                     forceRender(); 
                     loadingBar.style.width = '100%';
-                    alert('🎉 抓取成功！文件夾和 HTML 已經在 GitHub 雲端自動生成並同步！');
+                    alert('🎉 抓取成功！推文已歸檔至 GitHub。');
                     this.value = '';
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
 
                 } catch (err) {
-                    alert('❌ 發生錯誤:
-' + err.message);
+                    alert('❌ 操作失敗: ' + err.message);
                     loadingBar.style.width = '0%';
                 } finally {
                     this.disabled = false;
@@ -336,6 +352,7 @@
             }
         });
 
+        // 模板：生成子頁面 HTML
         function generateBaseHTMLString(tweet, tweetId, sYear, sMonth, sDay) {
             const author = tweet.user_name || 'Unknown';
             const handle = tweet.user_screen_name || 'unknown';
