@@ -49,7 +49,7 @@ def get_user_tweet_ids(username, limit=10):
     return []
 
 def generate_tweet_card(tweet_data, tweet_id):
-    """生成單個推文卡片的 HTML 結構 (包含批注區)"""
+    """生成單個推文卡片的 HTML 結構"""
     author = tweet_data.get('user_name', 'Unknown')
     handle = tweet_data.get('user_screen_name', 'unknown')
     text = tweet_data.get('text', '')
@@ -87,14 +87,6 @@ def generate_tweet_card(tweet_data, tweet_id):
             </div>
             <div class="content">{text}</div>
             {media_html}
-            <div class="anno-section para-wrap">
-                <span class="anno-toggle"></span>
-                <span class="sync-status">📡 同步中...</span>
-                <div class="anno-box">
-                    <div class="anno-view markdown-body"></div>
-                    <textarea class="anno-edit" placeholder="支援 Markdown，雙擊預覽區或點擊空白處保存..."></textarea>
-                </div>
-            </div>
             <div class="stats">
                 <span>❤️ {likes:,} 喜歡</span>
                 <span>🔁 {retweets:,} 轉發</span>
@@ -103,7 +95,7 @@ def generate_tweet_card(tweet_data, tweet_id):
         </div>"""
 
 def generate_page_wrapper(content_html, page_title, now_str):
-    """生成完整 HTML 頁面外殼 (集成翻譯與批注引擎)"""
+    """生成完整 HTML 頁面外殼 (智能淨化翻譯版)"""
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -111,7 +103,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
     <meta name="referrer" content="no-referrer">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{page_title}</title>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         :root {{ --bg: #f2f2f7; --card: #ffffff; --text: #0f1419; --muted: #536471; --border: #eff3f4; --x-blue: #1d9bf0; }}
         body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }}
@@ -133,26 +124,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
         .btn-link {{ display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }}
         .btn-link:active {{ transform: scale(0.98); background: #1a8cd8; }}
         .time-stamp {{ text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }}
-        
-        /* 批注區樣式 */
-        .anno-section {{ margin-top: 15px; border-top: 1px dashed var(--border); padding-top: 12px; }}
-        .anno-toggle {{ display: inline-block; cursor: pointer; color: var(--muted); font-size: 0.9rem; font-weight: bold; user-select: none; transition: 0.2s; }}
-        .anno-toggle:hover {{ color: var(--x-blue); }}
-        .anno-toggle.has-anno {{ color: var(--x-blue); }}
-        .anno-toggle::before {{ content: "📝 寫筆記 / 批注"; }}
-        .anno-toggle.has-anno::before {{ content: "📝 查看批注"; }}
-        .sync-status {{ display: none; margin-left: 10px; font-size: 0.8rem; padding: 2px 8px; border-radius: 10px; color: white; background: #f39c12; vertical-align: middle; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }}
-        .anno-box {{ display: none; margin-top: 10px; background: #f8f9fa; border-left: 4px solid var(--x-blue); padding: 12px; border-radius: 0 8px 8px 0; }}
-        .anno-view {{ font-size: 1rem; color: #333; line-height: 1.5; min-height: 24px; cursor: pointer; }}
-        .anno-edit {{ width: 100%; min-height: 100px; padding: 10px; font-family: monospace; font-size: 0.95rem; border: 1px dashed var(--x-blue); border-radius: 6px; box-sizing: border-box; resize: vertical; display: none; outline: none; }}
-        .anno-edit:focus {{ border-style: solid; box-shadow: 0 0 0 2px rgba(29,155,240,0.1); }}
-        
-        /* Markdown 渲染優化 */
-        .markdown-body p {{ margin: 0 0 8px 0; }}
-        .markdown-body p:last-child {{ margin-bottom: 0; }}
-        .markdown-body a {{ color: var(--x-blue); text-decoration: none; }}
-        .markdown-body a:hover {{ text-decoration: underline; }}
-        .markdown-body blockquote {{ margin: 0 0 10px 0; padding: 10px 15px; background: rgba(29,155,240,0.05); border-left: 4px solid var(--x-blue); color: #555; }}
     </style>
 </head>
 <body>
@@ -166,7 +137,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
     </div>
     
     <script>
-        // ---------------- 翻譯邏輯 ----------------
         async function translateAll() {{
             const btn = document.getElementById('translate-btn');
             if(btn.hasAttribute('disabled')) return;
@@ -183,6 +153,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 const originalText = content.innerText;
                 if (!originalText.trim()) continue;
 
+                // 1. 安全分離並剔除 HTTP 鏈接
                 let lines = originalText.split('\\n');
                 let cleanedLines = [];
                 for(let j=0; j<lines.length; j++) {{
@@ -197,12 +168,15 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 }}
                 let textToTranslate = cleanedLines.join('\\n');
 
+                // 2. 剔除表情符號 (Surrogate Pairs)
                 textToTranslate = textToTranslate.replace(/[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]/g, '').trim();
+
+                // 3. 智能校驗：如果沒有實體文字(僅剩標點)，則不進行翻譯
                 const hasWords = /[a-zA-Z0-9\\u4E00-\\u9FA5\\u3040-\\u30FF\\u0400-\\u04FF]/.test(textToTranslate);
 
                 if (!textToTranslate || !hasWords) {{
                     content.setAttribute('data-translated', 'true');
-                    continue; 
+                    continue; // 智能跳過
                 }}
 
                 try {{
@@ -217,6 +191,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
                     if (translatedText.trim()) {{
                         const transDiv = document.createElement('div');
                         transDiv.className = 'translated-content';
+                        // 原生沈浸式樣式：同字體、同顏色，極淡分割線
                         transDiv.style.cssText = 'color: #0f1419; font-size: 1.1rem; margin-top: 10px; padding-top: 10px; border-top: 1px solid #eff3f4; white-space: pre-wrap; word-wrap: break-word;';
                         transDiv.innerText = translatedText.trim();
                         
@@ -235,161 +210,44 @@ def generate_page_wrapper(content_html, page_title, now_str):
             }}
 
             btn.innerText = '⏳ 固化至雲端...';
-            await snapshotAndSync(btn, '✅ 翻譯已固化', '⚠️ 僅本地翻譯');
-        }}
-
-        // ---------------- 批注與同步邏輯 ----------------
-        function escapeHTML(str) {{
-            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-        }}
-
-        let syncTimeout = null;
-
-        function initAnnotations() {{
-            document.querySelectorAll('.para-wrap').forEach(wrap => {{
-                const view = wrap.querySelector('.anno-view');
-                const edit = wrap.querySelector('.anno-edit');
-                const toggle = wrap.querySelector('.anno-toggle');
-                const box = wrap.querySelector('.anno-box');
-                const status = wrap.querySelector('.sync-status');
-
-                const rawText = edit.value.trim();
-                if (rawText) {{
-                    toggle.classList.add('has-anno');
-                    if (typeof marked !== 'undefined') view.innerHTML = marked.parse(rawText);
-                }}
-
-                toggle.onclick = () => {{
-                    if (box.style.display === 'block') {{
-                        box.style.display = 'none';
-                    }} else {{
-                        box.style.display = 'block';
-                        if (!edit.value.trim()) {{
-                            view.style.display = 'none';
-                            edit.style.display = 'block';
-                            edit.focus();
-                        }} else {{
-                            view.style.display = 'block';
-                            edit.style.display = 'none';
-                        }}
-                    }}
-                }};
-
-                const triggerEdit = () => {{
-                    view.style.display = 'none';
-                    edit.style.display = 'block';
-                    edit.focus();
-                }};
-
-                view.addEventListener('dblclick', triggerEdit);
-                
-                let lastTap = 0;
-                view.addEventListener('touchstart', e => {{
-                    const currentTime = new Date().getTime();
-                    const tapLength = currentTime - lastTap;
-                    if (tapLength < 500 && tapLength > 0) {{
-                        triggerEdit();
-                        e.preventDefault();
-                    }}
-                    lastTap = currentTime;
-                }}, {{passive: false}});
-
-                edit.onblur = () => {{
-                    const newVal = edit.value.trim();
-                    edit.innerHTML = escapeHTML(newVal); 
-
-                    try {{ view.innerHTML = newVal ? marked.parse(newVal) : ''; }} catch(e){{}}
-                    edit.style.display = 'none';
-
-                    if (newVal) {{
-                        view.style.display = 'block';
-                        toggle.classList.add('has-anno');
-                    }} else {{
-                        view.style.display = 'none';
-                        box.style.display = 'none';
-                        toggle.classList.remove('has-anno');
-                    }}
-
-                    if (edit.getAttribute('data-old-val') !== newVal) {{
-                        edit.setAttribute('data-old-val', newVal);
-                        scheduleAnnoSync(status);
-                    }}
-                }};
-                edit.setAttribute('data-old-val', rawText);
-            }});
-        }}
-        
-        window.addEventListener('DOMContentLoaded', initAnnotations);
-
-        function scheduleAnnoSync(statusEl) {{
-            statusEl.style.display = 'inline-block';
-            statusEl.style.backgroundColor = '#f39c12';
-            statusEl.innerText = '⏳ 5秒後同步...';
-
-            if (syncTimeout) clearTimeout(syncTimeout);
-            syncTimeout = setTimeout(() => {{
-                snapshotAndSync(statusEl, '✅ 已同步', '❌ 同步失敗', true);
-            }}, 5000);
-        }}
-
-        // ---------------- 共用 DOM 快照與上傳函數 ----------------
-        async function snapshotAndSync(uiElement, successText, failText, isStatusLabel = false) {{
+            
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
             const ghRepo = localStorage.getItem('GH_REPO');
             
-            if (!ghToken || !ghOwner || !ghRepo) {{
-                uiElement.innerText = '❌ 缺Token';
-                if(isStatusLabel) uiElement.style.backgroundColor = '#e74c3c';
-                return;
-            }}
+            if (ghToken && ghOwner && ghRepo) {{
+                try {{
+                    const pathParts = window.location.pathname.split('/');
+                    const fileName = pathParts.pop();
+                    const month = pathParts.pop();
+                    const year = pathParts.pop();
+                    
+                    const fileRelPath = year + '/' + month + '/' + fileName;
 
-            if (isStatusLabel) {{
-                uiElement.style.backgroundColor = '#2ea44f';
-                uiElement.innerText = '📡 同步中...';
-            }}
+                    btn.innerText = '✅ 翻譯已固化';
+                    btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
+                    
+                    const htmlSnapshot = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + document.documentElement.innerHTML + '\\n</html>';
 
-            try {{
-                const pathParts = window.location.pathname.split('/');
-                const fileName = pathParts.pop();
-                const month = pathParts.pop();
-                const year = pathParts.pop();
-                const fileRelPath = year + '/' + month + '/' + fileName;
-
-                if (!isStatusLabel) {{
-                    uiElement.innerText = successText;
-                    uiElement.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
+                    const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {{ headers: {{ 'Authorization': 'Bearer ' + ghToken }} }});
+                    if (fileRes.ok) {{
+                        const fileData = await fileRes.json();
+                        await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {{
+                            method: 'PUT',
+                            headers: {{ 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' }},
+                            body: JSON.stringify({{ 
+                                message: 'Auto-solidify translation for ' + fileName, 
+                                content: btoa(unescape(encodeURIComponent(htmlSnapshot))),
+                                sha: fileData.sha
+                            }})
+                        }});
+                    }}
+                }} catch(e) {{
+                    console.error('固化失敗', e);
+                    btn.innerText = '⚠️ 僅本地翻譯';
                 }}
-                
-                const htmlSnapshot = '<!DOCTYPE html><html lang="zh-CN">' + document.documentElement.innerHTML + '</html>';
-
-                const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), {{ headers: {{ 'Authorization': 'Bearer ' + ghToken }}, cache: 'no-store' }});
-                if (fileRes.ok) {{
-                    const fileData = await fileRes.json();
-                    await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {{
-                        method: 'PUT',
-                        headers: {{ 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' }},
-                        body: JSON.stringify({{ 
-                            message: 'Auto-solidify DOM snapshot for ' + fileName, 
-                            content: btoa(unescape(encodeURIComponent(htmlSnapshot))),
-                            sha: fileData.sha
-                        }})
-                    }});
-                }}
-
-                if (isStatusLabel) {{
-                    uiElement.innerText = successText;
-                    setTimeout(() => {{ if(uiElement.innerText === successText) uiElement.style.display = 'none'; }}, 3000);
-                }}
-
-            }} catch(e) {{
-                console.error('固化失敗', e);
-                uiElement.innerText = failText;
-                if (isStatusLabel) {{
-                    uiElement.style.backgroundColor = '#e74c3c';
-                    uiElement.style.cursor = 'pointer';
-                    uiElement.onclick = () => snapshotAndSync(uiElement, successText, failText, true);
-                }}
+            }} else {{
+                btn.innerText = '✅ 翻譯完成';
             }}
         }}
     </script>
@@ -782,14 +640,6 @@ def generate_index():
             </div>
             <div class="content">${text}</div>
             ${media_html}
-            <div class="anno-section para-wrap">
-                <span class="anno-toggle"></span>
-                <span class="sync-status">📡 同步中...</span>
-                <div class="anno-box">
-                    <div class="anno-view markdown-body"></div>
-                    <textarea class="anno-edit" placeholder="支援 Markdown，雙擊預覽區或點擊空白處保存..."></textarea>
-                </div>
-            </div>
             <div class="stats">
                 <span>❤️ ${likes} 喜歡</span>
                 <span>🔁 ${retweets} 轉發</span>
@@ -806,7 +656,6 @@ def generate_index():
     <meta name="referrer" content="no-referrer">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>${pageTitle}</title>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"><\\/script>
     <style>
         :root { --bg: #f2f2f7; --card: #ffffff; --text: #0f1419; --muted: #536471; --border: #eff3f4; --x-blue: #1d9bf0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
@@ -828,26 +677,6 @@ def generate_index():
         .btn-link { display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }
         .btn-link:active { transform: scale(0.98); background: #1a8cd8; }
         .time-stamp { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }
-        
-        /* 批注區樣式 */
-        .anno-section { margin-top: 15px; border-top: 1px dashed var(--border); padding-top: 12px; }
-        .anno-toggle { display: inline-block; cursor: pointer; color: var(--muted); font-size: 0.9rem; font-weight: bold; user-select: none; transition: 0.2s; }
-        .anno-toggle:hover { color: var(--x-blue); }
-        .anno-toggle.has-anno { color: var(--x-blue); }
-        .anno-toggle::before { content: "📝 寫筆記 / 批注"; }
-        .anno-toggle.has-anno::before { content: "📝 查看批注"; }
-        .sync-status { display: none; margin-left: 10px; font-size: 0.8rem; padding: 2px 8px; border-radius: 10px; color: white; background: #f39c12; vertical-align: middle; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-        .anno-box { display: none; margin-top: 10px; background: #f8f9fa; border-left: 4px solid var(--x-blue); padding: 12px; border-radius: 0 8px 8px 0; }
-        .anno-view { font-size: 1rem; color: #333; line-height: 1.5; min-height: 24px; cursor: pointer; }
-        .anno-edit { width: 100%; min-height: 100px; padding: 10px; font-family: monospace; font-size: 0.95rem; border: 1px dashed var(--x-blue); border-radius: 6px; box-sizing: border-box; resize: vertical; display: none; outline: none; }
-        .anno-edit:focus { border-style: solid; box-shadow: 0 0 0 2px rgba(29,155,240,0.1); }
-        
-        /* Markdown 渲染優化 */
-        .markdown-body p { margin: 0 0 8px 0; }
-        .markdown-body p:last-child { margin-bottom: 0; }
-        .markdown-body a { color: var(--x-blue); text-decoration: none; }
-        .markdown-body a:hover { text-decoration: underline; }
-        .markdown-body blockquote { margin: 0 0 10px 0; padding: 10px 15px; background: rgba(29,155,240,0.05); border-left: 4px solid var(--x-blue); color: #555; }
     </style>
 </head>
 <body>
@@ -861,7 +690,6 @@ def generate_index():
     </div>
     
     <script>
-        // ---------------- 翻譯邏輯 ----------------
         async function translateAll() {
             const btn = document.getElementById('translate-btn');
             if(btn.hasAttribute('disabled')) return;
@@ -878,6 +706,7 @@ def generate_index():
                 const originalText = content.innerText;
                 if (!originalText.trim()) continue;
 
+                // 1. 安全分離並剔除 HTTP 鏈接
                 let lines = originalText.split('\\n');
                 let cleanedLines = [];
                 for(let j=0; j<lines.length; j++) {
@@ -892,12 +721,15 @@ def generate_index():
                 }
                 let textToTranslate = cleanedLines.join('\\n');
 
+                // 2. 剔除表情符號 (Surrogate Pairs)
                 textToTranslate = textToTranslate.replace(/[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]/g, '').trim();
+
+                // 3. 智能校驗：如果沒有實體文字(僅剩標點)，則不進行翻譯
                 const hasWords = /[a-zA-Z0-9\\u4E00-\\u9FA5\\u3040-\\u30FF\\u0400-\\u04FF]/.test(textToTranslate);
 
                 if (!textToTranslate || !hasWords) {
                     content.setAttribute('data-translated', 'true');
-                    continue; 
+                    continue; // 智能跳過
                 }
 
                 try {
@@ -912,6 +744,7 @@ def generate_index():
                     if (translatedText.trim()) {
                         const transDiv = document.createElement('div');
                         transDiv.className = 'translated-content';
+                        // 原生沈浸式樣式：同字體、同顏色，極淡分割線
                         transDiv.style.cssText = 'color: #0f1419; font-size: 1.1rem; margin-top: 10px; padding-top: 10px; border-top: 1px solid #eff3f4; white-space: pre-wrap; word-wrap: break-word;';
                         transDiv.innerText = translatedText.trim();
                         
@@ -930,161 +763,44 @@ def generate_index():
             }
 
             btn.innerText = '⏳ 固化至雲端...';
-            await snapshotAndSync(btn, '✅ 翻譯已固化', '⚠️ 僅本地翻譯');
-        }
-
-        // ---------------- 批注與同步邏輯 ----------------
-        function escapeHTML(str) {
-            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-        }
-
-        let syncTimeout = null;
-
-        function initAnnotations() {
-            document.querySelectorAll('.para-wrap').forEach(wrap => {
-                const view = wrap.querySelector('.anno-view');
-                const edit = wrap.querySelector('.anno-edit');
-                const toggle = wrap.querySelector('.anno-toggle');
-                const box = wrap.querySelector('.anno-box');
-                const status = wrap.querySelector('.sync-status');
-
-                const rawText = edit.value.trim();
-                if (rawText) {
-                    toggle.classList.add('has-anno');
-                    if (typeof marked !== 'undefined') view.innerHTML = marked.parse(rawText);
-                }
-
-                toggle.onclick = () => {
-                    if (box.style.display === 'block') {
-                        box.style.display = 'none';
-                    } else {
-                        box.style.display = 'block';
-                        if (!edit.value.trim()) {
-                            view.style.display = 'none';
-                            edit.style.display = 'block';
-                            edit.focus();
-                        } else {
-                            view.style.display = 'block';
-                            edit.style.display = 'none';
-                        }
-                    }
-                };
-
-                const triggerEdit = () => {
-                    view.style.display = 'none';
-                    edit.style.display = 'block';
-                    edit.focus();
-                };
-
-                view.addEventListener('dblclick', triggerEdit);
-                
-                let lastTap = 0;
-                view.addEventListener('touchstart', e => {
-                    const currentTime = new Date().getTime();
-                    const tapLength = currentTime - lastTap;
-                    if (tapLength < 500 && tapLength > 0) {
-                        triggerEdit();
-                        e.preventDefault();
-                    }
-                    lastTap = currentTime;
-                }, {passive: false});
-
-                edit.onblur = () => {
-                    const newVal = edit.value.trim();
-                    edit.innerHTML = escapeHTML(newVal); 
-
-                    try { view.innerHTML = newVal ? marked.parse(newVal) : ''; } catch(e){}
-                    edit.style.display = 'none';
-
-                    if (newVal) {
-                        view.style.display = 'block';
-                        toggle.classList.add('has-anno');
-                    } else {
-                        view.style.display = 'none';
-                        box.style.display = 'none';
-                        toggle.classList.remove('has-anno');
-                    }
-
-                    if (edit.getAttribute('data-old-val') !== newVal) {
-                        edit.setAttribute('data-old-val', newVal);
-                        scheduleAnnoSync(status);
-                    }
-                };
-                edit.setAttribute('data-old-val', rawText);
-            });
-        }
-        
-        window.addEventListener('DOMContentLoaded', initAnnotations);
-
-        function scheduleAnnoSync(statusEl) {
-            statusEl.style.display = 'inline-block';
-            statusEl.style.backgroundColor = '#f39c12';
-            statusEl.innerText = '⏳ 5秒後同步...';
-
-            if (syncTimeout) clearTimeout(syncTimeout);
-            syncTimeout = setTimeout(() => {
-                snapshotAndSync(statusEl, '✅ 已同步', '❌ 同步失敗', true);
-            }, 5000);
-        }
-
-        // ---------------- 共用 DOM 快照與上傳函數 ----------------
-        async function snapshotAndSync(uiElement, successText, failText, isStatusLabel = false) {
+            
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
             const ghRepo = localStorage.getItem('GH_REPO');
             
-            if (!ghToken || !ghOwner || !ghRepo) {
-                uiElement.innerText = '❌ 缺Token';
-                if(isStatusLabel) uiElement.style.backgroundColor = '#e74c3c';
-                return;
-            }
+            if (ghToken && ghOwner && ghRepo) {
+                try {
+                    const pathParts = window.location.pathname.split('/');
+                    const fileName = pathParts.pop();
+                    const month = pathParts.pop();
+                    const year = pathParts.pop();
+                    
+                    const fileRelPath = year + '/' + month + '/' + fileName;
 
-            if (isStatusLabel) {
-                uiElement.style.backgroundColor = '#2ea44f';
-                uiElement.innerText = '📡 同步中...';
-            }
+                    btn.innerText = '✅ 翻譯已固化';
+                    btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
+                    
+                    const htmlSnapshot = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + document.documentElement.innerHTML + '\\n</html>';
 
-            try {
-                const pathParts = window.location.pathname.split('/');
-                const fileName = pathParts.pop();
-                const month = pathParts.pop();
-                const year = pathParts.pop();
-                const fileRelPath = year + '/' + month + '/' + fileName;
-
-                if (!isStatusLabel) {
-                    uiElement.innerText = successText;
-                    uiElement.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
+                    const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, { headers: { 'Authorization': 'Bearer ' + ghToken } });
+                    if (fileRes.ok) {
+                        const fileData = await fileRes.json();
+                        await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {
+                            method: 'PUT',
+                            headers: { 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                message: 'Auto-solidify translation for ' + fileName, 
+                                content: btoa(unescape(encodeURIComponent(htmlSnapshot))),
+                                sha: fileData.sha
+                            })
+                        });
+                    }
+                } catch(e) {
+                    console.error('固化失敗', e);
+                    btn.innerText = '⚠️ 僅本地翻譯';
                 }
-                
-                const htmlSnapshot = '<!DOCTYPE html><html lang="zh-CN">' + document.documentElement.innerHTML + '</html>';
-
-                const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), { headers: { 'Authorization': 'Bearer ' + ghToken }, cache: 'no-store' });
-                if (fileRes.ok) {
-                    const fileData = await fileRes.json();
-                    await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {
-                        method: 'PUT',
-                        headers: { 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            message: 'Auto-solidify DOM snapshot for ' + fileName, 
-                            content: btoa(unescape(encodeURIComponent(htmlSnapshot))),
-                            sha: fileData.sha
-                        })
-                    });
-                }
-
-                if (isStatusLabel) {
-                    uiElement.innerText = successText;
-                    setTimeout(() => { if(uiElement.innerText === successText) uiElement.style.display = 'none'; }, 3000);
-                }
-
-            } catch(e) {
-                console.error('固化失敗', e);
-                uiElement.innerText = failText;
-                if (isStatusLabel) {
-                    uiElement.style.backgroundColor = '#e74c3c';
-                    uiElement.style.cursor = 'pointer';
-                    uiElement.onclick = () => snapshotAndSync(uiElement, successText, failText, true);
-                }
+            } else {
+                btn.innerText = '✅ 翻譯完成';
             }
         }
     \\x3C/script>
@@ -1292,7 +1008,7 @@ def generate_index():
 
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首頁日曆 WebApp (批注功能 + 翻譯優化版) 已生成更新！")
+    print("🚀 首頁日曆 WebApp 已生成更新！")
 
 def git_push_to_github(msg="Auto-archive"):
     if not AUTO_PUSH_GITHUB:
