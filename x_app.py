@@ -32,14 +32,15 @@ def save_tweet_local(tweet_data, tweet_id, now_obj):
     """在本地生成推文卡片 HTML"""
     year_str, month_str = str(now_obj.year), str(now_obj.month)
     target_dir = os.path.join(BASE_DIR, year_str, month_str)
+    
+    # 遞歸創建目錄結構 (對應 GitHub 的文件夾)
     os.makedirs(target_dir, exist_ok=True)
 
-    # 檔名格式對齊日曆解析邏輯
-    filename = f"{now_obj.year}_{now_obj.month}_{now_obj.day}_{now_obj.strftime('%H%M')}_x.html"
+    # 檔名格式加入秒數，防止同分鐘多次創建造成衝突
+    filename = f"{now_obj.year}_{now_obj.month}_{now_obj.day}_{now_obj.strftime('%H%M%S')}_x.html"
     html_path = os.path.join(target_dir, filename)
     now_str = now_obj.strftime("%Y-%m-%d %H:%M")
 
-    # 提取數據
     author = tweet_data.get('user_name', 'Unknown')
     handle = tweet_data.get('user_screen_name', 'unknown')
     text = tweet_data.get('text', '')
@@ -48,7 +49,6 @@ def save_tweet_local(tweet_data, tweet_id, now_obj):
     media_urls = tweet_data.get('mediaURLs', [])
     original_url = f"https://x.com/{handle}/status/{tweet_id}"
 
-    # 處理媒體附件
     media_html = ""
     if media_urls:
         for m_url in media_urls:
@@ -108,10 +108,9 @@ def save_tweet_local(tweet_data, tweet_id, now_obj):
 
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(html_content)
-    print(f"✅ 語料已歸檔: {html_path}")
+    print(f"✅ 文件已在本地生成: {html_path}")
 
 def generate_index():
-    """日曆樞紐生成器 + 支援動態更新的 X 前端控制台"""
     archive_data = {}
     if os.path.exists(BASE_DIR):
         years = [d for d in os.listdir(BASE_DIR) if d.isdigit()]
@@ -128,8 +127,6 @@ def generate_index():
                             f_day = str(int(parts[2]))
                             time_str = f"{parts[3][:2]}:{parts[3][2:4]}"
                             file_path = f"{year}/{month}/{file}"
-                            
-                            # X 推文的標題區分
                             title = "🐦 靈感推文"
 
                             if f_year not in archive_data: archive_data[f_year] = {}
@@ -156,12 +153,10 @@ def generate_index():
         :root { --bg: #f5f5f7; --text: #333; --muted: #888; --primary: #1d9bf0; --border: #e0e0e0; --card: #fff; }
         body, html { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; -webkit-font-smoothing: antialiased; background: var(--bg); margin: 0; padding: 0; color: var(--text); }
         .container { max-width: 600px; margin: 0 auto; padding-bottom: 20px; }
-        
         .manual-fetch-bar { background: var(--card); padding: 12px 15px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 20; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         .fetch-input { flex: 1; padding: 10px 15px; border: 1px solid #ccc; border-radius: 20px; font-size: 14px; outline: none; background: #f9f9f9; transition: border 0.2s; }
         .fetch-input:focus { border-color: var(--primary); background: #fff; }
         .settings-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 5px; }
-        
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; padding: 20px; }
         .modal-content { background: var(--card); border-radius: 16px; padding: 20px; width: 100%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
         .modal-title { margin: 0 0 15px 0; font-size: 18px; font-weight: bold; }
@@ -172,7 +167,6 @@ def generate_index():
         .btn { padding: 8px 16px; border-radius: 8px; border: none; font-size: 14px; font-weight: bold; cursor: pointer; }
         .btn-cancel { background: #eee; color: #333; }
         .btn-save { background: var(--primary); color: #fff; }
-        
         .controls { background: var(--bg); padding: 15px 20px; display: flex; justify-content: center; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); }
         .control-btn { background: var(--primary); color: #fff; border: none; border-radius: 6px; padding: 8px 12px; font-size: 14px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
         .control-btn:active { opacity: 0.8; transform: scale(0.95); }
@@ -189,23 +183,20 @@ def generate_index():
         .dot { width: 5px; height: 5px; background-color: var(--primary); border-radius: 50%; position: absolute; bottom: 6px; display: none; }
         .day-cell.has-news .dot { display: block; }
         .news-section { padding: 0 15px; }
-        
         .news-item-wrapper { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
         .news-item { flex: 1; background: var(--card); border-radius: 14px; padding: 18px 16px; margin-bottom: 0; display: flex; justify-content: space-between; align-items: center; text-decoration: none; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.03); border-left: 4px solid var(--primary); transition: all 0.2s; overflow: hidden; }
         .news-item:active { transform: scale(0.98); background: #fafafa; }
         .news-title { font-size: 15px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; font-weight: bold; flex: 1; }
         .news-time { font-size: 12px; color: var(--muted); flex-shrink: 0; margin-left: 10px; }
         .delete-btn { background: #ff3b30; color: white; border: none; border-radius: 10px; padding: 0 15px; height: 54px; font-size: 16px; cursor: pointer; display: none; transition: all 0.2s; flex-shrink: 0; }
-        
         .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; background: var(--card); border-radius: 14px; }
-        
         #loadingBar { height: 3px; background: var(--primary); width: 0%; transition: width 0.3s; position: absolute; top: 0; left: 0; z-index: 30; }
     </style>
 </head>
 <body>
     <div id="loadingBar"></div>
     <div class="manual-fetch-bar">
-        <input type="text" id="xUrlInput" class="fetch-input" placeholder="粘貼 X 鏈接，回車歸檔..." autocomplete="off">
+        <input type="text" id="xUrlInput" class="fetch-input" placeholder="粘貼 X 鏈接，回車歸檔至 GitHub..." autocomplete="off">
         <button class="settings-btn" id="openSettingsBtn">⚙️</button>
     </div>
 
@@ -213,7 +204,7 @@ def generate_index():
         <div class="modal-content">
             <h3 class="modal-title">GitHub 雲端同步配置</h3>
             <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">只需填寫 GitHub 信息，即可在網頁端直接同步推文。</p>
-            <div class="form-group"><label>GitHub Personal Access Token</label><input type="password" id="cfgGhToken" placeholder="ghp_..."></div>
+            <div class="form-group"><label>GitHub Access Token (需勾選 Repo 權限)</label><input type="password" id="cfgGhToken" placeholder="ghp_..."></div>
             <div class="form-group"><label>GitHub 用戶名</label><input type="text" id="cfgGhOwner" value="moodHappy" placeholder="例如: moodHappy"></div>
             <div class="form-group"><label>GitHub 倉庫名</label><input type="text" id="cfgGhRepo" placeholder="例如: x-vibe"></div>
             <div class="modal-actions">
@@ -247,24 +238,14 @@ def generate_index():
         const archiveData = /*DATA_START*/REPLACEME_JSON_DATA/*DATA_END*/;
         const today = new Date();
         
-        const AppState = {
-            year: today.getFullYear(),
-            month: today.getMonth() + 1,
-            day: today.getDate(),
-            deleteMode: false
-        };
+        const AppState = { year: today.getFullYear(), month: today.getMonth() + 1, day: today.getDate(), deleteMode: false };
 
         function initSelects() {
-            const yearSelect = document.getElementById('yearSelect');
-            yearSelect.innerHTML = '';
+            const yearSelect = document.getElementById('yearSelect'); yearSelect.innerHTML = '';
             const allYears = new Set(Object.keys(archiveData).map(Number));
             for(let i = -5; i <= 50; i++) allYears.add(today.getFullYear() + i);
-            
             Array.from(allYears).sort((a, b) => b - a).forEach(y => { 
-                const opt = document.createElement('option'); 
-                opt.value = y; 
-                opt.textContent = y + ' 年'; 
-                yearSelect.appendChild(opt); 
+                const opt = document.createElement('option'); opt.value = y; opt.textContent = y + ' 年'; yearSelect.appendChild(opt); 
             });
         }
 
@@ -275,18 +256,13 @@ def generate_index():
             document.getElementById('yearSelect').value = AppState.year;
             document.getElementById('monthSelect').value = AppState.month;
 
-            const daysGrid = document.getElementById('daysGrid');
-            const newsList = document.getElementById('newsList');
-
-            daysGrid.innerHTML = '';
-            newsList.innerHTML = '';
+            const daysGrid = document.getElementById('daysGrid'); const newsList = document.getElementById('newsList');
+            daysGrid.innerHTML = ''; newsList.innerHTML = '';
 
             try {
                 const firstDay = new Date(AppState.year, AppState.month - 1, 1).getDay() || 7;
                 for (let i = 1; i < firstDay; i++) { 
-                    const emptyCell = document.createElement('div'); 
-                    emptyCell.className = 'day-cell empty'; 
-                    daysGrid.appendChild(emptyCell); 
+                    const emptyCell = document.createElement('div'); emptyCell.className = 'day-cell empty'; daysGrid.appendChild(emptyCell); 
                 }
                 
                 const monthData = (archiveData[AppState.year] && archiveData[AppState.year][AppState.month]) || {};
@@ -371,15 +347,12 @@ def generate_index():
             localStorage.setItem('GH_OWNER', document.getElementById('cfgGhOwner').value.trim());
             localStorage.setItem('GH_REPO', document.getElementById('cfgGhRepo').value.trim());
             document.getElementById('settingsModal').style.display = 'none';
-            alert('配置已本地保存！');
+            alert('✅ 配置已保存在本地瀏覽器！');
         });
 
-        // 刪除同步邏輯 (與原版完全一致)
         async function syncDeleteToGithub(fileRelPath) {
-            const ghToken = localStorage.getItem('GH_TOKEN');
-            const ghOwner = localStorage.getItem('GH_OWNER');
-            const ghRepo = localStorage.getItem('GH_REPO');
-            if (!ghToken || !ghOwner || !ghRepo) return alert('本地已刪除，但未配置 GitHub Token，遠端不會變更。');
+            const ghToken = localStorage.getItem('GH_TOKEN'); const ghOwner = localStorage.getItem('GH_OWNER'); const ghRepo = localStorage.getItem('GH_REPO');
+            if (!ghToken) return alert('本地已刪除，但未配置 GitHub Token，雲端文件不會變更。');
             try {
                 const loadingBar = document.getElementById('loadingBar'); loadingBar.style.width = '20%';
                 const targetFilePath = `docs/${fileRelPath}`;
@@ -392,17 +365,16 @@ def generate_index():
                 const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `token ${ghToken}` } });
                 const idxData = await idxRes.json();
                 const idxContent = decodeURIComponent(escape(atob(idxData.content)));
-                const dataStart = idxContent.indexOf('/*DATA_START*/') + 14;
-                const dataEnd = idxContent.indexOf('/*DATA_END*/');
+                const dataStart = idxContent.indexOf('/*DATA_START*/') + 14; const dataEnd = idxContent.indexOf('/*DATA_END*/');
                 const newIdxContent = idxContent.substring(0, dataStart) + JSON.stringify(archiveData) + idxContent.substring(dataEnd);
                 
                 loadingBar.style.width = '90%';
                 await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { method: 'PUT', headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ message: `Update index.html after deletion`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha }) });
                 loadingBar.style.width = '100%'; setTimeout(() => { loadingBar.style.width = '0%'; }, 1000);
-            } catch(e) { console.error(e); document.getElementById('loadingBar').style.width = '0%'; }
+            } catch(e) { console.error(e); alert("刪除同步失敗: " + e.message); document.getElementById('loadingBar').style.width = '0%'; }
         }
 
-        // X 推文前端抓取邏輯
+        // ================= 核心修復：前端生成 GitHub 邏輯 =================
         document.getElementById('xUrlInput').addEventListener('keypress', async function (e) {
             if (e.key === 'Enter') {
                 const url = this.value.trim();
@@ -414,7 +386,7 @@ def generate_index():
                 const ghOwner = localStorage.getItem('GH_OWNER');
                 const ghRepo = localStorage.getItem('GH_REPO');
                 if (!ghToken || !ghOwner || !ghRepo) {
-                    alert('請先點擊齒輪⚙️配置 GitHub 信息！');
+                    alert('請先點擊齒輪 ⚙️ 配置 GitHub 信息，否則無法生成在 GitHub！');
                     document.getElementById('settingsModal').style.display = 'flex';
                     return;
                 }
@@ -425,12 +397,14 @@ def generate_index():
 
                 try {
                     loadingBar.style.width = '30%';
-                    // 調用免費的 vxtwitter 接口
-                    const vRes = await fetch(`https://api.vxtwitter.com/Twitter/status/${tweetId}`);
+                    // 【修復1】：使用 allorigins 代理，徹底解決瀏覽器跨域(CORS)攔截報錯問題！
+                    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://api.vxtwitter.com/Twitter/status/${tweetId}`)}`;
+                    const vRes = await fetch(proxyUrl);
+                    if (!vRes.ok) throw new Error("代理請求推文數據失敗，請稍後重試");
                     const tweet = await vRes.json();
                     if (tweet.error) throw new Error(tweet.error);
 
-                    loadingBar.style.width = '60%';
+                    loadingBar.style.width = '50%';
                     const htmlOutput = generateBaseHTMLString(tweet, tweetId, AppState.year, AppState.month, AppState.day);
 
                     const now = new Date();
@@ -438,20 +412,29 @@ def generate_index():
                     const monthStr = AppState.month.toString();
                     const dayStr = AppState.day.toString();
                     const hhmmStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-                    const hhmmFile = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
+                    // 【修復2】：精確到秒數，防止你手速太快同1分鐘內提交兩次導致 API 報錯
+                    const hhmmssFile = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0') + String(now.getSeconds()).padStart(2, '0');
                     
-                    const filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmFile}_x.html`;
+                    const filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_x.html`;
                     const fileRelPath = `${yearStr}/${monthStr}/${filename}`;
 
-                    loadingBar.style.width = '75%';
-                    await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/${fileRelPath}`, {
+                    loadingBar.style.width = '70%';
+                    // 【修復3】：向 GitHub 寫入文件，增加精准報錯。GitHub 會自動創建不存在的目錄
+                    const putRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/${fileRelPath}`, {
                         method: 'PUT',
                         headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
                         body: JSON.stringify({ message: `Add tweet by ${tweet.user_name}`, content: btoa(unescape(encodeURIComponent(htmlOutput))) })
                     });
+                    
+                    if (!putRes.ok) {
+                        const errData = await putRes.json();
+                        throw new Error(`生成文件夾/文件失敗 (GitHub 拒絕了請求): ${errData.message}。\n請檢查你的 Token 是否勾選了 'repo' 權限！`);
+                    }
 
                     loadingBar.style.width = '85%';
                     const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `token ${ghToken}` } });
+                    if (!idxRes.ok) throw new Error("獲取 index.html 失敗，請確保倉庫名填寫完全正確");
+                    
                     const idxData = await idxRes.json();
                     const idxContent = decodeURIComponent(escape(atob(idxData.content)));
 
@@ -483,12 +466,12 @@ def generate_index():
 
                     forceRender(); 
                     loadingBar.style.width = '100%';
-                    alert('🎉 抓取成功！推文已歸檔至 GitHub。');
+                    alert('🎉 抓取成功！文件夾和 HTML 已經在 GitHub 雲端自動生成並同步！');
                     this.value = '';
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
 
                 } catch (err) {
-                    alert('❌ 操作失敗: ' + err.message);
+                    alert('❌ 發生錯誤:\n' + err.message);
                     loadingBar.style.width = '0%';
                 } finally {
                     this.disabled = false;
@@ -496,7 +479,6 @@ def generate_index():
             }
         });
 
-        // 模板：生成子頁面 HTML
         function generateBaseHTMLString(tweet, tweetId, sYear, sMonth, sDay) {
             const author = tweet.user_name || 'Unknown';
             const handle = tweet.user_screen_name || 'unknown';
@@ -577,23 +559,30 @@ def generate_index():
 
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首頁日曆 WebApp (X 專屬版) 已更新！")
+    print("🚀 本地首頁日曆 WebApp (index.html) 已更新！")
 
 def main():
     os.makedirs(BASE_DIR, exist_ok=True)
-    
-    # 啟動時先生成一次最新的日曆樞紐
     generate_index()
     
     print("\n=======================================")
-    print("🐦 X (Twitter) 語料日曆 - 後台手動錄入")
-    print("提示：你也可以直接用瀏覽器打開 docs/index.html，在頂部輸入框貼上鏈接！")
+    print("🐦 X (Twitter) 語料日曆 - 後台控制台")
+    print("✨ 你可以在這裡抓取，或者直接用瀏覽器打開 docs/index.html 抓取")
     print("=======================================")
     
     while True:
-        url = input("👉 粘貼 X 推文鏈接 (輸入 q 退出): ").strip()
+        # 【修復4】：為終端(Termux)增加直接一鍵推送到 GitHub 的快捷鍵
+        url = input("👉 粘貼鏈接 (輸入 q 退出, 輸入 p 一鍵推送到 GitHub): ").strip()
         if url.lower() == 'q':
             break
+        elif url.lower() == 'p':
+            print("🔄 正在自動推送到 GitHub (請確保本地已配置 Git)...")
+            os.system('git add .')
+            os.system('git commit -m "Manual upload via Termux"')
+            os.system('git push')
+            print("✅ Git 操作執行完畢！")
+            continue
+        
         if not url:
             continue
             
@@ -601,7 +590,8 @@ def main():
         if tweet_data and tweet_id:
             now = datetime.now(tz_utc_8)
             save_tweet_local(tweet_data, tweet_id, now)
-            generate_index()  # 抓完後重新生成日曆
+            generate_index()
+            print("💡 提示：文件目前已保存在本地，輸入字母 'p' 可立即同步到 GitHub！")
 
 if __name__ == "__main__":
     main()
