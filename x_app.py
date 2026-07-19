@@ -169,43 +169,165 @@ def generate_page_wrapper(content_html, page_title, now_str):
     <script id="core-engine">
         let syncTimeout = null;
 
-        // DOM 淨身出戶函數：剝離插件污染，還原按鈕狀態
-        function getCleanHTMLSnapshot() {{
-            document.querySelectorAll('.anno-edit').forEach(ta => {{ ta.textContent = ta.value; }});
-            
+        // 【終極隔離方案】純淨 DOM 快照：專治 GitHub 404 及脫機環境備用
+        function getFallbackCleanHTML() {{
             const clone = document.documentElement.cloneNode(true);
             
-            const syncStatus = clone.querySelector('#sync-status');
-            if (syncStatus) {{
-                syncStatus.removeAttribute('style'); // 強制剝離 inline 樣式，恢復隱藏
-                syncStatus.innerText = '📡 同步中...';
-            }}
+            // 強制重置按鈕狀態，根治被鎖死 "同步中" 的 Bug
+            const statusMsg = clone.querySelector('#sync-status');
+            if (statusMsg) {{ statusMsg.removeAttribute('style'); statusMsg.innerText = '📡 同步中...'; }}
+            const tBtn = clone.querySelector('#translate-btn');
+            if (tBtn) {{ tBtn.removeAttribute('style'); tBtn.removeAttribute('disabled'); tBtn.innerText = '🌐 一鍵翻譯'; }}
             
-            // 剝離非核心腳本 (Tampermonkey 等)
+            // 暴力剝離 Relingo 高亮標籤等外部插件污染
+            const removeRelingo = (root) => {{
+                const tags = root.querySelectorAll('relin-highlight, relin-hc, [class*="relingo"]');
+                tags.forEach(t => {{
+                    const frag = document.createDocumentFragment();
+                    while(t.firstChild) frag.appendChild(t.firstChild);
+                    t.parentNode.replaceChild(frag, t);
+                }});
+            }};
+            removeRelingo(clone);
+            removeRelingo(clone); // 處理嵌套
+            
             clone.querySelectorAll('script').forEach(s => {{
                 if (!s.src.includes('marked.min.js') && s.id !== 'core-engine') s.remove();
             }});
-            // 剝離非核心樣式 (Relingo/DarkReader 等)
             clone.querySelectorAll('style').forEach(s => {{
                 if (s.id !== 'core-style') s.remove();
             }});
             
-            // 剝離 body 下被惡意塞入的懸浮球/遮罩層
-            const body = clone.querySelector('body');
-            Array.from(body.children).forEach(child => {{
-                if (child.id === 'core-engine') return;
-                if (!child.classList.contains('nav-back') && !child.classList.contains('container')) {{
-                    child.remove();
-                }}
-            }});
-            
-            // 隔離渲染污染：清空視圖區，只依賴 textarea 文本。加載時由 marked 重新渲染
-            clone.querySelectorAll('.anno-box').forEach(box => {{
-                const view = box.querySelector('.anno-view');
+            // 同步最新的 textarea 文本
+            const liveTAs = document.querySelectorAll('.anno-edit');
+            clone.querySelectorAll('.anno-edit').forEach((ta, i) => {{ 
+                if(liveTAs[i]) ta.textContent = liveTAs[i].value;
+                const box = ta.closest('.anno-box');
+                if (box) box.style.display = 'none';
+                const view = box ? box.querySelector('.anno-view') : null;
                 if (view) view.innerHTML = ''; 
             }});
             
+            clone.querySelectorAll('.anno-toggle').forEach(t => {{
+                t.classList.remove('has-anno');
+                const ta = t.closest('.content-wrap').querySelector('.anno-edit');
+                if (ta && ta.textContent.trim()) t.classList.add('has-anno');
+            }});
+            
             return '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + clone.innerHTML + '\\n</html>';
+        }}
+
+        // 【完全隔離插件】雲端同步引擎核心
+        async function syncToCloud(isTranslation = false) {{
+            const ghToken = localStorage.getItem('GH_TOKEN');
+            const ghOwner = localStorage.getItem('GH_OWNER');
+            const ghRepo = localStorage.getItem('GH_REPO');
+            if(!ghToken) return isTranslation ? null : alert('缺少 GitHub Token，無法同步！');
+            
+            const statusMsg = document.getElementById('sync-status');
+            const transBtn = document.getElementById('translate-btn');
+            
+            if (!isTranslation) {{
+                statusMsg.style.display = 'inline-block';
+                statusMsg.style.backgroundColor = '#2ea44f';
+                statusMsg.innerText = '📡 同步中...';
+            }}
+
+            const pathParts = window.location.pathname.split('/');
+            const fileName = pathParts.pop();
+            const month = pathParts.pop();
+            const year = pathParts.pop();
+            const fileRelPath = year + '/' + month + '/' + fileName;
+
+            try {{
+                let finalHTML = '';
+                let sha = '';
+                
+                // 【核心策略】先拉取 Github 上的純淨版文件，只把自己的 Textarea/翻譯 塞進去，完全阻斷本地插件污染！
+                const getRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), {{
+                    headers: {{ 'Authorization': 'Bearer ' + ghToken }}, cache: 'no-store'
+                }});
+                
+                if (getRes.ok) {{
+                    const fileData = await getRes.json();
+                    sha = fileData.sha;
+                    const cleanHTML = decodeURIComponent(escape(atob(fileData.content)));
+                    const parser = new DOMParser();
+                    const cleanDoc = parser.parseFromString(cleanHTML, 'text/html');
+
+                    // 1. 注入批注文本
+                    const liveTAs = document.querySelectorAll('.anno-edit');
+                    const cleanTAs = cleanDoc.querySelectorAll('.anno-edit');
+                    liveTAs.forEach((liveTa, i) => {{
+                        if (cleanTAs[i]) {{
+                            cleanTAs[i].textContent = liveTa.value;
+                            const box = cleanTAs[i].closest('.anno-box');
+                            if (box) box.style.display = 'none';
+                            const view = box ? box.querySelector('.anno-view') : null;
+                            if (view) view.innerHTML = '';
+                        }}
+                    }});
+
+                    // 2. 注入翻譯模塊
+                    const liveContents = document.querySelectorAll('.content');
+                    const cleanContents = cleanDoc.querySelectorAll('.content');
+                    liveContents.forEach((liveC, i) => {{
+                        if (liveC.getAttribute('data-translated') === 'true' && cleanContents[i]) {{
+                            cleanContents[i].setAttribute('data-translated', 'true');
+                            const liveTrans = liveC.nextElementSibling;
+                            if (liveTrans && liveTrans.classList.contains('translated-content')) {{
+                                const cleanTrans = cleanContents[i].nextElementSibling;
+                                if (!cleanTrans || !cleanTrans.classList.contains('translated-content')) {{
+                                    const newTrans = cleanDoc.createElement('div');
+                                    newTrans.className = 'translated-content';
+                                    newTrans.style.cssText = liveTrans.style.cssText;
+                                    newTrans.innerHTML = liveTrans.innerHTML;
+                                    cleanContents[i].parentNode.insertBefore(newTrans, cleanContents[i].nextSibling);
+                                }}
+                            }}
+                        }}
+                    }});
+                    
+                    // 3. 恢復紅點狀態
+                    cleanDoc.querySelectorAll('.anno-toggle').forEach(t => {{
+                        t.classList.remove('has-anno');
+                        const ta = t.closest('.content-wrap').querySelector('.anno-edit');
+                        if (ta && ta.textContent.trim()) t.classList.add('has-anno');
+                    }});
+
+                    finalHTML = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + cleanDoc.documentElement.innerHTML + '\\n</html>';
+                }} else {{
+                    // 如果網絡失敗或 Github 本身還沒這個文件（比如剛創建），啟動備用降級防禦方案
+                    finalHTML = getFallbackCleanHTML();
+                }}
+
+                const putRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {{
+                    method: 'PUT',
+                    headers: {{ 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' }},
+                    body: JSON.stringify({{ message: isTranslation ? 'Auto-solidify translation' : 'Auto-save annotation', content: btoa(unescape(encodeURIComponent(finalHTML))), sha: sha || undefined }})
+                }});
+
+                if(!putRes.ok) throw new Error('Put failed');
+
+                if (isTranslation) {{
+                    transBtn.innerText = '🌐 已翻譯並固化';
+                    transBtn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
+                }} else {{
+                    statusMsg.style.backgroundColor = '#2ea44f';
+                    statusMsg.innerText = '✅ 雲端已同步';
+                    setTimeout(() => {{ if (statusMsg.innerText === '✅ 雲端已同步') statusMsg.style.display = 'none'; }}, 3000);
+                }}
+            }} catch(e) {{
+                console.error(e);
+                if (isTranslation) {{
+                    transBtn.innerText = '⚠️ 僅本地翻譯';
+                }} else {{
+                    statusMsg.style.backgroundColor = '#e74c3c';
+                    statusMsg.innerText = '❌ 同步失敗(點擊重試)';
+                    statusMsg.style.cursor = 'pointer';
+                    statusMsg.onclick = () => {{ statusMsg.onclick = null; statusMsg.style.cursor = 'default'; syncToCloud(false); }};
+                }}
+            }}
         }}
 
         function scheduleSync() {{
@@ -215,69 +337,8 @@ def generate_page_wrapper(content_html, page_title, now_str):
             statusMsg.innerText = '⏳ 自動同步中...';
             statusMsg.style.cursor = 'default';
             statusMsg.onclick = null;
-
             if (syncTimeout) clearTimeout(syncTimeout);
-            syncTimeout = setTimeout(() => {{ syncToGitHub(); }}, 3000);
-        }}
-
-        async function syncToGitHub() {{
-            const ghToken = localStorage.getItem('GH_TOKEN');
-            const ghOwner = localStorage.getItem('GH_OWNER');
-            const ghRepo = localStorage.getItem('GH_REPO');
-            if(!ghToken) return alert('缺少 GitHub Token，無法同步批注！請先在日曆首頁配置。');
-
-            const statusMsg = document.getElementById('sync-status');
-            statusMsg.style.display = 'inline-block';
-            statusMsg.style.backgroundColor = '#2ea44f';
-            statusMsg.innerText = '📡 同步中...';
-
-            const htmlSnapshot = getCleanHTMLSnapshot();
-            
-            const pathParts = window.location.pathname.split('/');
-            const fileName = pathParts.pop();
-            const month = pathParts.pop();
-            const year = pathParts.pop();
-            const fileRelPath = year + '/' + month + '/' + fileName;
-
-            try {{
-                const getRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), {{
-                    headers: {{ 'Authorization': 'Bearer ' + ghToken }},
-                    cache: 'no-store'
-                }});
-                let sha = '';
-                if (getRes.ok) {{
-                    const fileData = await getRes.json();
-                    sha = fileData.sha;
-                }}
-
-                const putRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {{
-                    method: 'PUT',
-                    headers: {{ 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' }},
-                    body: JSON.stringify({{ 
-                        message: 'Auto-save annotation', 
-                        content: btoa(unescape(encodeURIComponent(htmlSnapshot))), 
-                        sha: sha 
-                    }})
-                }});
-
-                if(putRes.ok) {{
-                    statusMsg.style.backgroundColor = '#2ea44f';
-                    statusMsg.innerText = '✅ 雲端已同步';
-                    setTimeout(() => {{
-                        if (statusMsg.innerText === '✅ 雲端已同步') statusMsg.style.display = 'none';
-                    }}, 3000);
-                }} else {{ throw new Error('Put failed'); }}
-            }} catch(e) {{
-                console.error(e);
-                statusMsg.style.backgroundColor = '#e74c3c';
-                statusMsg.innerText = '❌ 同步失敗(點擊重試)';
-                statusMsg.style.cursor = 'pointer';
-                statusMsg.onclick = () => {{
-                    statusMsg.onclick = null;
-                    statusMsg.style.cursor = 'default';
-                    syncToGitHub();
-                }};
-            }}
+            syncTimeout = setTimeout(() => {{ syncToCloud(false); }}, 3000);
         }}
 
         function initAnnotations() {{
@@ -295,18 +356,31 @@ def generate_page_wrapper(content_html, page_title, now_str):
                     try {{ view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; }} catch(e){{}}
                 }}
 
+                // 【修復按鈕交互死循環】：三重狀態智能判斷，確保 🔴 始終能直接呼出輸入框
                 toggle.onclick = (e) => {{
                     e.preventDefault();
                     e.stopPropagation();
+                    
                     if (box.style.display === 'block') {{ 
-                        box.style.display = 'none'; 
+                        if (edit.style.display === 'block') {{
+                            // 如果當前就在編輯，點擊紅點 = 關閉
+                            box.style.display = 'none'; 
+                        }} else {{
+                            // 如果當前是在看渲染視圖，點擊紅點 = 強制進入編輯模式
+                            view.style.display = 'none'; 
+                            edit.style.display = 'block'; 
+                            setTimeout(() => {{ edit.focus(); }}, 150); 
+                        }}
                     }} else {{
+                        // 如果當前是關閉的，打開它
                         box.style.display = 'block';
                         if (!edit.value.trim()) {{ 
+                            // 沒字，直接進入編輯模式
                             view.style.display = 'none'; 
                             edit.style.display = 'block'; 
                             setTimeout(() => {{ edit.focus(); }}, 150); 
                         }} else {{ 
+                            // 有字，先展示視圖，想編輯再點一下紅點
                             view.style.display = 'block'; 
                             edit.style.display = 'none'; 
                         }}
@@ -320,7 +394,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
                     edit.value = edit.value; 
                     setTimeout(() => {{ edit.focus(); }}, 150); 
                 }};
-
                 view.addEventListener('dblclick', triggerEdit);
 
                 let lastTap = 0;
@@ -330,7 +403,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         const currentTime = new Date().getTime();
                         if (currentTime - lastTap < 500 && currentTime - lastTap > 0) {{ 
                             e.preventDefault();
-                            box.style.display = 'none'; 
+                            triggerEdit(e); // 移動端雙擊直接進入編輯，不再是關閉，防止誤觸
                         }}
                         lastTap = currentTime;
                     }}
@@ -340,17 +413,9 @@ def generate_page_wrapper(content_html, page_title, now_str):
                     setTimeout(() => {{
                         const newVal = edit.value.trim();
                         try {{ view.innerHTML = newVal ? ((typeof marked !== 'undefined') ? marked.parse(newVal) : newVal) : ''; }} catch(e){{}}
-
                         edit.style.display = 'none';
-
-                        if (newVal) {{ 
-                            view.style.display = 'block'; 
-                            toggle.classList.add('has-anno'); 
-                        }} else {{ 
-                            view.style.display = 'none'; 
-                            box.style.display = 'none'; 
-                            toggle.classList.remove('has-anno'); 
-                        }}
+                        if (newVal) {{ view.style.display = 'block'; toggle.classList.add('has-anno'); }} 
+                        else {{ view.style.display = 'none'; box.style.display = 'none'; toggle.classList.remove('has-anno'); }}
 
                         if (edit.getAttribute('data-old-val') !== newVal) {{
                             edit.setAttribute('data-old-val', newVal);
@@ -358,11 +423,9 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         }}
                     }}, 150);
                 }});
-
                 edit.setAttribute('data-old-val', rawText);
             }});
         }}
-        
         window.addEventListener('load', initAnnotations);
 
         async function translateAll() {{
@@ -376,7 +439,11 @@ def generate_page_wrapper(content_html, page_title, now_str):
             for (let i = 0; i < contents.length; i++) {{
                 const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
-                const text = content.innerText.replace('🔴', '');
+                
+                // 【修復翻譯被高亮插件干擾】：在送去翻譯前，扒掉 Relingo 和按鈕代碼
+                const cloneText = content.cloneNode(true);
+                cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle').forEach(el => el.remove());
+                const text = cloneText.innerText;
                 
                 let textToTranslate = text.replace(/https?:\\/\\/[^\\s]+/g, '').trim();
                 let checkText = textToTranslate.replace(/\\p{{Extended_Pictographic}}/gu, '').trim();
@@ -406,55 +473,13 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         content.setAttribute('data-translated', 'true');
                         translatedCount++;
                     }}
-                }} catch (e) {{
-                    console.error('翻譯失敗:', e);
-                }}
+                }} catch (e) {{ console.error('翻譯失敗:', e); }}
             }}
             
-            if (translatedCount === 0) {{
-                btn.innerText = '✅ 已全部翻譯';
-                return;
-            }}
-
+            if (translatedCount === 0) {{ btn.innerText = '✅ 已全部翻譯'; return; }}
             btn.innerText = '⏳ 固化至雲端...';
             
-            const ghToken = localStorage.getItem('GH_TOKEN');
-            const ghOwner = localStorage.getItem('GH_OWNER');
-            const ghRepo = localStorage.getItem('GH_REPO');
-            
-            if (ghToken && ghOwner && ghRepo) {{
-                try {{
-                    const htmlSnapshot = getCleanHTMLSnapshot();
-                    
-                    const pathParts = window.location.pathname.split('/');
-                    const fileName = pathParts.pop();
-                    const month = pathParts.pop();
-                    const year = pathParts.pop();
-                    const fileRelPath = year + '/' + month + '/' + fileName;
-
-                    btn.innerText = '🌐 已翻譯並固化';
-                    btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
-
-                    const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {{ headers: {{ 'Authorization': 'Bearer ' + ghToken }} }});
-                    if (fileRes.ok) {{
-                        const fileData = await fileRes.json();
-                        await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {{
-                            method: 'PUT',
-                            headers: {{ 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' }},
-                            body: JSON.stringify({{ 
-                                message: 'Auto-solidify translation for ' + fileName, 
-                                content: btoa(unescape(encodeURIComponent(htmlSnapshot))),
-                                sha: fileData.sha
-                            }})
-                        }});
-                    }}
-                }} catch(e) {{
-                    console.error('固化失敗', e);
-                    btn.innerText = '⚠️ 僅本地翻譯';
-                }}
-            }} else {{
-                btn.innerText = '✅ 翻譯完成';
-            }}
+            syncToCloud(true);
         }}
     </script>
 </body>
@@ -961,15 +986,27 @@ def generate_index():
     <script id="core-engine">
         let syncTimeout = null;
 
-        function getCleanHTMLSnapshot() {
-            document.querySelectorAll('.anno-edit').forEach(ta => { ta.textContent = ta.value; });
+        // 【終極隔離方案】純淨 DOM 快照：專治 GitHub 404 及脫機環境備用
+        function getFallbackCleanHTML() {
             const clone = document.documentElement.cloneNode(true);
             
-            const syncStatus = clone.querySelector('#sync-status');
-            if (syncStatus) {
-                syncStatus.removeAttribute('style');
-                syncStatus.innerText = '📡 同步中...';
-            }
+            // 強制重置按鈕狀態，根治被鎖死 "同步中" 的 Bug
+            const statusMsg = clone.querySelector('#sync-status');
+            if (statusMsg) { statusMsg.removeAttribute('style'); statusMsg.innerText = '📡 同步中...'; }
+            const tBtn = clone.querySelector('#translate-btn');
+            if (tBtn) { tBtn.removeAttribute('style'); tBtn.removeAttribute('disabled'); tBtn.innerText = '🌐 一鍵翻譯'; }
+            
+            // 暴力剝離 Relingo 高亮標籤等外部插件污染
+            const removeRelingo = (root) => {
+                const tags = root.querySelectorAll('relin-highlight, relin-hc, [class*="relingo"]');
+                tags.forEach(t => {
+                    const frag = document.createDocumentFragment();
+                    while(t.firstChild) frag.appendChild(t.firstChild);
+                    t.parentNode.replaceChild(frag, t);
+                });
+            };
+            removeRelingo(clone);
+            removeRelingo(clone); // 處理嵌套
             
             clone.querySelectorAll('script').forEach(s => {
                 if (!s.src.includes('marked.min.js') && s.id !== 'core-engine') s.remove();
@@ -978,20 +1015,136 @@ def generate_index():
                 if (s.id !== 'core-style') s.remove();
             });
             
-            const body = clone.querySelector('body');
-            Array.from(body.children).forEach(child => {
-                if (child.id === 'core-engine') return;
-                if (!child.classList.contains('nav-back') && !child.classList.contains('container')) {
-                    child.remove();
-                }
-            });
-            
-            clone.querySelectorAll('.anno-box').forEach(box => {
-                const view = box.querySelector('.anno-view');
+            // 同步最新的 textarea 文本
+            const liveTAs = document.querySelectorAll('.anno-edit');
+            clone.querySelectorAll('.anno-edit').forEach((ta, i) => { 
+                if(liveTAs[i]) ta.textContent = liveTAs[i].value;
+                const box = ta.closest('.anno-box');
+                if (box) box.style.display = 'none';
+                const view = box ? box.querySelector('.anno-view') : null;
                 if (view) view.innerHTML = ''; 
             });
             
-            return '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + clone.innerHTML + '\\n</html>';
+            clone.querySelectorAll('.anno-toggle').forEach(t => {
+                t.classList.remove('has-anno');
+                const ta = t.closest('.content-wrap').querySelector('.anno-edit');
+                if (ta && ta.textContent.trim()) t.classList.add('has-anno');
+            });
+            
+            return '<!DOCTYPE html>\\\\n<html lang="zh-CN">\\\\n' + clone.innerHTML + '\\\\n</html>';
+        }
+
+        // 【完全隔離插件】雲端同步引擎核心
+        async function syncToCloud(isTranslation = false) {
+            const ghToken = localStorage.getItem('GH_TOKEN');
+            const ghOwner = localStorage.getItem('GH_OWNER');
+            const ghRepo = localStorage.getItem('GH_REPO');
+            if(!ghToken) return isTranslation ? null : alert('缺少 GitHub Token，無法同步！');
+            
+            const statusMsg = document.getElementById('sync-status');
+            const transBtn = document.getElementById('translate-btn');
+            
+            if (!isTranslation) {
+                statusMsg.style.display = 'inline-block';
+                statusMsg.style.backgroundColor = '#2ea44f';
+                statusMsg.innerText = '📡 同步中...';
+            }
+
+            const pathParts = window.location.pathname.split('/');
+            const fileName = pathParts.pop();
+            const month = pathParts.pop();
+            const year = pathParts.pop();
+            const fileRelPath = year + '/' + month + '/' + fileName;
+
+            try {
+                let finalHTML = '';
+                let sha = '';
+                
+                // 【核心策略】先拉取 Github 上的純淨版文件，只把自己的 Textarea/翻譯 塞進去，完全阻斷本地插件污染！
+                const getRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), {
+                    headers: { 'Authorization': 'Bearer ' + ghToken }, cache: 'no-store'
+                });
+                
+                if (getRes.ok) {
+                    const fileData = await getRes.json();
+                    sha = fileData.sha;
+                    const cleanHTML = decodeURIComponent(escape(atob(fileData.content)));
+                    const parser = new DOMParser();
+                    const cleanDoc = parser.parseFromString(cleanHTML, 'text/html');
+
+                    // 1. 注入批注文本
+                    const liveTAs = document.querySelectorAll('.anno-edit');
+                    const cleanTAs = cleanDoc.querySelectorAll('.anno-edit');
+                    liveTAs.forEach((liveTa, i) => {
+                        if (cleanTAs[i]) {
+                            cleanTAs[i].textContent = liveTa.value;
+                            const box = cleanTAs[i].closest('.anno-box');
+                            if (box) box.style.display = 'none';
+                            const view = box ? box.querySelector('.anno-view') : null;
+                            if (view) view.innerHTML = '';
+                        }
+                    });
+
+                    // 2. 注入翻譯模塊
+                    const liveContents = document.querySelectorAll('.content');
+                    const cleanContents = cleanDoc.querySelectorAll('.content');
+                    liveContents.forEach((liveC, i) => {
+                        if (liveC.getAttribute('data-translated') === 'true' && cleanContents[i]) {
+                            cleanContents[i].setAttribute('data-translated', 'true');
+                            const liveTrans = liveC.nextElementSibling;
+                            if (liveTrans && liveTrans.classList.contains('translated-content')) {
+                                const cleanTrans = cleanContents[i].nextElementSibling;
+                                if (!cleanTrans || !cleanTrans.classList.contains('translated-content')) {
+                                    const newTrans = cleanDoc.createElement('div');
+                                    newTrans.className = 'translated-content';
+                                    newTrans.style.cssText = liveTrans.style.cssText;
+                                    newTrans.innerHTML = liveTrans.innerHTML;
+                                    cleanContents[i].parentNode.insertBefore(newTrans, cleanContents[i].nextSibling);
+                                }
+                            }
+                        }
+                    });
+                    
+                    // 3. 恢復紅點狀態
+                    cleanDoc.querySelectorAll('.anno-toggle').forEach(t => {
+                        t.classList.remove('has-anno');
+                        const ta = t.closest('.content-wrap').querySelector('.anno-edit');
+                        if (ta && ta.textContent.trim()) t.classList.add('has-anno');
+                    });
+
+                    finalHTML = '<!DOCTYPE html>\\\\n<html lang="zh-CN">\\\\n' + cleanDoc.documentElement.innerHTML + '\\\\n</html>';
+                } else {
+                    // 如果網絡失敗或 Github 本身還沒這個文件（比如剛創建），啟動備用降級防禦方案
+                    finalHTML = getFallbackCleanHTML();
+                }
+
+                const putRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {
+                    method: 'PUT',
+                    headers: { 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: isTranslation ? 'Auto-solidify translation' : 'Auto-save annotation', content: btoa(unescape(encodeURIComponent(finalHTML))), sha: sha || undefined })
+                });
+
+                if(!putRes.ok) throw new Error('Put failed');
+
+                if (isTranslation) {
+                    transBtn.innerText = '🌐 已翻譯並固化';
+                    transBtn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
+                } else {
+                    statusMsg.style.backgroundColor = '#2ea44f';
+                    statusMsg.innerText = '✅ 雲端已同步';
+                    setTimeout(() => { if (statusMsg.innerText === '✅ 雲端已同步') statusMsg.style.display = 'none'; }, 3000);
+                }
+            } catch(e) {
+                console.error(e);
+                if (isTranslation) {
+                    transBtn.innerText = '⚠️ 僅本地翻譯';
+                } else {
+                    statusMsg.style.backgroundColor = '#e74c3c';
+                    statusMsg.innerText = '❌ 同步失敗(點擊重試)';
+                    statusMsg.style.cursor = 'pointer';
+                    statusMsg.onclick = () => { statusMsg.onclick = null; statusMsg.style.cursor = 'default'; syncToCloud(false); };
+                }
+            }
         }
 
         function scheduleSync() {
@@ -1002,53 +1155,7 @@ def generate_index():
             statusMsg.style.cursor = 'default';
             statusMsg.onclick = null;
             if (syncTimeout) clearTimeout(syncTimeout);
-            syncTimeout = setTimeout(() => { syncToGitHub(); }, 3000);
-        }
-
-        async function syncToGitHub() {
-            const ghToken = localStorage.getItem('GH_TOKEN');
-            const ghOwner = localStorage.getItem('GH_OWNER');
-            const ghRepo = localStorage.getItem('GH_REPO');
-            if(!ghToken) return alert('缺少 GitHub Token，無法同步批注！請先在日曆首頁配置。');
-            
-            const statusMsg = document.getElementById('sync-status');
-            statusMsg.style.display = 'inline-block';
-            statusMsg.style.backgroundColor = '#2ea44f';
-            statusMsg.innerText = '📡 同步中...';
-
-            const htmlSnapshot = getCleanHTMLSnapshot();
-            
-            const pathParts = window.location.pathname.split('/');
-            const fileName = pathParts.pop();
-            const month = pathParts.pop();
-            const year = pathParts.pop();
-            const fileRelPath = year + '/' + month + '/' + fileName;
-
-            try {
-                const getRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), {
-                    headers: { 'Authorization': 'Bearer ' + ghToken }, cache: 'no-store'
-                });
-                let sha = '';
-                if (getRes.ok) { const fileData = await getRes.json(); sha = fileData.sha; }
-
-                const putRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {
-                    method: 'PUT',
-                    headers: { 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: 'Auto-save annotation', content: btoa(unescape(encodeURIComponent(htmlSnapshot))), sha: sha })
-                });
-
-                if(putRes.ok) {
-                    statusMsg.style.backgroundColor = '#2ea44f';
-                    statusMsg.innerText = '✅ 雲端已同步';
-                    setTimeout(() => { if (statusMsg.innerText === '✅ 雲端已同步') statusMsg.style.display = 'none'; }, 3000);
-                } else { throw new Error('Put failed'); }
-            } catch(e) {
-                console.error(e);
-                statusMsg.style.backgroundColor = '#e74c3c';
-                statusMsg.innerText = '❌ 同步失敗(點擊重試)';
-                statusMsg.style.cursor = 'pointer';
-                statusMsg.onclick = () => { statusMsg.onclick = null; statusMsg.style.cursor = 'default'; syncToGitHub(); };
-            }
+            syncTimeout = setTimeout(() => { syncToCloud(false); }, 3000);
         }
 
         function initAnnotations() {
@@ -1066,18 +1173,31 @@ def generate_index():
                     try { view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; } catch(e){}
                 }
 
+                // 【修復按鈕交互死循環】：三重狀態智能判斷，確保 🔴 始終能直接呼出輸入框
                 toggle.onclick = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    
                     if (box.style.display === 'block') { 
-                        box.style.display = 'none'; 
+                        if (edit.style.display === 'block') {
+                            // 如果當前就在編輯，點擊紅點 = 關閉
+                            box.style.display = 'none'; 
+                        } else {
+                            // 如果當前是在看渲染視圖，點擊紅點 = 強制進入編輯模式
+                            view.style.display = 'none'; 
+                            edit.style.display = 'block'; 
+                            setTimeout(() => { edit.focus(); }, 150); 
+                        }
                     } else {
+                        // 如果當前是關閉的，打開它
                         box.style.display = 'block';
                         if (!edit.value.trim()) { 
+                            // 沒字，直接進入編輯模式
                             view.style.display = 'none'; 
                             edit.style.display = 'block'; 
                             setTimeout(() => { edit.focus(); }, 150); 
                         } else { 
+                            // 有字，先展示視圖，想編輯再點一下紅點
                             view.style.display = 'block'; 
                             edit.style.display = 'none'; 
                         }
@@ -1100,7 +1220,7 @@ def generate_index():
                         const currentTime = new Date().getTime();
                         if (currentTime - lastTap < 500 && currentTime - lastTap > 0) { 
                             e.preventDefault();
-                            box.style.display = 'none'; 
+                            triggerEdit(e); // 移動端雙擊直接進入編輯，不再是關閉，防止誤觸
                         }
                         lastTap = currentTime;
                     }
@@ -1136,7 +1256,11 @@ def generate_index():
             for (let i = 0; i < contents.length; i++) {
                 const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
-                const text = content.innerText.replace('🔴', '');
+                
+                // 【修復翻譯被高亮插件干擾】：在送去翻譯前，扒掉 Relingo 和按鈕代碼
+                const cloneText = content.cloneNode(true);
+                cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle').forEach(el => el.remove());
+                const text = cloneText.innerText;
                 
                 let textToTranslate = text.replace(/https?:\\\\/\\\\/[^\\\\s]+/g, '').trim();
                 let checkText = textToTranslate.replace(/\\\\p{Extended_Pictographic}/gu, '').trim();
@@ -1172,38 +1296,7 @@ def generate_index():
             if (translatedCount === 0) { btn.innerText = '✅ 已全部翻譯'; return; }
             btn.innerText = '⏳ 固化至雲端...';
             
-            const ghToken = localStorage.getItem('GH_TOKEN');
-            const ghOwner = localStorage.getItem('GH_OWNER');
-            const ghRepo = localStorage.getItem('GH_REPO');
-            
-            if (ghToken && ghOwner && ghRepo) {
-                try {
-                    const htmlSnapshot = getCleanHTMLSnapshot();
-                    
-                    const pathParts = window.location.pathname.split('/');
-                    const fileName = pathParts.pop();
-                    const month = pathParts.pop();
-                    const year = pathParts.pop();
-                    const fileRelPath = year + '/' + month + '/' + fileName;
-
-                    btn.innerText = '🌐 已翻譯並固化';
-                    btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
-                    
-                    const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, { headers: { 'Authorization': 'Bearer ' + ghToken } });
-                    if (fileRes.ok) {
-                        const fileData = await fileRes.json();
-                        await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {
-                            method: 'PUT',
-                            headers: { 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ 
-                                message: 'Auto-solidify translation for ' + fileName, 
-                                content: btoa(unescape(encodeURIComponent(htmlSnapshot))),
-                                sha: fileData.sha
-                            })
-                        });
-                    }
-                } catch(e) { console.error('固化失敗', e); btn.innerText = '⚠️ 僅本地翻譯'; }
-            } else { btn.innerText = '✅ 翻譯完成'; }
+            syncToCloud(true);
         }
     <\\/script>
 </body>
