@@ -95,7 +95,7 @@ def generate_tweet_card(tweet_data, tweet_id):
         </div>"""
 
 def generate_page_wrapper(content_html, page_title, now_str):
-    """生成完整 HTML 頁面外殼 (無多重引號逃逸 BUG 的高兼容版)"""
+    """生成完整 HTML 頁面外殼 (修復正则转义问题，并升级为 POST 请求防超长推文截断)"""
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -150,16 +150,20 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 if (content.getAttribute('data-translated') === 'true') continue;
                 const text = content.innerText;
                 
-                // 去除鏈接並準備檢查表情符號
+                // 去除鏈接並準備檢查表情符號 (安全转义)
                 let textToTranslate = text.replace(/https?:\\/\\/[^\\s]+/g, '').trim();
                 let checkText = textToTranslate.replace(/\\p{{Extended_Pictographic}}/gu, '').trim();
                 
-                // 如果去掉鏈接和表情後沒剩下實際文字，則跳過翻譯，不顯示框
                 if (!checkText) continue;
 
                 try {{
-                    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=' + encodeURIComponent(textToTranslate);
-                    const res = await fetch(url);
+                    // 使用 POST 请求完美兼容超长推文，杜绝 414 URL Too Long 报错
+                    const res = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t', {{
+                        method: 'POST',
+                        headers: {{ 'Content-Type': 'application/x-www-form-urlencoded' }},
+                        body: 'q=' + encodeURIComponent(textToTranslate)
+                    }});
+                    
                     const data = await res.json();
                     let translatedText = '';
                     if (data && data[0]) {{
@@ -199,7 +203,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
                     const month = pathParts.pop();
                     const year = pathParts.pop();
                     
-                    // 使用安全字串拼接，杜絕任何模板符號衝突
                     const fileRelPath = year + '/' + month + '/' + fileName;
 
                     btn.innerText = '🌐 已翻譯並固化';
@@ -587,7 +590,7 @@ def generate_index():
             } catch(e) { console.error(e); alert('刪除同步失敗: ' + e.message); document.getElementById('loadingBar').style.width = '0%'; }
         }
 
-        // --- 核心：HTML 模板組裝函數 (前端) ---
+        // --- 核心：HTML 模板組裝函數 (前端，嚴格處理了正則表達式轉義) ---
         function generateTweetCard(tweet, tweetId) {
             const author = tweet.user_name || 'Unknown';
             const handle = tweet.user_screen_name || 'unknown';
@@ -690,16 +693,20 @@ def generate_index():
                 if (content.getAttribute('data-translated') === 'true') continue;
                 const text = content.innerText;
                 
-                // 去除鏈接並準備檢查表情符號
-                let textToTranslate = text.replace(/https?:\\/\\/[^\\s]+/g, '').trim();
-                let checkText = textToTranslate.replace(/\\p{Extended_Pictographic}/gu, '').trim();
+                // 去除鏈接並準備檢查表情符號 (安全四重转义，防止语法崩溃)
+                let textToTranslate = text.replace(/https?:\\\\/\\\\/[^\\\\s]+/g, '').trim();
+                let checkText = textToTranslate.replace(/\\\\p{Extended_Pictographic}/gu, '').trim();
                 
-                // 如果去掉鏈接和表情後沒剩下實際文字，則跳過翻譯，不顯示框
                 if (!checkText) continue;
 
                 try {
-                    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=' + encodeURIComponent(textToTranslate);
-                    const res = await fetch(url);
+                    // 强制采用 POST 请求，杜绝长篇推文触发 414 URL Too Long 错误
+                    const res = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'q=' + encodeURIComponent(textToTranslate)
+                    });
+                    
                     const data = await res.json();
                     let translatedText = '';
                     if (data && data[0]) {
@@ -739,7 +746,6 @@ def generate_index():
                     const month = pathParts.pop();
                     const year = pathParts.pop();
                     
-                    // 完全捨棄模板字串，避免逃逸衝突
                     const fileRelPath = year + '/' + month + '/' + fileName;
 
                     btn.innerText = '🌐 已翻譯並固化';
@@ -890,7 +896,7 @@ def generate_index():
                             validCount++;
                         }
                         
-                        if (validCount === 0) throw new Error("所有推文數據抓取失敗");
+                        if (validCount === 0) throw new Error("所有推文數據抓取 down 失敗");
                         
                         finalHtmlOutput = generatePageWrapper(combinedCardsHtml, `Tweets by @${username}`, hhmmStr);
                         filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_batch_${username}_x.html`;
@@ -973,7 +979,7 @@ def generate_index():
 
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首頁日曆 WebApp (原創過濾 + 一鍵翻譯固化版) 已生成更新！")
+    print("🚀 首頁日曆 WebApp (一鍵翻譯終極修復版) 已生成更新！")
 
 def git_push_to_github(msg="Auto-archive"):
     """自動調用本地系統的 Git 指令將更新推送到 GitHub"""
