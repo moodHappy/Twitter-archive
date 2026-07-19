@@ -28,7 +28,6 @@ def get_user_tweet_ids(username, limit=10):
                 tweet = entry.get('content', {}).get('tweet', {})
                 tweet_id = tweet.get('id_str')
                 screen_name = tweet.get('user', {}).get('screen_name', '')
-                # 強制校驗：僅保留原創推文 (作者名必須匹配)，排除轉推
                 if tweet_id and screen_name.lower() == username.lower() and tweet_id not in tweet_ids:
                     tweet_ids.append(tweet_id)
             if tweet_ids:
@@ -38,7 +37,6 @@ def get_user_tweet_ids(username, limit=10):
     
     print("⏳ 嘗試使用備用 RSS 節點解析...")
     try:
-        # RSSHub 節點自帶 exclude_rts_replies 參數
         rss_url = f"https://rsshub.rssforever.com/twitter/user/{username}/exclude_rts_replies"
         res = requests.get(rss_url, headers=headers, timeout=10)
         ids = re.findall(r'status/(\d+)', res.text)
@@ -97,7 +95,7 @@ def generate_tweet_card(tweet_data, tweet_id):
         </div>"""
 
 def generate_page_wrapper(content_html, page_title, now_str):
-    """生成完整 HTML 頁面外殼 (包含一鍵翻譯與自我固化邏輯)"""
+    """生成完整 HTML 頁面外殼 (無多重引號逃逸 BUG 的高兼容版)"""
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -112,6 +110,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
         .nav-back a {{ text-decoration: none; color: white; background: #000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }}
         .translate-btn {{ background: #f2f2f7; color: #0f1419; border: 1px solid #ccc; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: 0.2s; flex-shrink: 0; outline: none; }}
         .translate-btn:active {{ background: #e5e5ea; transform: scale(0.95); }}
+        .translate-btn[disabled] {{ opacity: 0.8; cursor: not-allowed; }}
         .container {{ max-width: 600px; margin: 0 auto; padding: 20px 15px 50px 15px; }}
         .tweet-card {{ background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 25px; }}
         .header {{ display: flex; align-items: center; margin-bottom: 12px; }}
@@ -140,13 +139,14 @@ def generate_page_wrapper(content_html, page_title, now_str):
     <script>
         async function translateAll() {{
             const btn = document.getElementById('translate-btn');
-            if(btn.disabled) return;
+            if(btn.hasAttribute('disabled')) return;
             btn.innerText = '⏳ 翻譯中...';
-            btn.disabled = true;
+            btn.setAttribute('disabled', 'true');
 
             let translatedCount = 0;
             const contents = document.querySelectorAll('.content');
-            for (let content of contents) {{
+            for (let i = 0; i < contents.length; i++) {{
+                const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
                 const text = content.innerText;
                 if (!text.trim()) continue;
@@ -156,16 +156,20 @@ def generate_page_wrapper(content_html, page_title, now_str):
                     const res = await fetch(url);
                     const data = await res.json();
                     let translatedText = '';
-                    data[0].forEach(item => {{ if (item[0]) translatedText += item[0]; }});
+                    if (data && data[0]) {{
+                        data[0].forEach(item => {{ if (item[0]) translatedText += item[0]; }});
+                    }}
 
-                    const transDiv = document.createElement('div');
-                    transDiv.className = 'translated-content';
-                    transDiv.style.cssText = 'color: #0f1419; font-size: 1.05rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
-                    transDiv.innerHTML = '<strong>🌐 翻譯：</strong><br>' + translatedText;
-                    
-                    content.parentNode.insertBefore(transDiv, content.nextSibling);
-                    content.setAttribute('data-translated', 'true');
-                    translatedCount++;
+                    if (translatedText) {{
+                        const transDiv = document.createElement('div');
+                        transDiv.className = 'translated-content';
+                        transDiv.style.cssText = 'color: #0f1419; font-size: 1.05rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
+                        transDiv.innerHTML = '<strong>🌐 翻譯：</strong><br>' + translatedText;
+                        
+                        content.parentNode.insertBefore(transDiv, content.nextSibling);
+                        content.setAttribute('data-translated', 'true');
+                        translatedCount++;
+                    }}
                 }} catch (e) {{
                     console.error('翻譯失敗:', e);
                 }}
@@ -178,39 +182,33 @@ def generate_page_wrapper(content_html, page_title, now_str):
 
             btn.innerText = '⏳ 固化至雲端...';
             
-            // 讀取樞紐首頁設定好的 GitHub Token
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
             const ghRepo = localStorage.getItem('GH_REPO');
             
             if (ghToken && ghOwner && ghRepo) {{
                 try {{
-                    // 解析當前文件的存放路徑
                     const pathParts = window.location.pathname.split('/');
                     const fileName = pathParts.pop();
                     const month = pathParts.pop();
                     const year = pathParts.pop();
-                    const fileRelPath = `${{year}}/${{month}}/${{fileName}}`;
-
-                    // 恢復按鈕外觀狀態，避免將【固化中】字樣也存進源碼
-                    btn.innerText = '🌐 已翻譯並固化';
-                    btn.disabled = true;
-                    btn.style.background = '#e8f5fd';
-                    btn.style.color = '#1d9bf0';
-                    btn.style.border = '1px solid #1d9bf0';
                     
-                    // 獲取當前完整注入翻譯後的 DOM HTML 結構
-                    const htmlSnapshot = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + document.documentElement.innerHTML + '\\n</html>';
+                    // 使用安全字串拼接，杜絕任何模板符號衝突
+                    const fileRelPath = year + '/' + month + '/' + fileName;
 
-                    // 請求 API 獲取檔案 SHA 並進行覆寫
-                    const fileRes = await fetch(`https://api.github.com/repos/${{ghOwner}}/${{ghRepo}}/contents/docs/${{fileRelPath}}`, {{ headers: {{ 'Authorization': `Bearer ${{ghToken}}` }} }});
+                    btn.innerText = '🌐 已翻譯並固化';
+                    btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
+                    
+                    const htmlSnapshot = '<!DOCTYPE html><html lang="zh-CN">' + document.documentElement.innerHTML + '</html>';
+
+                    const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {{ headers: {{ 'Authorization': 'Bearer ' + ghToken }} }});
                     if (fileRes.ok) {{
                         const fileData = await fileRes.json();
-                        await fetch(`https://api.github.com/repos/${{ghOwner}}/${{ghRepo}}/contents/docs/${{fileRelPath}}`, {{
+                        await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {{
                             method: 'PUT',
-                            headers: {{ 'Authorization': `Bearer ${{ghToken}}`, 'Content-Type': 'application/json' }},
+                            headers: {{ 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' }},
                             body: JSON.stringify({{ 
-                                message: `Auto-solidify translation for ${{fileName}}`, 
+                                message: 'Auto-solidify translation for ' + fileName, 
                                 content: btoa(unescape(encodeURIComponent(htmlSnapshot))),
                                 sha: fileData.sha
                             }})
@@ -258,7 +256,7 @@ def save_single_tweet_local(tweet_id, now_obj):
         return False
 
 def save_batch_tweets_local(username, tweet_ids, now_obj):
-    """處理並保存帳號推文瀑布流 (多合一 HTML)"""
+    """處理並保存帳號推文瀑布流"""
     year_str, month_str = str(now_obj.year), str(now_obj.month)
     target_dir = os.path.join(BASE_DIR, year_str, month_str)
     os.makedirs(target_dir, exist_ok=True)
@@ -313,7 +311,6 @@ def generate_index():
                             time_str = f"{parts[3][:2]}:{parts[3][2:4]}"
                             file_path = f"{year}/{month}/{file}"
                             
-                            # 加入時間戳綴飾
                             if "batch" in file:
                                 username = file.split('_batch_')[1].replace('_x.html', '')
                                 title = f"🐦 {time_str} 推文集：@{username}"
@@ -647,6 +644,7 @@ def generate_index():
         .nav-back a { text-decoration: none; color: white; background: #000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
         .translate-btn { background: #f2f2f7; color: #0f1419; border: 1px solid #ccc; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: 0.2s; flex-shrink: 0; outline: none; }
         .translate-btn:active { background: #e5e5ea; transform: scale(0.95); }
+        .translate-btn[disabled] { opacity: 0.8; cursor: not-allowed; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px 15px 50px 15px; }
         .tweet-card { background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 25px; }
         .header { display: flex; align-items: center; margin-bottom: 12px; }
@@ -675,13 +673,14 @@ def generate_index():
     <script>
         async function translateAll() {
             const btn = document.getElementById('translate-btn');
-            if(btn.disabled) return;
+            if(btn.hasAttribute('disabled')) return;
             btn.innerText = '⏳ 翻譯中...';
-            btn.disabled = true;
+            btn.setAttribute('disabled', 'true');
 
             let translatedCount = 0;
             const contents = document.querySelectorAll('.content');
-            for (let content of contents) {
+            for (let i = 0; i < contents.length; i++) {
+                const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
                 const text = content.innerText;
                 if (!text.trim()) continue;
@@ -691,16 +690,20 @@ def generate_index():
                     const res = await fetch(url);
                     const data = await res.json();
                     let translatedText = '';
-                    data[0].forEach(item => { if (item[0]) translatedText += item[0]; });
+                    if (data && data[0]) {
+                        data[0].forEach(item => { if (item[0]) translatedText += item[0]; });
+                    }
 
-                    const transDiv = document.createElement('div');
-                    transDiv.className = 'translated-content';
-                    transDiv.style.cssText = 'color: #0f1419; font-size: 1.05rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
-                    transDiv.innerHTML = '<strong>🌐 翻譯：</strong><br>' + translatedText;
-                    
-                    content.parentNode.insertBefore(transDiv, content.nextSibling);
-                    content.setAttribute('data-translated', 'true');
-                    translatedCount++;
+                    if (translatedText) {
+                        const transDiv = document.createElement('div');
+                        transDiv.className = 'translated-content';
+                        transDiv.style.cssText = 'color: #0f1419; font-size: 1.05rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
+                        transDiv.innerHTML = '<strong>🌐 翻譯：</strong><br>' + translatedText;
+                        
+                        content.parentNode.insertBefore(transDiv, content.nextSibling);
+                        content.setAttribute('data-translated', 'true');
+                        translatedCount++;
+                    }
                 } catch (e) {
                     console.error('翻譯失敗:', e);
                 }
@@ -723,24 +726,23 @@ def generate_index():
                     const fileName = pathParts.pop();
                     const month = pathParts.pop();
                     const year = pathParts.pop();
-                    const fileRelPath = \`\${year}/\${month}/\${fileName}\`;
+                    
+                    // 完全捨棄模板字串，避免逃逸衝突
+                    const fileRelPath = year + '/' + month + '/' + fileName;
 
                     btn.innerText = '🌐 已翻譯並固化';
-                    btn.disabled = true;
-                    btn.style.background = '#e8f5fd';
-                    btn.style.color = '#1d9bf0';
-                    btn.style.border = '1px solid #1d9bf0';
+                    btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
                     
-                    const htmlSnapshot = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + document.documentElement.innerHTML + '\\n</html>';
+                    const htmlSnapshot = '<!DOCTYPE html><html lang="zh-CN">' + document.documentElement.innerHTML + '</html>';
 
-                    const fileRes = await fetch(\`https://api.github.com/repos/\${ghOwner}/\${ghRepo}/contents/docs/\${fileRelPath}\`, { headers: { 'Authorization': \`Bearer \${ghToken}\` } });
+                    const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, { headers: { 'Authorization': 'Bearer ' + ghToken } });
                     if (fileRes.ok) {
                         const fileData = await fileRes.json();
-                        await fetch(\`https://api.github.com/repos/\${ghOwner}/\${ghRepo}/contents/docs/\${fileRelPath}\`, {
+                        await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {
                             method: 'PUT',
-                            headers: { 'Authorization': \`Bearer \${ghToken}\`, 'Content-Type': 'application/json' },
+                            headers: { 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' },
                             body: JSON.stringify({ 
-                                message: \`Auto-solidify translation for \${fileName}\`, 
+                                message: 'Auto-solidify translation for ' + fileName, 
                                 content: btoa(unescape(encodeURIComponent(htmlSnapshot))),
                                 sha: fileData.sha
                             })
@@ -760,7 +762,7 @@ def generate_index():
         }
         // ------------------------------------
 
-        // X 推文前端抓取邏輯 (四重代理備援 + 原創過濾)
+        // X 推文前端抓取邏輯
         document.getElementById('xUrlInput').addEventListener('keypress', async function (e) {
             if (e.key === 'Enter') {
                 const url = this.value.trim();
@@ -795,7 +797,6 @@ def generate_index():
                 this.disabled = true;
 
                 try {
-                    // 若為批量，使用代理取得最新原創推文 ID
                     if (isBatch) {
                         loadingBar.style.width = '15%';
                         try {
@@ -834,7 +835,6 @@ def generate_index():
                                             const tid = tweet?.id_str;
                                             const screenName = tweet?.user?.screen_name;
                                             
-                                            // 強制校驗：排除轉發推文，只保留原創
                                             if (tid && screenName && screenName.toLowerCase() === username.toLowerCase() && !tweetIdsToProcess.includes(tid)) {
                                                 tweetIdsToProcess.push(tid);
                                             }
@@ -851,7 +851,6 @@ def generate_index():
                         }
                     }
 
-                    // 準備全域變數
                     const now = new Date();
                     const yearStr = AppState.year.toString();
                     const monthStr = AppState.month.toString();
@@ -864,7 +863,6 @@ def generate_index():
                     let finalHtmlOutput = "";
                     let indexTitle = "";
                     
-                    // 根據模式組裝 HTML
                     if (isBatch) {
                         let combinedCardsHtml = "";
                         let validCount = 0;
@@ -885,12 +883,9 @@ def generate_index():
                         finalHtmlOutput = generatePageWrapper(combinedCardsHtml, `Tweets by @${username}`, hhmmStr);
                         filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_batch_${username}_x.html`;
                         fileRelPath = `${yearStr}/${monthStr}/${filename}`;
-                        
-                        // 加入時間戳綴飾
                         indexTitle = `🐦 ${hhmmStr} 推文集：@${username}`;
                         
                     } else {
-                        // 單推文模式
                         loadingBar.style.width = '60%';
                         const tweetId = tweetIdsToProcess[0];
                         const vRes = await fetch(`https://api.vxtwitter.com/Twitter/status/${tweetId}`);
@@ -901,12 +896,9 @@ def generate_index():
                         finalHtmlOutput = generatePageWrapper(singleCardHtml, `Tweet by ${tweet.user_name}`, hhmmStr);
                         filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_${tweetId}_x.html`;
                         fileRelPath = `${yearStr}/${monthStr}/${filename}`;
-                        
-                        // 加入時間戳綴飾
                         indexTitle = `🐦 ${hhmmStr} 靈感推文`;
                     }
 
-                    // 上傳組裝好的單一 HTML 檔案
                     loadingBar.style.width = '85%';
                     const putHtmlRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/${fileRelPath}`, {
                         method: 'PUT',
@@ -916,7 +908,6 @@ def generate_index():
                     
                     if (!putHtmlRes.ok) throw new Error("HTML 文件上傳 GitHub 失敗");
 
-                    // 更新 index.html 樞紐
                     loadingBar.style.width = '95%';
                     const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `Bearer ${ghToken}` } });
                     const idxData = await idxRes.json();
