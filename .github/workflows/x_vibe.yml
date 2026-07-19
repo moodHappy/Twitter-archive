@@ -1,0 +1,41 @@
+name: Catch X Daily Vibe
+
+# 触发条件：定时触发 + 手动触发
+on:
+  schedule:
+    - cron: '0 0 * * 1'  # 每周一北京时间早上 8:00 (UTC 00:00) 运行
+  workflow_dispatch:     # 允许在 GitHub 网页上手动点击运行
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write    # 赋予机器人写入代码库的权限
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Rebuild X Calendar Index
+        # 巧妙利用管道符，给脚本发送 "q" 指令
+        # 这样机器人启动脚本 -> 脚本自动扫描 docs 目录生成最新 index.html -> 接收到 q -> 成功退出
+        run: echo "q" | python x_app.py
+
+      - name: Commit and Push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # 使用 "." 追踪当前目录下的所有新增和变动，完美兼容 docs 及其内部子文件夹
+          git add .
+          
+          # 如果有新文件或改动，就提交并推送到仓库
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto rebuild X vibe calendar index" && git push)
