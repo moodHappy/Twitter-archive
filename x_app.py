@@ -356,31 +356,18 @@ def generate_page_wrapper(content_html, page_title, now_str):
                     try {{ view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; }} catch(e){{}}
                 }}
 
-                // 【修復按鈕交互死循環】：三重狀態智能判斷，確保 🔴 始終能直接呼出輸入框
                 toggle.onclick = (e) => {{
                     e.preventDefault();
                     e.stopPropagation();
-                    
                     if (box.style.display === 'block') {{ 
-                        if (edit.style.display === 'block') {{
-                            // 如果當前就在編輯，點擊紅點 = 關閉
-                            box.style.display = 'none'; 
-                        }} else {{
-                            // 如果當前是在看渲染視圖，點擊紅點 = 強制進入編輯模式
-                            view.style.display = 'none'; 
-                            edit.style.display = 'block'; 
-                            setTimeout(() => {{ edit.focus(); }}, 150); 
-                        }}
+                        box.style.display = 'none'; 
                     }} else {{
-                        // 如果當前是關閉的，打開它
                         box.style.display = 'block';
                         if (!edit.value.trim()) {{ 
-                            // 沒字，直接進入編輯模式
                             view.style.display = 'none'; 
                             edit.style.display = 'block'; 
                             setTimeout(() => {{ edit.focus(); }}, 150); 
                         }} else {{ 
-                            // 有字，先展示視圖，想編輯再點一下紅點
                             view.style.display = 'block'; 
                             edit.style.display = 'none'; 
                         }}
@@ -394,7 +381,12 @@ def generate_page_wrapper(content_html, page_title, now_str):
                     edit.value = edit.value; 
                     setTimeout(() => {{ edit.focus(); }}, 150); 
                 }};
-                view.addEventListener('dblclick', triggerEdit);
+
+                view.addEventListener('dblclick', (e) => {{
+                    e.preventDefault();
+                    e.stopPropagation();
+                    box.style.display = 'none';
+                }});
 
                 let lastTap = 0;
                 view.addEventListener('touchstart', e => {{
@@ -403,7 +395,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         const currentTime = new Date().getTime();
                         if (currentTime - lastTap < 500 && currentTime - lastTap > 0) {{ 
                             e.preventDefault();
-                            triggerEdit(e); // 移動端雙擊直接進入編輯，不再是關閉，防止誤觸
+                            box.style.display = 'none'; 
                         }}
                         lastTap = currentTime;
                     }}
@@ -473,10 +465,16 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         content.setAttribute('data-translated', 'true');
                         translatedCount++;
                     }}
-                }} catch (e) {{ console.error('翻譯失敗:', e); }}
+                }} catch (e) {{
+                    console.error('翻譯失敗:', e);
+                }}
             }}
             
-            if (translatedCount === 0) {{ btn.innerText = '✅ 已全部翻譯'; return; }}
+            if (translatedCount === 0) {{
+                btn.innerText = '✅ 已全部翻譯';
+                return;
+            }}
+
             btn.innerText = '⏳ 固化至雲端...';
             
             syncToCloud(true);
@@ -1060,7 +1058,7 @@ def generate_index():
                 let finalHTML = '';
                 let sha = '';
                 
-                // 【核心策略】先拉取 Github 上的純淨版文件，只把自己的 Textarea/翻譯 塞進去，完全阻斷本地插件污染！
+                // 【核心策略】先拉取 Github 上的純淨版文件，只把自己的 Textarea/翻譯 塞進去，完全阻断本地插件污染！
                 const getRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), {
                     headers: { 'Authorization': 'Bearer ' + ghToken }, cache: 'no-store'
                 });
@@ -1173,31 +1171,18 @@ def generate_index():
                     try { view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; } catch(e){}
                 }
 
-                // 【修復按鈕交互死循環】：三重狀態智能判斷，確保 🔴 始終能直接呼出輸入框
                 toggle.onclick = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    
                     if (box.style.display === 'block') { 
-                        if (edit.style.display === 'block') {
-                            // 如果當前就在編輯，點擊紅點 = 關閉
-                            box.style.display = 'none'; 
-                        } else {
-                            // 如果當前是在看渲染視圖，點擊紅點 = 強制進入編輯模式
-                            view.style.display = 'none'; 
-                            edit.style.display = 'block'; 
-                            setTimeout(() => { edit.focus(); }, 150); 
-                        }
+                        box.style.display = 'none'; 
                     } else {
-                        // 如果當前是關閉的，打開它
                         box.style.display = 'block';
                         if (!edit.value.trim()) { 
-                            // 沒字，直接進入編輯模式
                             view.style.display = 'none'; 
                             edit.style.display = 'block'; 
                             setTimeout(() => { edit.focus(); }, 150); 
                         } else { 
-                            // 有字，先展示視圖，想編輯再點一下紅點
                             view.style.display = 'block'; 
                             edit.style.display = 'none'; 
                         }
@@ -1211,7 +1196,12 @@ def generate_index():
                     edit.value = edit.value; 
                     setTimeout(() => { edit.focus(); }, 150); 
                 };
-                view.addEventListener('dblclick', triggerEdit);
+
+                view.addEventListener('dblclick', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    box.style.display = 'none';
+                });
 
                 let lastTap = 0;
                 view.addEventListener('touchstart', e => {
@@ -1220,7 +1210,7 @@ def generate_index():
                         const currentTime = new Date().getTime();
                         if (currentTime - lastTap < 500 && currentTime - lastTap > 0) { 
                             e.preventDefault();
-                            triggerEdit(e); // 移動端雙擊直接進入編輯，不再是關閉，防止誤觸
+                            box.style.display = 'none'; 
                         }
                         lastTap = currentTime;
                     }
