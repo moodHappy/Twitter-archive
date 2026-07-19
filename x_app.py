@@ -15,7 +15,7 @@ def get_user_tweet_ids(username, limit=10):
     """通過公開 Syndication API 或備用 RSS 獲取用戶最新原創推文 ID"""
     print(f"⏳ 正在解析 @{username} 的時間線...")
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-    
+
     try:
         url = f"https://syndication.twitter.com/srv/timeline-profile/screen-name/{username}"
         res = requests.get(url, headers=headers, timeout=10)
@@ -34,7 +34,7 @@ def get_user_tweet_ids(username, limit=10):
                 return tweet_ids[:limit]
     except Exception as e:
         print(f"⚠️ 解析主節點失敗: {e}")
-    
+
     print("⏳ 嘗試使用備用 RSS 節點解析...")
     try:
         rss_url = f"https://rsshub.rssforever.com/twitter/user/{username}/exclude_rts_replies"
@@ -45,7 +45,7 @@ def get_user_tweet_ids(username, limit=10):
         return tweet_ids[:limit]
     except Exception as e:
         print(f"❌ 備用節點解析失敗: {e}")
-    
+
     return []
 
 def generate_tweet_card(tweet_data, tweet_id):
@@ -55,7 +55,7 @@ def generate_tweet_card(tweet_data, tweet_id):
     text = tweet_data.get('text', '')
     likes = tweet_data.get('likes', 0)
     retweets = tweet_data.get('retweets', 0)
-    
+
     media_extended = tweet_data.get('media_extended', [])
     media_urls = tweet_data.get('mediaURLs', [])
     original_url = f"https://x.com/{handle}/status/{tweet_id}"
@@ -149,10 +149,16 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
                 const text = content.innerText;
-                if (!text.trim()) continue;
+                
+                // 去除鏈接並準備檢查表情符號
+                let textToTranslate = text.replace(/https?:\\/\\/[^\\s]+/g, '').trim();
+                let checkText = textToTranslate.replace(/\\p{{Extended_Pictographic}}/gu, '').trim();
+                
+                // 如果去掉鏈接和表情後沒剩下實際文字，則跳過翻譯，不顯示框
+                if (!checkText) continue;
 
                 try {{
-                    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=' + encodeURIComponent(text);
+                    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=' + encodeURIComponent(textToTranslate);
                     const res = await fetch(url);
                     const data = await res.json();
                     let translatedText = '';
@@ -164,7 +170,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         const transDiv = document.createElement('div');
                         transDiv.className = 'translated-content';
                         transDiv.style.cssText = 'color: #0f1419; font-size: 1.05rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
-                        transDiv.innerHTML = '<strong>🌐 翻譯：</strong><br>' + translatedText;
+                        transDiv.innerHTML = translatedText;
                         
                         content.parentNode.insertBefore(transDiv, content.nextSibling);
                         content.setAttribute('data-translated', 'true');
@@ -234,7 +240,7 @@ def save_single_tweet_local(tweet_id, now_obj):
         if 'error' in res:
             print(f"❌ 抓取失敗: {res.get('error')}")
             return False
-        
+
         year_str, month_str = str(now_obj.year), str(now_obj.month)
         target_dir = os.path.join(BASE_DIR, year_str, month_str)
         os.makedirs(target_dir, exist_ok=True)
@@ -310,7 +316,7 @@ def generate_index():
                             f_day = str(int(parts[2]))
                             time_str = f"{parts[3][:2]}:{parts[3][2:4]}"
                             file_path = f"{year}/{month}/{file}"
-                            
+
                             if "batch" in file:
                                 username = file.split('_batch_')[1].replace('_x.html', '')
                                 title = f"🐦 {time_str} 推文集：@{username}"
@@ -683,10 +689,16 @@ def generate_index():
                 const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
                 const text = content.innerText;
-                if (!text.trim()) continue;
+                
+                // 去除鏈接並準備檢查表情符號
+                let textToTranslate = text.replace(/https?:\\/\\/[^\\s]+/g, '').trim();
+                let checkText = textToTranslate.replace(/\\p{Extended_Pictographic}/gu, '').trim();
+                
+                // 如果去掉鏈接和表情後沒剩下實際文字，則跳過翻譯，不顯示框
+                if (!checkText) continue;
 
                 try {
-                    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=' + encodeURIComponent(text);
+                    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=' + encodeURIComponent(textToTranslate);
                     const res = await fetch(url);
                     const data = await res.json();
                     let translatedText = '';
@@ -698,7 +710,7 @@ def generate_index():
                         const transDiv = document.createElement('div');
                         transDiv.className = 'translated-content';
                         transDiv.style.cssText = 'color: #0f1419; font-size: 1.05rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
-                        transDiv.innerHTML = '<strong>🌐 翻譯：</strong><br>' + translatedText;
+                        transDiv.innerHTML = translatedText;
                         
                         content.parentNode.insertBefore(transDiv, content.nextSibling);
                         content.setAttribute('data-translated', 'true');
@@ -1013,18 +1025,18 @@ def main():
             if save_single_tweet_local(tweet_id, now):
                 generate_index()
                 git_push_to_github(f"Archive single tweet {tweet_id}")
-        
+
         elif user_match:
             username = user_match.group(1)
             if username.lower() in ['i', 'home', 'explore', 'notifications', 'messages']:
                 print("❌ 鏈接無效，請輸入真實的帳號首頁")
                 continue
-            
+
             tweet_ids = get_user_tweet_ids(username, limit=10)
             if not tweet_ids:
                 print("❌ 找不到該帳號的原創推文或解析時間線失敗。")
                 continue
-            
+
             if save_batch_tweets_local(username, tweet_ids, now):
                 generate_index()
                 git_push_to_github(f"Batch archive {len(tweet_ids)} tweets from {username}")
