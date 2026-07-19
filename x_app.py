@@ -49,7 +49,7 @@ def get_user_tweet_ids(username, limit=10):
     return []
 
 def generate_tweet_card(tweet_data, tweet_id):
-    """生成單個推文卡片的 HTML 結構 (Python端)"""
+    """生成單個推文卡片的 HTML 結構 (新增批注 UI 結構)"""
     author = tweet_data.get('user_name', 'Unknown')
     handle = tweet_data.get('user_screen_name', 'unknown')
     text = tweet_data.get('text', '')
@@ -85,30 +85,23 @@ def generate_tweet_card(tweet_data, tweet_id):
                     <span class="handle">@{handle}</span>
                 </div>
             </div>
-            <div class="content">{text}</div>
+            <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
+                <div class="content" style="margin-bottom:0;">{text}<span class="anno-toggle"></span></div>
+                <div class="anno-box" style="display:none;">
+                    <div class="anno-view markdown-body"></div>
+                    <textarea class="anno-edit" style="display:none;"></textarea>
+                </div>
+            </div>
             {media_html}
             <div class="stats">
                 <span>❤️ {likes:,} 喜歡</span>
                 <span>🔁 {retweets:,} 轉發</span>
             </div>
             <a href="{original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
-            
-            <!-- 批注區域 -->
-            <div class="annotation-container">
-                <div class="annotation-content" data-anno-id="{tweet_id}"></div>
-                <div class="annotation-edit-area" id="edit-area-{tweet_id}">
-                    <textarea class="annotation-textarea" id="textarea-{tweet_id}" placeholder="在這裡輸入批注思考、筆記或靈感..."></textarea>
-                    <div class="annotation-actions">
-                        <button class="btn-sm btn-edit" onclick="cancelAnnotation('{tweet_id}')">取消</button>
-                        <button class="btn-sm btn-save-anno" onclick="saveAnnotation('{tweet_id}')">💾 保存批注</button>
-                    </div>
-                </div>
-                <button class="btn-sm btn-edit" id="btn-edit-{tweet_id}" onclick="editAnnotation('{tweet_id}')" style="margin-top:10px;">📝 添加批注</button>
-            </div>
         </div>"""
 
 def generate_page_wrapper(content_html, page_title, now_str):
-    """生成完整 HTML 頁面外殼 (Python端)"""
+    """生成完整 HTML 頁面外殼 (Python 本地後端生成版)"""
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -116,6 +109,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
     <meta name="referrer" content="no-referrer">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{page_title}</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         :root {{ --bg: #f2f2f7; --card: #ffffff; --text: #0f1419; --muted: #536471; --border: #eff3f4; --x-blue: #1d9bf0; }}
         body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }}
@@ -124,39 +118,47 @@ def generate_page_wrapper(content_html, page_title, now_str):
         .translate-btn {{ background: #f2f2f7; color: #0f1419; border: 1px solid #ccc; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: 0.2s; flex-shrink: 0; outline: none; }}
         .translate-btn:active {{ background: #e5e5ea; transform: scale(0.95); }}
         .translate-btn[disabled] {{ opacity: 0.8; cursor: not-allowed; }}
+        
+        /* 批注核心 UI 樣式 */
+        .sync-status {{ padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; display: none; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }}
+        .anno-toggle {{ display: inline-flex; margin-left: 6px; cursor: pointer; opacity: 0.2; font-size: 0.8rem; vertical-align: middle; transition: all 0.2s; user-select: none; }}
+        .anno-toggle:hover {{ opacity: 0.8; transform: scale(1.1); }}
+        .anno-toggle.has-anno {{ opacity: 1; }}
+        .anno-toggle::after {{ content: "🔴"; }}
+        .anno-box {{ display: none; margin-top: 10px; background: #f8f6ff; border-left: 4px solid #8e7cc3; padding: 12px 16px; border-radius: 0 6px 6px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.02); text-align: left; }}
+        .anno-view {{ font-size: 1.05rem; line-height: 1.6; color: #4a4a4a; min-height: 24px; }}
+        .anno-edit {{ width: 100%; min-height: 120px; padding: 10px; font-family: monospace; font-size: 1rem; border: 1px dashed #8e7cc3; border-radius: 6px; box-sizing: border-box; resize: vertical; display: none; background: #fff; color: #333; outline: none; }}
+        .anno-edit:focus {{ border: 1px solid #8e7cc3; box-shadow: 0 0 0 3px rgba(142,124,195,0.1); }}
+        
+        .markdown-body p {{ margin-top: 0; margin-bottom: 8px; }}
+        .markdown-body p:last-child {{ margin-bottom: 0; }}
+        .markdown-body p:empty {{ display: none; }}
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 {{ color: #8e7cc3; font-size: 1.15rem; margin: 10px 0 8px 0; border-bottom: 1px dashed #e0d8f0; padding-bottom: 4px; }}
+        .markdown-body ul, .markdown-body ol {{ margin: 0 0 8px 0; padding-left: 20px; }}
+        .markdown-body blockquote {{ margin: 0 0 10px 0; padding: 10px 15px; background: rgba(142,124,195,0.1); border-left: 4px solid #8e7cc3; color: #555; }}
+
         .container {{ max-width: 600px; margin: 0 auto; padding: 20px 15px 50px 15px; }}
         .tweet-card {{ background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 25px; }}
         .header {{ display: flex; align-items: center; margin-bottom: 12px; }}
         .names {{ display: flex; flex-direction: column; }}
         .name {{ font-weight: 700; font-size: 1.1rem; color: var(--text); }}
         .handle {{ color: var(--muted); font-size: 0.95rem; margin-top: 2px; }}
-        .content {{ font-size: 1.1rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; margin-bottom: 15px; }}
+        .content {{ font-size: 1.1rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }}
         .media-container {{ margin-top: 10px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; background: #000; }}
         .media-item {{ width: 100%; height: auto; display: block; max-height: 500px; object-fit: contain; }}
         .stats {{ margin-top: 15px; color: var(--muted); font-size: 0.95rem; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px; font-weight: 500; margin-bottom: 15px; }}
         .btn-link {{ display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }}
         .btn-link:active {{ transform: scale(0.98); background: #1a8cd8; }}
         .time-stamp {{ text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }}
-        
-        /* 批注樣式 */
-        .annotation-container {{ margin-top: 15px; border-top: 1px dashed var(--border); padding-top: 15px; }}
-        .annotation-content {{ white-space: pre-wrap; word-wrap: break-word; color: #444; font-size: 0.95rem; background: #fffde7; padding: 12px; border-radius: 8px; border-left: 4px solid #fbc02d; margin-bottom: 10px; display: none; }}
-        .annotation-content:not(:empty) {{ display: block; }}
-        .annotation-edit-area {{ display: none; flex-direction: column; gap: 8px; margin-bottom: 10px; }}
-        .annotation-textarea {{ width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-family: inherit; font-size: 0.95rem; resize: vertical; min-height: 80px; outline: none; transition: border 0.2s; }}
-        .annotation-textarea:focus {{ border-color: var(--x-blue); }}
-        .annotation-actions {{ display: flex; gap: 10px; justify-content: flex-end; }}
-        .btn-sm {{ padding: 6px 14px; border-radius: 16px; border: none; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: transform 0.1s; }}
-        .btn-sm:active {{ transform: scale(0.95); }}
-        .btn-edit {{ background: #f2f2f7; color: var(--text); border: 1px solid #ccc; }}
-        .btn-save-anno {{ background: var(--x-blue); color: #fff; }}
-        .btn-save-anno[disabled] {{ opacity: 0.7; cursor: not-allowed; }}
     </style>
 </head>
 <body>
     <div class="nav-back">
         <a href="../../index.html">🔙 返回</a>
-        <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 一鍵翻譯</button>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <span class="sync-status" id="sync-status">📡 同步中...</span>
+            <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 一鍵翻譯</button>
+        </div>
     </div>
     <div class="container">
         <div class="time-stamp">歸檔時間: {now_str}</div>
@@ -164,44 +166,164 @@ def generate_page_wrapper(content_html, page_title, now_str):
     </div>
     
     <script>
-        // 通用：同步當前頁面 HTML 到 GitHub
-        async function syncPageToGithub() {{
+        let syncTimeout = null;
+
+        // 排隊觸發批注同步
+        function scheduleSync() {{
+            const statusMsg = document.getElementById('sync-status');
+            statusMsg.style.display = 'inline-block';
+            statusMsg.style.backgroundColor = '#f39c12';
+            statusMsg.innerText = '⏳ 自動同步中...';
+            statusMsg.style.cursor = 'default';
+            statusMsg.onclick = null;
+
+            if (syncTimeout) clearTimeout(syncTimeout);
+            syncTimeout = setTimeout(() => {{ syncToGitHub(); }}, 3000);
+        }}
+
+        // 批注固化與推送核心
+        async function syncToGitHub() {{
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
             const ghRepo = localStorage.getItem('GH_REPO');
-            
-            if (!ghToken || !ghOwner || !ghRepo) return false;
+            if(!ghToken) return alert('缺少 GitHub Token，無法同步批注！請先在日曆首頁配置。');
+
+            const statusMsg = document.getElementById('sync-status');
+            statusMsg.style.display = 'inline-block';
+            statusMsg.style.backgroundColor = '#2ea44f';
+            statusMsg.innerText = '📡 同步中...';
+
+            // 將 textarea 的值寫入 DOM 以備截取
+            document.querySelectorAll('.anno-edit').forEach(ta => {{
+                ta.textContent = ta.value; 
+            }});
+
+            const htmlSnapshot = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + document.documentElement.innerHTML + '\\n</html>';
+            const pathParts = window.location.pathname.split('/');
+            const fileName = pathParts.pop();
+            const month = pathParts.pop();
+            const year = pathParts.pop();
+            const fileRelPath = year + '/' + month + '/' + fileName;
 
             try {{
-                const pathParts = window.location.pathname.split('/');
-                const fileName = pathParts.pop();
-                const month = pathParts.pop();
-                const year = pathParts.pop();
-                const fileRelPath = year + '/' + month + '/' + fileName;
-
-                // 抓取當前快照，此時 innerText 的變更會反映在 innerHTML 中
-                const htmlSnapshot = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + document.documentElement.innerHTML + '\\n</html>';
-
-                const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {{ headers: {{ 'Authorization': 'Bearer ' + ghToken }} }});
-                if (fileRes.ok) {{
-                    const fileData = await fileRes.json();
-                    const putRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {{
-                        method: 'PUT',
-                        headers: {{ 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' }},
-                        body: JSON.stringify({{ 
-                            message: 'Auto-sync page content (annotations/translations) for ' + fileName, 
-                            content: btoa(unescape(encodeURIComponent(htmlSnapshot))),
-                            sha: fileData.sha
-                        }})
-                    }});
-                    if(putRes.ok) return true;
+                const getRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), {{
+                    headers: {{ 'Authorization': 'Bearer ' + ghToken }},
+                    cache: 'no-store'
+                }});
+                let sha = '';
+                if (getRes.ok) {{
+                    const fileData = await getRes.json();
+                    sha = fileData.sha;
                 }}
+
+                const putRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {{
+                    method: 'PUT',
+                    headers: {{ 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' }},
+                    body: JSON.stringify({{ 
+                        message: 'Auto-save annotation', 
+                        content: btoa(unescape(encodeURIComponent(htmlSnapshot))), 
+                        sha: sha 
+                    }})
+                }});
+
+                if(putRes.ok) {{
+                    statusMsg.style.backgroundColor = '#2ea44f';
+                    statusMsg.innerText = '✅ 雲端已同步';
+                    setTimeout(() => {{
+                        if (statusMsg.innerText === '✅ 雲端已同步') statusMsg.style.display = 'none';
+                    }}, 3000);
+                }} else {{ throw new Error('Put failed'); }}
             }} catch(e) {{
-                console.error('同步失敗', e);
+                console.error(e);
+                statusMsg.style.backgroundColor = '#e74c3c';
+                statusMsg.innerText = '❌ 同步失敗(點擊重試)';
+                statusMsg.style.cursor = 'pointer';
+                statusMsg.onclick = () => {{
+                    statusMsg.onclick = null;
+                    statusMsg.style.cursor = 'default';
+                    syncToGitHub();
+                }};
             }}
-            return false;
         }}
 
+        // 初始化批注 UI 事件
+        function initAnnotations() {{
+            document.querySelectorAll('.content-wrap').forEach(wrap => {{
+                const view = wrap.querySelector('.anno-view');
+                const edit = wrap.querySelector('.anno-edit');
+                const toggle = wrap.querySelector('.anno-toggle');
+                const box = wrap.querySelector('.anno-box');
+
+                const rawText = edit.value.trim();
+                if (rawText) {{
+                    toggle.classList.add('has-anno');
+                    if (typeof marked !== 'undefined') view.innerHTML = marked.parse(rawText);
+                }}
+
+                toggle.onclick = () => {{
+                    if (box.style.display === 'block') {{
+                        box.style.display = 'none';
+                    }} else {{
+                        box.style.display = 'block';
+                        if (!edit.value.trim()) {{
+                            view.style.display = 'none';
+                            edit.style.display = 'block';
+                            edit.focus();
+                        }} else {{
+                            view.style.display = 'block';
+                            edit.style.display = 'none';
+                        }}
+                    }}
+                }};
+
+                const triggerEdit = () => {{
+                    view.style.display = 'none';
+                    edit.style.display = 'block';
+                    edit.value = edit.value;
+                    edit.focus();
+                }};
+
+                view.addEventListener('dblclick', triggerEdit);
+
+                let lastTap = 0;
+                view.addEventListener('touchstart', e => {{
+                    if (e.touches.length === 2) {{
+                        triggerEdit();
+                    }} else if (e.touches.length === 1) {{
+                        const currentTime = new Date().getTime();
+                        if (currentTime - lastTap < 500 && currentTime - lastTap > 0) {{
+                            box.style.display = 'none';
+                        }}
+                        lastTap = currentTime;
+                    }}
+                }}, {{passive: true}});
+
+                edit.onblur = async () => {{
+                    const newVal = edit.value.trim();
+                    try {{ view.innerHTML = newVal ? marked.parse(newVal) : ''; }} catch(e){{}}
+                    edit.style.display = 'none';
+
+                    if (newVal) {{
+                        view.style.display = 'block';
+                        toggle.classList.add('has-anno');
+                    }} else {{
+                        view.style.display = 'none';
+                        box.style.display = 'none';
+                        toggle.classList.remove('has-anno');
+                    }}
+
+                    if (edit.getAttribute('data-old-val') !== newVal) {{
+                        edit.setAttribute('data-old-val', newVal);
+                        scheduleSync(); 
+                    }}
+                }};
+                edit.setAttribute('data-old-val', rawText);
+            }});
+        }}
+        
+        window.addEventListener('load', initAnnotations);
+
+        // 翻譯功能也進行了升級以兼容 DOM 快照
         async function translateAll() {{
             const btn = document.getElementById('translate-btn');
             if(btn.hasAttribute('disabled')) return;
@@ -213,7 +335,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
             for (let i = 0; i < contents.length; i++) {{
                 const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
-                const text = content.innerText;
+                const text = content.innerText.replace('🔴', ''); // 忽略批注佔位符
                 
                 let textToTranslate = text.replace(/https?:\\/\\/[^\\s]+/g, '').trim();
                 let checkText = textToTranslate.replace(/\\p{{Extended_Pictographic}}/gu, '').trim();
@@ -239,6 +361,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         transDiv.style.cssText = 'color: #0f1419; font-size: 1.05rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
                         transDiv.innerHTML = translatedText;
                         
+                        // 將翻譯模塊插入到文本與批注框之間
                         content.parentNode.insertBefore(transDiv, content.nextSibling);
                         content.setAttribute('data-translated', 'true');
                         translatedCount++;
@@ -254,82 +377,50 @@ def generate_page_wrapper(content_html, page_title, now_str):
             }}
 
             btn.innerText = '⏳ 固化至雲端...';
-            const synced = await syncPageToGithub();
             
-            if (synced) {{
-                btn.innerText = '🌐 已翻譯並固化';
-                btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
+            const ghToken = localStorage.getItem('GH_TOKEN');
+            const ghOwner = localStorage.getItem('GH_OWNER');
+            const ghRepo = localStorage.getItem('GH_REPO');
+            
+            if (ghToken && ghOwner && ghRepo) {{
+                try {{
+                    // 保障已有的批注草稿不被吞掉
+                    document.querySelectorAll('.anno-edit').forEach(ta => {{
+                        ta.textContent = ta.value; 
+                    }});
+
+                    const pathParts = window.location.pathname.split('/');
+                    const fileName = pathParts.pop();
+                    const month = pathParts.pop();
+                    const year = pathParts.pop();
+                    const fileRelPath = year + '/' + month + '/' + fileName;
+
+                    btn.innerText = '🌐 已翻譯並固化';
+                    btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
+                    
+                    const htmlSnapshot = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + document.documentElement.innerHTML + '\\n</html>';
+
+                    const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {{ headers: {{ 'Authorization': 'Bearer ' + ghToken }} }});
+                    if (fileRes.ok) {{
+                        const fileData = await fileRes.json();
+                        await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {{
+                            method: 'PUT',
+                            headers: {{ 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' }},
+                            body: JSON.stringify({{ 
+                                message: 'Auto-solidify translation for ' + fileName, 
+                                content: btoa(unescape(encodeURIComponent(htmlSnapshot))),
+                                sha: fileData.sha
+                            }})
+                        }});
+                    }}
+                }} catch(e) {{
+                    console.error('固化失敗', e);
+                    btn.innerText = '⚠️ 僅本地翻譯';
+                }}
             }} else {{
-                btn.innerText = '⚠️ 僅本地翻譯 (未配置 Token)';
+                btn.innerText = '✅ 翻譯完成';
             }}
         }}
-
-        // --- 批注互動邏輯 ---
-        function editAnnotation(tweetId) {{
-            const contentDiv = document.querySelector('.annotation-content[data-anno-id="' + tweetId + '"]');
-            const editArea = document.getElementById('edit-area-' + tweetId);
-            const textarea = document.getElementById('textarea-' + tweetId);
-            const editBtn = document.getElementById('btn-edit-' + tweetId);
-
-            textarea.value = contentDiv.innerText || '';
-            contentDiv.style.display = 'none';
-            editArea.style.display = 'flex';
-            editBtn.style.display = 'none';
-            textarea.focus();
-        }}
-
-        function cancelAnnotation(tweetId) {{
-            const contentDiv = document.querySelector('.annotation-content[data-anno-id="' + tweetId + '"]');
-            const editArea = document.getElementById('edit-area-' + tweetId);
-            const editBtn = document.getElementById('btn-edit-' + tweetId);
-
-            contentDiv.style.display = contentDiv.innerText.trim() ? 'block' : 'none';
-            editArea.style.display = 'none';
-            editBtn.style.display = 'inline-block';
-        }}
-
-        async function saveAnnotation(tweetId) {{
-            const contentDiv = document.querySelector('.annotation-content[data-anno-id="' + tweetId + '"]');
-            const editArea = document.getElementById('edit-area-' + tweetId);
-            const textarea = document.getElementById('textarea-' + tweetId);
-            const editBtn = document.getElementById('btn-edit-' + tweetId);
-            const saveBtn = editArea.querySelector('.btn-save-anno');
-
-            const newText = textarea.value.trim();
-            contentDiv.innerText = newText; // 賦值觸發 DOM 狀態更新，此處會被 innerHTML 捕捉
-            
-            contentDiv.style.display = newText ? 'block' : 'none';
-            editArea.style.display = 'none';
-            editBtn.style.display = 'inline-block';
-            editBtn.innerText = newText ? '📝 修改批注' : '📝 添加批注';
-
-            saveBtn.innerText = '⏳ 保存中...';
-            saveBtn.disabled = true;
-
-            const synced = await syncPageToGithub();
-            
-            saveBtn.innerText = '💾 保存批注';
-            saveBtn.disabled = false;
-            
-            if(!synced) {{
-                if(!localStorage.getItem('GH_TOKEN')) {{
-                    alert('批注已暫存在本頁，但未配置 GitHub Token，刷新後會丟失。請前往首頁配置。');
-                }} else {{
-                    alert('同步 GitHub 失敗，請檢查網路或 Token。');
-                }}
-            }}
-        }}
-
-        // 初始化所有按鈕的文字狀態
-        document.addEventListener('DOMContentLoaded', () => {{
-            document.querySelectorAll('.annotation-content').forEach(el => {{
-                const tweetId = el.getAttribute('data-anno-id');
-                const editBtn = document.getElementById('btn-edit-' + tweetId);
-                if (editBtn) {{
-                    editBtn.innerText = el.innerText.trim() ? '📝 修改批注' : '📝 添加批注';
-                }}
-            }});
-        }});
     </script>
 </body>
 </html>"""
@@ -401,7 +492,7 @@ def save_batch_tweets_local(username, tweet_ids, now_obj):
 
 
 def generate_index():
-    """日曆樞紐生成器 + 前端 JS"""
+    """日曆樞紐生成器 + 前端 JS (前端動態生成的頁面外殼與批注 UI 同步適配)"""
     archive_data = {}
     if os.path.exists(BASE_DIR):
         years = [d for d in os.listdir(BASE_DIR) if d.isdigit()]
@@ -442,6 +533,7 @@ def generate_index():
 
     json_data = json.dumps(archive_data)
 
+    # 由於此處 HTML string 非常大，內部嵌套了 JS，因此 `{` 不再需要雙寫（因為這是普通的 python 字串，非 f-string）
     html_template = """<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -525,9 +617,7 @@ def generate_index():
         <div class="modal-content">
             <h3 class="modal-title">自定義組合歸檔 (最高 10 條)</h3>
             <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">貼入多個獨立推文鏈接，將為您抓取並合併同步為單個文件。</p>
-            <div id="batchInputsContainer">
-                <!-- JS 自動生成 10 個輸入框 -->
-            </div>
+            <div id="batchInputsContainer"></div>
             <div class="modal-actions">
                 <button class="btn btn-cancel" id="closeBatchBtn">取消</button>
                 <button class="btn btn-save" id="submitBatchBtn">抓取並合併同步</button>
@@ -716,7 +806,7 @@ def generate_index():
             } catch(e) { console.error(e); alert('刪除同步失敗: ' + e.message); document.getElementById('loadingBar').style.width = '0%'; }
         }
 
-        // --- HTML 模板組裝 (JS端，供前端直接呼叫抓取使用) ---
+        // --- HTML 模板組裝 (JS 動態生成版) ---
         function generateTweetCard(tweet, tweetId) {
             const author = tweet.user_name || 'Unknown';
             const handle = tweet.user_screen_name || 'unknown';
@@ -754,26 +844,19 @@ def generate_index():
                     <span class="handle">@${handle}</span>
                 </div>
             </div>
-            <div class="content">${text}</div>
+            <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
+                <div class="content" style="margin-bottom:0;">${text}<span class="anno-toggle"></span></div>
+                <div class="anno-box" style="display:none;">
+                    <div class="anno-view markdown-body"></div>
+                    <textarea class="anno-edit" style="display:none;"></textarea>
+                </div>
+            </div>
             ${media_html}
             <div class="stats">
                 <span>❤️ ${likes} 喜歡</span>
                 <span>🔁 ${retweets} 轉發</span>
             </div>
             <a href="${original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
-            
-            <!-- 批注區域 -->
-            <div class="annotation-container">
-                <div class="annotation-content" data-anno-id="${tweetId}"></div>
-                <div class="annotation-edit-area" id="edit-area-${tweetId}">
-                    <textarea class="annotation-textarea" id="textarea-${tweetId}" placeholder="在這裡輸入批注思考、筆記或靈感..."></textarea>
-                    <div class="annotation-actions">
-                        <button class="btn-sm btn-edit" onclick="cancelAnnotation('${tweetId}')">取消</button>
-                        <button class="btn-sm btn-save-anno" onclick="saveAnnotation('${tweetId}')">💾 保存批注</button>
-                    </div>
-                </div>
-                <button class="btn-sm btn-edit" id="btn-edit-${tweetId}" onclick="editAnnotation('${tweetId}')" style="margin-top:10px;">📝 添加批注</button>
-            </div>
         </div>`;
         }
 
@@ -785,6 +868,7 @@ def generate_index():
     <meta name="referrer" content="no-referrer">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>${pageTitle}</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"><\\/script>
     <style>
         :root { --bg: #f2f2f7; --card: #ffffff; --text: #0f1419; --muted: #536471; --border: #eff3f4; --x-blue: #1d9bf0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
@@ -793,38 +877,45 @@ def generate_index():
         .translate-btn { background: #f2f2f7; color: #0f1419; border: 1px solid #ccc; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: 0.2s; flex-shrink: 0; outline: none; }
         .translate-btn:active { background: #e5e5ea; transform: scale(0.95); }
         .translate-btn[disabled] { opacity: 0.8; cursor: not-allowed; }
+        
+        .sync-status { padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; display: none; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+        .anno-toggle { display: inline-flex; margin-left: 6px; cursor: pointer; opacity: 0.2; font-size: 0.8rem; vertical-align: middle; transition: all 0.2s; user-select: none; }
+        .anno-toggle:hover { opacity: 0.8; transform: scale(1.1); }
+        .anno-toggle.has-anno { opacity: 1; }
+        .anno-toggle::after { content: "🔴"; }
+        .anno-box { display: none; margin-top: 10px; background: #f8f6ff; border-left: 4px solid #8e7cc3; padding: 12px 16px; border-radius: 0 6px 6px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.02); text-align: left; }
+        .anno-view { font-size: 1.05rem; line-height: 1.6; color: #4a4a4a; min-height: 24px; }
+        .anno-edit { width: 100%; min-height: 120px; padding: 10px; font-family: monospace; font-size: 1rem; border: 1px dashed #8e7cc3; border-radius: 6px; box-sizing: border-box; resize: vertical; display: none; background: #fff; color: #333; outline: none; }
+        .anno-edit:focus { border: 1px solid #8e7cc3; box-shadow: 0 0 0 3px rgba(142,124,195,0.1); }
+        .markdown-body p { margin-top: 0; margin-bottom: 8px; }
+        .markdown-body p:last-child { margin-bottom: 0; }
+        .markdown-body p:empty { display: none; }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 { color: #8e7cc3; font-size: 1.15rem; margin: 10px 0 8px 0; border-bottom: 1px dashed #e0d8f0; padding-bottom: 4px; }
+        .markdown-body ul, .markdown-body ol { margin: 0 0 8px 0; padding-left: 20px; }
+        .markdown-body blockquote { margin: 0 0 10px 0; padding: 10px 15px; background: rgba(142,124,195,0.1); border-left: 4px solid #8e7cc3; color: #555; }
+
         .container { max-width: 600px; margin: 0 auto; padding: 20px 15px 50px 15px; }
         .tweet-card { background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 25px; }
         .header { display: flex; align-items: center; margin-bottom: 12px; }
         .names { display: flex; flex-direction: column; }
         .name { font-weight: 700; font-size: 1.1rem; color: var(--text); }
         .handle { color: var(--muted); font-size: 0.95rem; margin-top: 2px; }
-        .content { font-size: 1.1rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; margin-bottom: 15px; }
+        .content { font-size: 1.1rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
         .media-container { margin-top: 10px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; background: #000; }
         .media-item { width: 100%; height: auto; display: block; max-height: 500px; object-fit: contain; }
         .stats { margin-top: 15px; color: var(--muted); font-size: 0.95rem; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px; font-weight: 500; margin-bottom: 15px; }
         .btn-link { display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }
         .btn-link:active { transform: scale(0.98); background: #1a8cd8; }
         .time-stamp { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }
-
-        .annotation-container { margin-top: 15px; border-top: 1px dashed var(--border); padding-top: 15px; }
-        .annotation-content { white-space: pre-wrap; word-wrap: break-word; color: #444; font-size: 0.95rem; background: #fffde7; padding: 12px; border-radius: 8px; border-left: 4px solid #fbc02d; margin-bottom: 10px; display: none; }
-        .annotation-content:not(:empty) { display: block; }
-        .annotation-edit-area { display: none; flex-direction: column; gap: 8px; margin-bottom: 10px; }
-        .annotation-textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-family: inherit; font-size: 0.95rem; resize: vertical; min-height: 80px; outline: none; transition: border 0.2s; }
-        .annotation-textarea:focus { border-color: var(--x-blue); }
-        .annotation-actions { display: flex; gap: 10px; justify-content: flex-end; }
-        .btn-sm { padding: 6px 14px; border-radius: 16px; border: none; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: transform 0.1s; }
-        .btn-sm:active { transform: scale(0.95); }
-        .btn-edit { background: #f2f2f7; color: var(--text); border: 1px solid #ccc; }
-        .btn-save-anno { background: var(--x-blue); color: #fff; }
-        .btn-save-anno[disabled] { opacity: 0.7; cursor: not-allowed; }
     </style>
 </head>
 <body>
     <div class="nav-back">
         <a href="../../index.html">🔙 返回</a>
-        <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 一鍵翻譯</button>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <span class="sync-status" id="sync-status">📡 同步中...</span>
+            <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 一鍵翻譯</button>
+        </div>
     </div>
     <div class="container">
         <div class="time-stamp">歸檔時間: ${now_str}</div>
@@ -832,41 +923,115 @@ def generate_index():
     </div>
     
     <script>
-        async function syncPageToGithub() {
+        let syncTimeout = null;
+        function scheduleSync() {
+            const statusMsg = document.getElementById('sync-status');
+            statusMsg.style.display = 'inline-block';
+            statusMsg.style.backgroundColor = '#f39c12';
+            statusMsg.innerText = '⏳ 自動同步中...';
+            statusMsg.style.cursor = 'default';
+            statusMsg.onclick = null;
+            if (syncTimeout) clearTimeout(syncTimeout);
+            syncTimeout = setTimeout(() => { syncToGitHub(); }, 3000);
+        }
+
+        async function syncToGitHub() {
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
             const ghRepo = localStorage.getItem('GH_REPO');
+            if(!ghToken) return alert('缺少 GitHub Token，無法同步批注！請先在日曆首頁配置。');
             
-            if (!ghToken || !ghOwner || !ghRepo) return false;
+            const statusMsg = document.getElementById('sync-status');
+            statusMsg.style.display = 'inline-block';
+            statusMsg.style.backgroundColor = '#2ea44f';
+            statusMsg.innerText = '📡 同步中...';
+
+            document.querySelectorAll('.anno-edit').forEach(ta => { ta.textContent = ta.value; });
+            const htmlSnapshot = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + document.documentElement.innerHTML + '\\n</html>';
+            const pathParts = window.location.pathname.split('/');
+            const fileName = pathParts.pop();
+            const month = pathParts.pop();
+            const year = pathParts.pop();
+            const fileRelPath = year + '/' + month + '/' + fileName;
 
             try {
-                const pathParts = window.location.pathname.split('/');
-                const fileName = pathParts.pop();
-                const month = pathParts.pop();
-                const year = pathParts.pop();
-                const fileRelPath = year + '/' + month + '/' + fileName;
+                const getRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), {
+                    headers: { 'Authorization': 'Bearer ' + ghToken }, cache: 'no-store'
+                });
+                let sha = '';
+                if (getRes.ok) { const fileData = await getRes.json(); sha = fileData.sha; }
 
-                const htmlSnapshot = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + document.documentElement.innerHTML + '\\n</html>';
+                const putRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {
+                    method: 'PUT',
+                    headers: { 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: 'Auto-save annotation', content: btoa(unescape(encodeURIComponent(htmlSnapshot))), sha: sha })
+                });
 
-                const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, { headers: { 'Authorization': 'Bearer ' + ghToken } });
-                if (fileRes.ok) {
-                    const fileData = await fileRes.json();
-                    const putRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {
-                        method: 'PUT',
-                        headers: { 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            message: 'Auto-sync page content (annotations/translations) for ' + fileName, 
-                            content: btoa(unescape(encodeURIComponent(htmlSnapshot))),
-                            sha: fileData.sha
-                        })
-                    });
-                    if(putRes.ok) return true;
-                }
+                if(putRes.ok) {
+                    statusMsg.style.backgroundColor = '#2ea44f';
+                    statusMsg.innerText = '✅ 雲端已同步';
+                    setTimeout(() => { if (statusMsg.innerText === '✅ 雲端已同步') statusMsg.style.display = 'none'; }, 3000);
+                } else { throw new Error('Put failed'); }
             } catch(e) {
-                console.error('同步失敗', e);
+                console.error(e);
+                statusMsg.style.backgroundColor = '#e74c3c';
+                statusMsg.innerText = '❌ 同步失敗(點擊重試)';
+                statusMsg.style.cursor = 'pointer';
+                statusMsg.onclick = () => { statusMsg.onclick = null; statusMsg.style.cursor = 'default'; syncToGitHub(); };
             }
-            return false;
         }
+
+        function initAnnotations() {
+            document.querySelectorAll('.content-wrap').forEach(wrap => {
+                const view = wrap.querySelector('.anno-view');
+                const edit = wrap.querySelector('.anno-edit');
+                const toggle = wrap.querySelector('.anno-toggle');
+                const box = wrap.querySelector('.anno-box');
+
+                const rawText = edit.value.trim();
+                if (rawText) {
+                    toggle.classList.add('has-anno');
+                    if (typeof marked !== 'undefined') view.innerHTML = marked.parse(rawText);
+                }
+
+                toggle.onclick = () => {
+                    if (box.style.display === 'block') { box.style.display = 'none'; } 
+                    else {
+                        box.style.display = 'block';
+                        if (!edit.value.trim()) { view.style.display = 'none'; edit.style.display = 'block'; edit.focus(); }
+                        else { view.style.display = 'block'; edit.style.display = 'none'; }
+                    }
+                };
+
+                const triggerEdit = () => { view.style.display = 'none'; edit.style.display = 'block'; edit.value = edit.value; edit.focus(); };
+                view.addEventListener('dblclick', triggerEdit);
+
+                let lastTap = 0;
+                view.addEventListener('touchstart', e => {
+                    if (e.touches.length === 2) { triggerEdit(); } 
+                    else if (e.touches.length === 1) {
+                        const currentTime = new Date().getTime();
+                        if (currentTime - lastTap < 500 && currentTime - lastTap > 0) { box.style.display = 'none'; }
+                        lastTap = currentTime;
+                    }
+                }, {passive: true});
+
+                edit.onblur = async () => {
+                    const newVal = edit.value.trim();
+                    try { view.innerHTML = newVal ? marked.parse(newVal) : ''; } catch(e){}
+                    edit.style.display = 'none';
+                    if (newVal) { view.style.display = 'block'; toggle.classList.add('has-anno'); } 
+                    else { view.style.display = 'none'; box.style.display = 'none'; toggle.classList.remove('has-anno'); }
+
+                    if (edit.getAttribute('data-old-val') !== newVal) {
+                        edit.setAttribute('data-old-val', newVal);
+                        scheduleSync(); 
+                    }
+                };
+                edit.setAttribute('data-old-val', rawText);
+            });
+        }
+        window.addEventListener('load', initAnnotations);
 
         async function translateAll() {
             const btn = document.getElementById('translate-btn');
@@ -879,7 +1044,7 @@ def generate_index():
             for (let i = 0; i < contents.length; i++) {
                 const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
-                const text = content.innerText;
+                const text = content.innerText.replace('🔴', '');
                 
                 let textToTranslate = text.replace(/https?:\\\\/\\\\/[^\\\\s]+/g, '').trim();
                 let checkText = textToTranslate.replace(/\\\\p{Extended_Pictographic}/gu, '').trim();
@@ -909,93 +1074,47 @@ def generate_index():
                         content.setAttribute('data-translated', 'true');
                         translatedCount++;
                     }
-                } catch (e) {
-                    console.error('翻譯失敗:', e);
-                }
+                } catch (e) { console.error('翻譯失敗:', e); }
             }
             
-            if (translatedCount === 0) {
-                btn.innerText = '✅ 已全部翻譯';
-                return;
-            }
-
+            if (translatedCount === 0) { btn.innerText = '✅ 已全部翻譯'; return; }
             btn.innerText = '⏳ 固化至雲端...';
-            const synced = await syncPageToGithub();
             
-            if (synced) {
-                btn.innerText = '🌐 已翻譯並固化';
-                btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
-            } else {
-                btn.innerText = '⚠️ 僅本地翻譯 (未配置 Token)';
-            }
-        }
-
-        // --- 批注互動邏輯 ---
-        function editAnnotation(tweetId) {
-            const contentDiv = document.querySelector('.annotation-content[data-anno-id="' + tweetId + '"]');
-            const editArea = document.getElementById('edit-area-' + tweetId);
-            const textarea = document.getElementById('textarea-' + tweetId);
-            const editBtn = document.getElementById('btn-edit-' + tweetId);
-
-            textarea.value = contentDiv.innerText || '';
-            contentDiv.style.display = 'none';
-            editArea.style.display = 'flex';
-            editBtn.style.display = 'none';
-            textarea.focus();
-        }
-
-        function cancelAnnotation(tweetId) {
-            const contentDiv = document.querySelector('.annotation-content[data-anno-id="' + tweetId + '"]');
-            const editArea = document.getElementById('edit-area-' + tweetId);
-            const editBtn = document.getElementById('btn-edit-' + tweetId);
-
-            contentDiv.style.display = contentDiv.innerText.trim() ? 'block' : 'none';
-            editArea.style.display = 'none';
-            editBtn.style.display = 'inline-block';
-        }
-
-        async function saveAnnotation(tweetId) {
-            const contentDiv = document.querySelector('.annotation-content[data-anno-id="' + tweetId + '"]');
-            const editArea = document.getElementById('edit-area-' + tweetId);
-            const textarea = document.getElementById('textarea-' + tweetId);
-            const editBtn = document.getElementById('btn-edit-' + tweetId);
-            const saveBtn = editArea.querySelector('.btn-save-anno');
-
-            const newText = textarea.value.trim();
-            contentDiv.innerText = newText;
+            const ghToken = localStorage.getItem('GH_TOKEN');
+            const ghOwner = localStorage.getItem('GH_OWNER');
+            const ghRepo = localStorage.getItem('GH_REPO');
             
-            contentDiv.style.display = newText ? 'block' : 'none';
-            editArea.style.display = 'none';
-            editBtn.style.display = 'inline-block';
-            editBtn.innerText = newText ? '📝 修改批注' : '📝 添加批注';
+            if (ghToken && ghOwner && ghRepo) {
+                try {
+                    document.querySelectorAll('.anno-edit').forEach(ta => { ta.textContent = ta.value; });
+                    const pathParts = window.location.pathname.split('/');
+                    const fileName = pathParts.pop();
+                    const month = pathParts.pop();
+                    const year = pathParts.pop();
+                    const fileRelPath = year + '/' + month + '/' + fileName;
 
-            saveBtn.innerText = '⏳ 保存中...';
-            saveBtn.disabled = true;
+                    btn.innerText = '🌐 已翻譯並固化';
+                    btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
+                    
+                    const htmlSnapshot = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + document.documentElement.innerHTML + '\\n</html>';
 
-            const synced = await syncPageToGithub();
-            
-            saveBtn.innerText = '💾 保存批注';
-            saveBtn.disabled = false;
-            
-            if(!synced) {
-                if(!localStorage.getItem('GH_TOKEN')) {
-                    alert('批注已暫存在本頁，但未配置 GitHub Token，刷新後會丟失。請前往首頁配置。');
-                } else {
-                    alert('同步 GitHub 失敗，請檢查網路或 Token。');
-                }
-            }
+                    const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, { headers: { 'Authorization': 'Bearer ' + ghToken } });
+                    if (fileRes.ok) {
+                        const fileData = await fileRes.json();
+                        await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {
+                            method: 'PUT',
+                            headers: { 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                message: 'Auto-solidify translation for ' + fileName, 
+                                content: btoa(unescape(encodeURIComponent(htmlSnapshot))),
+                                sha: fileData.sha
+                            })
+                        });
+                    }
+                } catch(e) { console.error('固化失敗', e); btn.innerText = '⚠️ 僅本地翻譯'; }
+            } else { btn.innerText = '✅ 翻譯完成'; }
         }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            document.querySelectorAll('.annotation-content').forEach(el => {
-                const tweetId = el.getAttribute('data-anno-id');
-                const editBtn = document.getElementById('btn-edit-' + tweetId);
-                if (editBtn) {
-                    editBtn.innerText = el.innerText.trim() ? '📝 修改批注' : '📝 添加批注';
-                }
-            });
-        });
-    \\x3C/script>
+    <\\/script>
 </body>
 </html>`;
         }
@@ -1006,7 +1125,6 @@ def generate_index():
             const inputs = document.querySelectorAll('.batch-input');
             let tweetIdsToProcess = [];
             
-            // 提取所有有效的 Tweet ID
             inputs.forEach(input => {
                 const url = input.value.trim();
                 if (url) {
@@ -1321,7 +1439,7 @@ def generate_index():
 
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首頁日曆 WebApp (加入獨立批注、一鍵翻譯+自訂義組合更新) 已生成！")
+    print("🚀 首頁日曆 WebApp (已適配 Markdown 批注雙向固化引擎) 已生成更新！")
 
 def git_push_to_github(msg="Auto-archive"):
     """自動調用本地系統的 Git 指令將更新推送到 GitHub"""
