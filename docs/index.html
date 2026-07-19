@@ -95,7 +95,7 @@
     </div>
 
     <script>
-        const archiveData = /*DATA_START*/{"2026":{"7":{"19":[{"time":"13:46","path":"2026/7/2026_7_19_134654_batch_Rainmaker1973_x.html","title":"🐦 13:46 推文集：@Rainmaker1973"}]}}}/*DATA_END*/;
+        const archiveData = /*DATA_START*/{"2026": {"7": {"19": [{"time": "13:46", "path": "2026/7/2026_7_19_134654_batch_Rainmaker1973_x.html", "title": "\ud83d\udc26 13:46 \u63a8\u6587\u96c6\uff1a@Rainmaker1973"}]}}}/*DATA_END*/;
         const today = new Date();
         
         const AppState = {
@@ -350,10 +350,16 @@
                 const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
                 const text = content.innerText;
-                if (!text.trim()) continue;
+                
+                // 去除鏈接並準備檢查表情符號
+                let textToTranslate = text.replace(/https?:\/\/[^\s]+/g, '').trim();
+                let checkText = textToTranslate.replace(/\p{Extended_Pictographic}/gu, '').trim();
+                
+                // 如果去掉鏈接和表情後沒剩下實際文字，則跳過翻譯，不顯示框
+                if (!checkText) continue;
 
                 try {
-                    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=' + encodeURIComponent(text);
+                    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=' + encodeURIComponent(textToTranslate);
                     const res = await fetch(url);
                     const data = await res.json();
                     let translatedText = '';
@@ -365,7 +371,7 @@
                         const transDiv = document.createElement('div');
                         transDiv.className = 'translated-content';
                         transDiv.style.cssText = 'color: #0f1419; font-size: 1.05rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
-                        transDiv.innerHTML = '<strong>🌐 翻譯：</strong><br>' + translatedText;
+                        transDiv.innerHTML = translatedText;
                         
                         content.parentNode.insertBefore(transDiv, content.nextSibling);
                         content.setAttribute('data-translated', 'true');
