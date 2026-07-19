@@ -12,7 +12,7 @@ AUTO_PUSH_GITHUB = True  # 開啟 Python 端自動 Push 到 GitHub 的功能
 # ==========================================
 
 def get_user_tweet_ids(username, limit=10):
-    """通過公開 Syndication API 或備用 RSS 獲取用戶最新推文 ID"""
+    """通過公開 Syndication API 或備用 RSS 獲取用戶最新原創推文 ID"""
     print(f"⏳ 正在解析 @{username} 的時間線...")
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
     
@@ -25,8 +25,11 @@ def get_user_tweet_ids(username, limit=10):
             entries = data.get('props', {}).get('pageProps', {}).get('timeline', {}).get('entries', [])
             tweet_ids = []
             for entry in entries:
-                tweet_id = entry.get('content', {}).get('tweet', {}).get('id_str')
-                if tweet_id and tweet_id not in tweet_ids:
+                tweet = entry.get('content', {}).get('tweet', {})
+                tweet_id = tweet.get('id_str')
+                screen_name = tweet.get('user', {}).get('screen_name', '')
+                # 強制校驗：僅保留原創推文 (作者名必須匹配)，排除轉推
+                if tweet_id and screen_name.lower() == username.lower() and tweet_id not in tweet_ids:
                     tweet_ids.append(tweet_id)
             if tweet_ids:
                 return tweet_ids[:limit]
@@ -35,6 +38,7 @@ def get_user_tweet_ids(username, limit=10):
     
     print("⏳ 嘗試使用備用 RSS 節點解析...")
     try:
+        # RSSHub 節點自帶 exclude_rts_replies 參數
         rss_url = f"https://rsshub.rssforever.com/twitter/user/{username}/exclude_rts_replies"
         res = requests.get(rss_url, headers=headers, timeout=10)
         ids = re.findall(r'status/(\d+)', res.text)
@@ -173,7 +177,7 @@ def save_batch_tweets_local(username, tweet_ids, now_obj):
     cards_html = ""
     success_count = 0
 
-    print(f"⏳ 正在生成 @{username} 的瀑布流卡片...")
+    print(f"⏳ 正在生成 @{username} 的原創推文瀑布流卡片...")
     for tid in tweet_ids:
         api_url = f"https://api.vxtwitter.com/Twitter/status/{tid}"
         try:
@@ -215,12 +219,12 @@ def generate_index():
                             time_str = f"{parts[3][:2]}:{parts[3][2:4]}"
                             file_path = f"{year}/{month}/{file}"
                             
-                            # 動態判斷是單推文還是瀑布流集錦
+                            # 加入時間戳綴飾
                             if "batch" in file:
                                 username = file.split('_batch_')[1].replace('_x.html', '')
-                                title = f"🐦 推文集：@{username}"
+                                title = f"🐦 {time_str} 推文集：@{username}"
                             else:
-                                title = f"🐦 靈感推文：{time_str}"
+                                title = f"🐦 {time_str} 靈感推文"
 
                             if f_year not in archive_data: archive_data[f_year] = {}
                             if f_month not in archive_data[f_year]: archive_data[f_year][f_month] = {}
@@ -573,7 +577,7 @@ def generate_index():
         }
         // ------------------------------------
 
-        // X 推文前端抓取邏輯 (四重代理備援 + 瀑布流組裝)
+        // X 推文前端抓取邏輯 (四重代理備援 + 原創過濾)
         document.getElementById('xUrlInput').addEventListener('keypress', async function (e) {
             if (e.key === 'Enter') {
                 const url = this.value.trim();
@@ -608,7 +612,7 @@ def generate_index():
                 this.disabled = true;
 
                 try {
-                    // 若為批量，使用代理取得最新推文 ID
+                    // 若為批量，使用代理取得最新原創推文 ID
                     if (isBatch) {
                         loadingBar.style.width = '15%';
                         try {
@@ -643,8 +647,14 @@ def generate_index():
                                         const parsed = JSON.parse(match[1]);
                                         const timelineEntries = parsed.props?.pageProps?.timeline?.entries || [];
                                         timelineEntries.forEach(entry => {
-                                            const tid = entry.content?.tweet?.id_str;
-                                            if (tid && !tweetIdsToProcess.includes(tid)) tweetIdsToProcess.push(tid);
+                                            const tweet = entry.content?.tweet;
+                                            const tid = tweet?.id_str;
+                                            const screenName = tweet?.user?.screen_name;
+                                            
+                                            // 強制校驗：排除轉發推文，只保留原創
+                                            if (tid && screenName && screenName.toLowerCase() === username.toLowerCase() && !tweetIdsToProcess.includes(tid)) {
+                                                tweetIdsToProcess.push(tid);
+                                            }
                                         });
                                         if (tweetIdsToProcess.length > 0) break;
                                     }
@@ -692,7 +702,9 @@ def generate_index():
                         finalHtmlOutput = generatePageWrapper(combinedCardsHtml, `Tweets by @${username}`, hhmmStr);
                         filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_batch_${username}_x.html`;
                         fileRelPath = `${yearStr}/${monthStr}/${filename}`;
-                        indexTitle = `🐦 推文集：@${username}`;
+                        
+                        // 加入時間戳綴飾
+                        indexTitle = `🐦 ${hhmmStr} 推文集：@${username}`;
                         
                     } else {
                         // 單推文模式
@@ -706,7 +718,9 @@ def generate_index():
                         finalHtmlOutput = generatePageWrapper(singleCardHtml, `Tweet by ${tweet.user_name}`, hhmmStr);
                         filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_${tweetId}_x.html`;
                         fileRelPath = `${yearStr}/${monthStr}/${filename}`;
-                        indexTitle = `🐦 靈感推文：${hhmmStr}`;
+                        
+                        // 加入時間戳綴飾
+                        indexTitle = `🐦 ${hhmmStr} 靈感推文`;
                     }
 
                     // 上傳組裝好的單一 HTML 檔案
@@ -753,7 +767,7 @@ def generate_index():
 
                     forceRender(); 
                     loadingBar.style.width = '100%';
-                    alert(`🎉 成功！已為您歸檔 ${isBatch ? '帳號瀑布流' : '單條推文'}。`);
+                    alert(`🎉 成功！已為您歸檔最新的原創 ${isBatch ? '帳號瀑布流' : '單條推文'}。`);
                     this.value = '';
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
 
@@ -773,7 +787,7 @@ def generate_index():
 
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首頁日曆 WebApp (瀑布流升級版) 已生成更新！")
+    print("🚀 首頁日曆 WebApp (原創過濾 + 時間戳修正版) 已生成更新！")
 
 def git_push_to_github(msg="Auto-archive"):
     """自動調用本地系統的 Git 指令將更新推送到 GitHub"""
@@ -805,7 +819,7 @@ def main():
     print("\n=======================================")
     print("🐦 X (Twitter) 語料日曆 - 後台錄入")
     print("提示1：粘貼 [單推文鏈接] 即可抓取單條推文")
-    print("提示2：粘貼 [帳號首頁鏈接] 將為您生成該帳號的 10合1 瀑布流網頁！")
+    print("提示2：粘貼 [帳號首頁鏈接] 將為您生成該帳號最新 10 條原創推文的瀑布流網頁！")
     print("=======================================")
 
     while True:
@@ -834,7 +848,7 @@ def main():
             
             tweet_ids = get_user_tweet_ids(username, limit=10)
             if not tweet_ids:
-                print("❌ 找不到該帳號的推文或解析時間線失敗。")
+                print("❌ 找不到該帳號的原創推文或解析時間線失敗。")
                 continue
             
             if save_batch_tweets_local(username, tweet_ids, now):
