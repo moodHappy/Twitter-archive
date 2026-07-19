@@ -95,7 +95,7 @@ def generate_tweet_card(tweet_data, tweet_id):
         </div>"""
 
 def generate_page_wrapper(content_html, page_title, now_str):
-    """生成完整 HTML 頁面外殼 (智能淨化翻譯版)"""
+    """生成完整 HTML 頁面外殼 (無多重引號逃逸 BUG 的高兼容版)"""
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -129,7 +129,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
 <body>
     <div class="nav-back">
         <a href="../../index.html">🔙 返回</a>
-        <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 翻譯</button>
+        <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 一鍵翻譯</button>
     </div>
     <div class="container">
         <div class="time-stamp">歸檔時間: {now_str}</div>
@@ -140,47 +140,19 @@ def generate_page_wrapper(content_html, page_title, now_str):
         async function translateAll() {{
             const btn = document.getElementById('translate-btn');
             if(btn.hasAttribute('disabled')) return;
-            btn.innerText = '⏳ 處理中...';
+            btn.innerText = '⏳ 翻譯中...';
             btn.setAttribute('disabled', 'true');
 
             let translatedCount = 0;
             const contents = document.querySelectorAll('.content');
-            
             for (let i = 0; i < contents.length; i++) {{
                 const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
-                
-                const originalText = content.innerText;
-                if (!originalText.trim()) continue;
-
-                // 1. 安全分離並剔除 HTTP 鏈接
-                let lines = originalText.split('\\n');
-                let cleanedLines = [];
-                for(let j=0; j<lines.length; j++) {{
-                    let words = lines[j].split(' ');
-                    let cleanWords = [];
-                    for(let k=0; k<words.length; k++) {{
-                        if(words[k].indexOf('http') !== 0) {{
-                            cleanWords.push(words[k]);
-                        }}
-                    }}
-                    cleanedLines.push(cleanWords.join(' '));
-                }}
-                let textToTranslate = cleanedLines.join('\\n');
-
-                // 2. 剔除表情符號 (Surrogate Pairs)
-                textToTranslate = textToTranslate.replace(/[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]/g, '').trim();
-
-                // 3. 智能校驗：如果沒有實體文字(僅剩標點)，則不進行翻譯
-                const hasWords = /[a-zA-Z0-9\\u4E00-\\u9FA5\\u3040-\\u30FF\\u0400-\\u04FF]/.test(textToTranslate);
-
-                if (!textToTranslate || !hasWords) {{
-                    content.setAttribute('data-translated', 'true');
-                    continue; // 智能跳過
-                }}
+                const text = content.innerText;
+                if (!text.trim()) continue;
 
                 try {{
-                    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=' + encodeURIComponent(textToTranslate);
+                    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=' + encodeURIComponent(text);
                     const res = await fetch(url);
                     const data = await res.json();
                     let translatedText = '';
@@ -188,12 +160,11 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         data[0].forEach(item => {{ if (item[0]) translatedText += item[0]; }});
                     }}
 
-                    if (translatedText.trim()) {{
+                    if (translatedText) {{
                         const transDiv = document.createElement('div');
                         transDiv.className = 'translated-content';
-                        // 原生沈浸式樣式：同字體、同顏色，極淡分割線
-                        transDiv.style.cssText = 'color: #0f1419; font-size: 1.1rem; margin-top: 10px; padding-top: 10px; border-top: 1px solid #eff3f4; white-space: pre-wrap; word-wrap: break-word;';
-                        transDiv.innerText = translatedText.trim();
+                        transDiv.style.cssText = 'color: #0f1419; font-size: 1.05rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
+                        transDiv.innerHTML = '<strong>🌐 翻譯：</strong><br>' + translatedText;
                         
                         content.parentNode.insertBefore(transDiv, content.nextSibling);
                         content.setAttribute('data-translated', 'true');
@@ -222,12 +193,13 @@ def generate_page_wrapper(content_html, page_title, now_str):
                     const month = pathParts.pop();
                     const year = pathParts.pop();
                     
+                    // 使用安全字串拼接，杜絕任何模板符號衝突
                     const fileRelPath = year + '/' + month + '/' + fileName;
 
-                    btn.innerText = '✅ 翻譯已固化';
+                    btn.innerText = '🌐 已翻譯並固化';
                     btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
                     
-                    const htmlSnapshot = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + document.documentElement.innerHTML + '\\n</html>';
+                    const htmlSnapshot = '<!DOCTYPE html><html lang="zh-CN">' + document.documentElement.innerHTML + '</html>';
 
                     const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {{ headers: {{ 'Authorization': 'Bearer ' + ghToken }} }});
                     if (fileRes.ok) {{
@@ -255,10 +227,12 @@ def generate_page_wrapper(content_html, page_title, now_str):
 </html>"""
 
 def save_single_tweet_local(tweet_id, now_obj):
+    """處理並保存單條推文"""
     api_url = f"https://api.vxtwitter.com/Twitter/status/{tweet_id}"
     try:
         res = requests.get(api_url, timeout=15).json()
         if 'error' in res:
+            print(f"❌ 抓取失敗: {res.get('error')}")
             return False
         
         year_str, month_str = str(now_obj.year), str(now_obj.month)
@@ -275,11 +249,14 @@ def save_single_tweet_local(tweet_id, now_obj):
 
         with open(html_path, "w", encoding="utf-8") as f:
             f.write(page_html)
+        print(f"✅ 單條推文已歸檔: {html_path}")
         return True
-    except Exception:
+    except Exception as e:
+        print(f"❌ 網絡異常: {e}")
         return False
 
 def save_batch_tweets_local(username, tweet_ids, now_obj):
+    """處理並保存帳號推文瀑布流"""
     year_str, month_str = str(now_obj.year), str(now_obj.month)
     target_dir = os.path.join(BASE_DIR, year_str, month_str)
     os.makedirs(target_dir, exist_ok=True)
@@ -292,6 +269,7 @@ def save_batch_tweets_local(username, tweet_ids, now_obj):
     cards_html = ""
     success_count = 0
 
+    print(f"⏳ 正在生成 @{username} 的原創推文瀑布流卡片...")
     for tid in tweet_ids:
         api_url = f"https://api.vxtwitter.com/Twitter/status/{tid}"
         try:
@@ -303,16 +281,19 @@ def save_batch_tweets_local(username, tweet_ids, now_obj):
             pass
 
     if success_count == 0:
+        print("❌ 無法獲取任何推文詳情，放棄生成。")
         return False
 
     page_html = generate_page_wrapper(cards_html, f"Tweets by @{username}", now_str)
 
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(page_html)
+    print(f"✅ 瀑布流集錦已生成 (包含 {success_count} 條): {html_path}")
     return True
 
 
 def generate_index():
+    """日曆樞紐生成器 + 前端 JS"""
     archive_data = {}
     if os.path.exists(BASE_DIR):
         years = [d for d in os.listdir(BASE_DIR) if d.isdigit()]
@@ -682,7 +663,7 @@ def generate_index():
 <body>
     <div class="nav-back">
         <a href="../../index.html">🔙 返回</a>
-        <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 翻譯</button>
+        <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 一鍵翻譯</button>
     </div>
     <div class="container">
         <div class="time-stamp">歸檔時間: ${now_str}</div>
@@ -693,47 +674,19 @@ def generate_index():
         async function translateAll() {
             const btn = document.getElementById('translate-btn');
             if(btn.hasAttribute('disabled')) return;
-            btn.innerText = '⏳ 處理中...';
+            btn.innerText = '⏳ 翻譯中...';
             btn.setAttribute('disabled', 'true');
 
             let translatedCount = 0;
             const contents = document.querySelectorAll('.content');
-            
             for (let i = 0; i < contents.length; i++) {
                 const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
-                
-                const originalText = content.innerText;
-                if (!originalText.trim()) continue;
-
-                // 1. 安全分離並剔除 HTTP 鏈接
-                let lines = originalText.split('\\n');
-                let cleanedLines = [];
-                for(let j=0; j<lines.length; j++) {
-                    let words = lines[j].split(' ');
-                    let cleanWords = [];
-                    for(let k=0; k<words.length; k++) {
-                        if(words[k].indexOf('http') !== 0) {
-                            cleanWords.push(words[k]);
-                        }
-                    }
-                    cleanedLines.push(cleanWords.join(' '));
-                }
-                let textToTranslate = cleanedLines.join('\\n');
-
-                // 2. 剔除表情符號 (Surrogate Pairs)
-                textToTranslate = textToTranslate.replace(/[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]/g, '').trim();
-
-                // 3. 智能校驗：如果沒有實體文字(僅剩標點)，則不進行翻譯
-                const hasWords = /[a-zA-Z0-9\\u4E00-\\u9FA5\\u3040-\\u30FF\\u0400-\\u04FF]/.test(textToTranslate);
-
-                if (!textToTranslate || !hasWords) {
-                    content.setAttribute('data-translated', 'true');
-                    continue; // 智能跳過
-                }
+                const text = content.innerText;
+                if (!text.trim()) continue;
 
                 try {
-                    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=' + encodeURIComponent(textToTranslate);
+                    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=' + encodeURIComponent(text);
                     const res = await fetch(url);
                     const data = await res.json();
                     let translatedText = '';
@@ -741,12 +694,11 @@ def generate_index():
                         data[0].forEach(item => { if (item[0]) translatedText += item[0]; });
                     }
 
-                    if (translatedText.trim()) {
+                    if (translatedText) {
                         const transDiv = document.createElement('div');
                         transDiv.className = 'translated-content';
-                        // 原生沈浸式樣式：同字體、同顏色，極淡分割線
-                        transDiv.style.cssText = 'color: #0f1419; font-size: 1.1rem; margin-top: 10px; padding-top: 10px; border-top: 1px solid #eff3f4; white-space: pre-wrap; word-wrap: break-word;';
-                        transDiv.innerText = translatedText.trim();
+                        transDiv.style.cssText = 'color: #0f1419; font-size: 1.05rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
+                        transDiv.innerHTML = '<strong>🌐 翻譯：</strong><br>' + translatedText;
                         
                         content.parentNode.insertBefore(transDiv, content.nextSibling);
                         content.setAttribute('data-translated', 'true');
@@ -775,12 +727,13 @@ def generate_index():
                     const month = pathParts.pop();
                     const year = pathParts.pop();
                     
+                    // 完全捨棄模板字串，避免逃逸衝突
                     const fileRelPath = year + '/' + month + '/' + fileName;
 
-                    btn.innerText = '✅ 翻譯已固化';
+                    btn.innerText = '🌐 已翻譯並固化';
                     btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
                     
-                    const htmlSnapshot = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + document.documentElement.innerHTML + '\\n</html>';
+                    const htmlSnapshot = '<!DOCTYPE html><html lang="zh-CN">' + document.documentElement.innerHTML + '</html>';
 
                     const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, { headers: { 'Authorization': 'Bearer ' + ghToken } });
                     if (fileRes.ok) {
@@ -1008,9 +961,10 @@ def generate_index():
 
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首頁日曆 WebApp 已生成更新！")
+    print("🚀 首頁日曆 WebApp (原創過濾 + 一鍵翻譯固化版) 已生成更新！")
 
 def git_push_to_github(msg="Auto-archive"):
+    """自動調用本地系統的 Git 指令將更新推送到 GitHub"""
     if not AUTO_PUSH_GITHUB:
         return
     print("\n⏳ 正在自動推送變更到 GitHub...")
