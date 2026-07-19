@@ -95,7 +95,7 @@ def generate_tweet_card(tweet_data, tweet_id):
         </div>"""
 
 def generate_page_wrapper(content_html, page_title, now_str):
-    """生成完整 HTML 頁面外殼 (修復正则转义问题，并升级为 POST 请求防超长推文截断)"""
+    """生成完整 HTML 頁面外殼"""
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -150,14 +150,12 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 if (content.getAttribute('data-translated') === 'true') continue;
                 const text = content.innerText;
                 
-                // 去除鏈接並準備檢查表情符號 (安全转义)
                 let textToTranslate = text.replace(/https?:\\/\\/[^\\s]+/g, '').trim();
                 let checkText = textToTranslate.replace(/\\p{{Extended_Pictographic}}/gu, '').trim();
                 
                 if (!checkText) continue;
 
                 try {{
-                    // 使用 POST 请求完美兼容超长推文，杜绝 414 URL Too Long 报错
                     const res = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t', {{
                         method: 'POST',
                         headers: {{ 'Content-Type': 'application/x-www-form-urlencoded' }},
@@ -321,8 +319,11 @@ def generate_index():
                             file_path = f"{year}/{month}/{file}"
 
                             if "batch" in file:
-                                username = file.split('_batch_')[1].replace('_x.html', '')
-                                title = f"🐦 {time_str} 推文集：@{username}"
+                                if "custom" in file:
+                                    title = f"🐦 {time_str} 自定義組合推文"
+                                else:
+                                    username = file.split('_batch_')[1].replace('_x.html', '')
+                                    title = f"🐦 {time_str} 推文集：@{username}"
                             else:
                                 title = f"🐦 {time_str} 靈感推文"
 
@@ -357,12 +358,13 @@ def generate_index():
         .settings-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 5px; }
         
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; padding: 20px; }
-        .modal-content { background: var(--card); border-radius: 16px; padding: 20px; width: 100%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .modal-content { background: var(--card); border-radius: 16px; padding: 20px; width: 100%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-height: 85vh; overflow-y: auto; }
         .modal-title { margin: 0 0 15px 0; font-size: 18px; font-weight: bold; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 5px; font-weight: bold; }
-        .form-group input { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; }
-        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .form-group input { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; transition: border 0.2s; }
+        .form-group input:focus { border-color: var(--primary); }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; position: sticky; bottom: 0; background: var(--card); padding-top: 10px; border-top: 1px solid #eee; }
         .btn { padding: 8px 16px; border-radius: 8px; border: none; font-size: 14px; font-weight: bold; cursor: pointer; }
         .btn-cancel { background: #eee; color: #333; }
         .btn-save { background: var(--primary); color: #fff; }
@@ -402,6 +404,7 @@ def generate_index():
         <button class="settings-btn" id="openSettingsBtn">⚙️</button>
     </div>
 
+    <!-- 設置 Modal -->
     <div class="modal-overlay" id="settingsModal">
         <div class="modal-content">
             <h3 class="modal-title">GitHub 雲端同步配置</h3>
@@ -412,6 +415,21 @@ def generate_index():
             <div class="modal-actions">
                 <button class="btn btn-cancel" id="closeSettingsBtn">取消</button>
                 <button class="btn btn-save" id="saveSettingsBtn">保存配置</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自定義批量歸檔 Modal -->
+    <div class="modal-overlay" id="batchModal">
+        <div class="modal-content">
+            <h3 class="modal-title">自定義組合歸檔 (最高 10 條)</h3>
+            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">貼入多個獨立推文鏈接，將為您抓取並合併同步為單個文件。</p>
+            <div id="batchInputsContainer">
+                <!-- JS 自動生成 10 個輸入框 -->
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-cancel" id="closeBatchBtn">取消</button>
+                <button class="btn btn-save" id="submitBatchBtn">抓取並合併同步</button>
             </div>
         </div>
     </div>
@@ -446,6 +464,12 @@ def generate_index():
             day: today.getDate(),
             deleteMode: false
         };
+
+        // 初始化批量輸入框
+        const batchContainer = document.getElementById('batchInputsContainer');
+        for(let i=1; i<=10; i++) {
+            batchContainer.innerHTML += `<div class="form-group" style="margin-bottom: 10px;"><input type="text" class="batch-input" placeholder="粘貼第 ${i} 條推文鏈接..."></div>`;
+        }
 
         function initSelects() {
             const yearSelect = document.getElementById('yearSelect');
@@ -561,6 +585,8 @@ def generate_index():
             document.getElementById('settingsModal').style.display = 'none';
             alert('配置已本地保存！');
         });
+        
+        document.getElementById('closeBatchBtn').addEventListener('click', () => { document.getElementById('batchModal').style.display = 'none'; });
 
         async function syncDeleteToGithub(fileRelPath) {
             const ghToken = localStorage.getItem('GH_TOKEN');
@@ -590,7 +616,7 @@ def generate_index():
             } catch(e) { console.error(e); alert('刪除同步失敗: ' + e.message); document.getElementById('loadingBar').style.width = '0%'; }
         }
 
-        // --- 核心：HTML 模板組裝函數 (前端，嚴格處理了正則表達式轉義) ---
+        // --- HTML 模板組裝 ---
         function generateTweetCard(tweet, tweetId) {
             const author = tweet.user_name || 'Unknown';
             const handle = tweet.user_screen_name || 'unknown';
@@ -693,14 +719,12 @@ def generate_index():
                 if (content.getAttribute('data-translated') === 'true') continue;
                 const text = content.innerText;
                 
-                // 去除鏈接並準備檢查表情符號 (安全四重转义，防止语法崩溃)
                 let textToTranslate = text.replace(/https?:\\\\/\\\\/[^\\\\s]+/g, '').trim();
                 let checkText = textToTranslate.replace(/\\\\p{Extended_Pictographic}/gu, '').trim();
                 
                 if (!checkText) continue;
 
                 try {
-                    // 强制采用 POST 请求，杜绝长篇推文触发 414 URL Too Long 错误
                     const res = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -780,10 +804,132 @@ def generate_index():
         }
         // ------------------------------------
 
+        // === 核心：處理前端自定義批量模板同步 ===
+        document.getElementById('submitBatchBtn').addEventListener('click', async () => {
+            const inputs = document.querySelectorAll('.batch-input');
+            let tweetIdsToProcess = [];
+            
+            // 提取所有有效的 Tweet ID
+            inputs.forEach(input => {
+                const url = input.value.trim();
+                if (url) {
+                    const match = url.match(/status\\/(\\d+)/);
+                    if (match && !tweetIdsToProcess.includes(match[1])) {
+                        tweetIdsToProcess.push(match[1]);
+                    }
+                }
+            });
+
+            if (tweetIdsToProcess.length === 0) {
+                alert('請至少輸入一條有效的推文鏈接！');
+                return;
+            }
+
+            const ghToken = localStorage.getItem('GH_TOKEN');
+            const ghOwner = localStorage.getItem('GH_OWNER');
+            const ghRepo = localStorage.getItem('GH_REPO');
+            if (!ghToken || !ghOwner || !ghRepo) {
+                alert('請先點擊齒輪⚙️配置 GitHub 信息！');
+                document.getElementById('batchModal').style.display = 'none';
+                document.getElementById('settingsModal').style.display = 'flex';
+                return;
+            }
+
+            document.getElementById('batchModal').style.display = 'none';
+            const loadingBar = document.getElementById('loadingBar');
+            loadingBar.style.width = '10%';
+            
+            try {
+                const now = new Date();
+                const yearStr = AppState.year.toString();
+                const monthStr = AppState.month.toString();
+                const dayStr = AppState.day.toString();
+                const hhmmStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+                const hhmmssFile = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0') + String(now.getSeconds()).padStart(2, '0');
+
+                let combinedCardsHtml = "";
+                let validCount = 0;
+
+                for (let i = 0; i < tweetIdsToProcess.length; i++) {
+                    loadingBar.style.width = `${10 + (60 / tweetIdsToProcess.length) * i}%`;
+                    const tweetId = tweetIdsToProcess[i];
+                    const vRes = await fetch(`https://api.vxtwitter.com/Twitter/status/${tweetId}`);
+                    const tweet = await vRes.json();
+                    if (tweet.error) continue;
+                    
+                    combinedCardsHtml += generateTweetCard(tweet, tweetId);
+                    validCount++;
+                }
+
+                if (validCount === 0) throw new Error("所有推文數據抓取失敗，請檢查鏈接是否正確。");
+
+                const finalHtmlOutput = generatePageWrapper(combinedCardsHtml, `Custom Batch Tweets`, hhmmStr);
+                const filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_batch_custom_x.html`;
+                const fileRelPath = `${yearStr}/${monthStr}/${filename}`;
+                const indexTitle = `🐦 ${hhmmStr} 自定義組合推文 (${validCount}條)`;
+
+                loadingBar.style.width = '80%';
+                const putHtmlRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/${fileRelPath}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: `Add custom batch tweet HTML`, content: btoa(unescape(encodeURIComponent(finalHtmlOutput))) })
+                });
+                
+                if (!putHtmlRes.ok) throw new Error("HTML 文件上傳 GitHub 失敗");
+
+                loadingBar.style.width = '90%';
+                const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `Bearer ${ghToken}` } });
+                const idxData = await idxRes.json();
+                const idxContent = decodeURIComponent(escape(atob(idxData.content.replace(/\\n/g, ''))));
+
+                const dataStart = idxContent.indexOf('/*DATA_START*/') + 14;
+                const dataEnd = idxContent.indexOf('/*DATA_END*/');
+                const archiveObj = JSON.parse(idxContent.substring(dataStart, dataEnd));
+
+                if (!archiveObj[yearStr]) archiveObj[yearStr] = {};
+                if (!archiveObj[yearStr][monthStr]) archiveObj[yearStr][monthStr] = {};
+                if (!archiveObj[yearStr][monthStr][dayStr]) archiveObj[yearStr][monthStr][dayStr] = [];
+                
+                const newItem = { time: hhmmStr, path: fileRelPath, title: indexTitle };
+                archiveObj[yearStr][monthStr][dayStr].unshift(newItem);
+
+                const newIdxContent = idxContent.substring(0, dataStart) + JSON.stringify(archiveObj) + idxContent.substring(dataEnd);
+                
+                const putIdxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: `Update index.html with custom batch entry`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
+                });
+                
+                if (!putIdxRes.ok) throw new Error("更新 index.html 失敗！");
+
+                if (!archiveData[yearStr]) archiveData[yearStr] = {};
+                if (!archiveData[yearStr][monthStr]) archiveData[yearStr][monthStr] = {};
+                if (!archiveData[yearStr][monthStr][dayStr]) archiveData[yearStr][monthStr][dayStr] = [];
+                archiveData[yearStr][monthStr][dayStr].unshift(newItem);
+
+                forceRender(); 
+                loadingBar.style.width = '100%';
+                alert(`🎉 成功！已為您組合併歸檔 ${validCount} 條推文。`);
+                setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
+
+            } catch (err) {
+                alert('❌ 操作失敗: ' + err.message);
+                loadingBar.style.width = '0%';
+            }
+        });
+
         // X 推文前端抓取邏輯
         document.getElementById('xUrlInput').addEventListener('keypress', async function (e) {
             if (e.key === 'Enter') {
                 const url = this.value.trim();
+                
+                // 【新增機制】若在主輸入框為空時按下回車，直接呼出 10 條自定義組合面板
+                if (!url) {
+                    document.querySelectorAll('.batch-input').forEach(input => input.value = '');
+                    document.getElementById('batchModal').style.display = 'flex';
+                    return;
+                }
                 
                 const statusMatch = url.match(/status\\/(\\d+)/);
                 const userMatch = url.match(/(?:x|twitter)\\.com\\/([A-Za-z0-9_]+)\\/?$/);
@@ -979,7 +1125,7 @@ def generate_index():
 
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首頁日曆 WebApp (一鍵翻譯終極修復版) 已生成更新！")
+    print("🚀 首頁日曆 WebApp (一鍵翻譯+自訂義組合更新) 已生成更新！")
 
 def git_push_to_github(msg="Auto-archive"):
     """自動調用本地系統的 Git 指令將更新推送到 GitHub"""
