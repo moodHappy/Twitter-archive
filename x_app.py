@@ -119,7 +119,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
         .translate-btn:active {{ background: #e5e5ea; transform: scale(0.95); }}
         .translate-btn[disabled] {{ opacity: 0.8; cursor: not-allowed; }}
         
-        /* 批注核心 UI 樣式 */
         .sync-status {{ padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; display: none; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }}
         
         /* 修復：擴大移動端觸控熱區，防止點擊無效 */
@@ -171,6 +170,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
     <script>
         let syncTimeout = null;
 
+        // 排隊觸發批注同步
         function scheduleSync() {{
             const statusMsg = document.getElementById('sync-status');
             statusMsg.style.display = 'inline-block';
@@ -183,6 +183,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
             syncTimeout = setTimeout(() => {{ syncToGitHub(); }}, 3000);
         }}
 
+        // 批注固化與推送核心
         async function syncToGitHub() {{
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
@@ -195,8 +196,10 @@ def generate_page_wrapper(content_html, page_title, now_str):
             statusMsg.innerText = '📡 同步中...';
 
             document.querySelectorAll('.anno-edit').forEach(ta => {{ ta.textContent = ta.value; }});
-
-            const htmlSnapshot = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + document.documentElement.innerHTML + '\\n</html>';
+            
+            // 修復 JS 換行報錯：強制合為單行字串
+            const htmlSnapshot = '<!DOCTYPE html><html lang="zh-CN">' + document.documentElement.innerHTML + '</html>';
+            
             const pathParts = window.location.pathname.split('/');
             const fileName = pathParts.pop();
             const month = pathParts.pop();
@@ -244,13 +247,14 @@ def generate_page_wrapper(content_html, page_title, now_str):
             }}
         }}
 
+        // 初始化批注 UI 事件
         function initAnnotations() {{
             document.querySelectorAll('.content-wrap').forEach(wrap => {{
                 const view = wrap.querySelector('.anno-view');
                 const edit = wrap.querySelector('.anno-edit');
                 const toggle = wrap.querySelector('.anno-toggle');
                 const box = wrap.querySelector('.anno-box');
-                
+
                 if (!view || !edit || !toggle || !box) return;
 
                 const rawText = edit.value.trim();
@@ -263,40 +267,39 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 toggle.onclick = (e) => {{
                     e.preventDefault();
                     e.stopPropagation();
-                    if (box.style.display === 'block') {{
-                        box.style.display = 'none';
+                    if (box.style.display === 'block') {{ 
+                        box.style.display = 'none'; 
                     }} else {{
                         box.style.display = 'block';
-                        if (!edit.value.trim()) {{
-                            view.style.display = 'none';
-                            edit.style.display = 'block';
+                        if (!edit.value.trim()) {{ 
+                            view.style.display = 'none'; 
+                            edit.style.display = 'block'; 
                             setTimeout(() => {{ edit.focus(); }}, 150); 
-                        }} else {{
-                            view.style.display = 'block';
-                            edit.style.display = 'none';
+                        }} else {{ 
+                            view.style.display = 'block'; 
+                            edit.style.display = 'none'; 
                         }}
                     }}
                 }};
 
-                const triggerEdit = (e) => {{
+                const triggerEdit = (e) => {{ 
                     if(e) {{ e.preventDefault(); e.stopPropagation(); }}
-                    view.style.display = 'none';
-                    edit.style.display = 'block';
-                    edit.value = edit.value;
-                    setTimeout(() => {{ edit.focus(); }}, 150);
+                    view.style.display = 'none'; 
+                    edit.style.display = 'block'; 
+                    edit.value = edit.value; 
+                    setTimeout(() => {{ edit.focus(); }}, 150); 
                 }};
 
                 view.addEventListener('dblclick', triggerEdit);
 
                 let lastTap = 0;
                 view.addEventListener('touchstart', e => {{
-                    if (e.touches.length === 2) {{
-                        triggerEdit(e);
-                    }} else if (e.touches.length === 1) {{
+                    if (e.touches.length === 2) {{ triggerEdit(e); }} 
+                    else if (e.touches.length === 1) {{
                         const currentTime = new Date().getTime();
-                        if (currentTime - lastTap < 500 && currentTime - lastTap > 0) {{
+                        if (currentTime - lastTap < 500 && currentTime - lastTap > 0) {{ 
                             e.preventDefault();
-                            box.style.display = 'none';
+                            box.style.display = 'none'; 
                         }}
                         lastTap = currentTime;
                     }}
@@ -307,16 +310,16 @@ def generate_page_wrapper(content_html, page_title, now_str):
                     setTimeout(() => {{
                         const newVal = edit.value.trim();
                         try {{ view.innerHTML = newVal ? ((typeof marked !== 'undefined') ? marked.parse(newVal) : newVal) : ''; }} catch(e){{}}
-                        
+
                         edit.style.display = 'none';
-                        
-                        if (newVal) {{
-                            view.style.display = 'block';
-                            toggle.classList.add('has-anno');
-                        }} else {{
-                            view.style.display = 'none';
-                            box.style.display = 'none';
-                            toggle.classList.remove('has-anno');
+
+                        if (newVal) {{ 
+                            view.style.display = 'block'; 
+                            toggle.classList.add('has-anno'); 
+                        }} else {{ 
+                            view.style.display = 'none'; 
+                            box.style.display = 'none'; 
+                            toggle.classList.remove('has-anno'); 
                         }}
 
                         if (edit.getAttribute('data-old-val') !== newVal) {{
@@ -325,13 +328,14 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         }}
                     }}, 150);
                 }});
-                
+
                 edit.setAttribute('data-old-val', rawText);
             }});
         }}
         
         window.addEventListener('load', initAnnotations);
 
+        // 翻譯功能也進行了升級以兼容 DOM 快照
         async function translateAll() {{
             const btn = document.getElementById('translate-btn');
             if(btn.hasAttribute('disabled')) return;
@@ -343,7 +347,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
             for (let i = 0; i < contents.length; i++) {{
                 const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
-                const text = content.innerText.replace('🔴', ''); 
+                const text = content.innerText.replace('🔴', '');
                 
                 let textToTranslate = text.replace(/https?:\\/\\/[^\\s]+/g, '').trim();
                 let checkText = textToTranslate.replace(/\\p{{Extended_Pictographic}}/gu, '').trim();
@@ -391,10 +395,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
             
             if (ghToken && ghOwner && ghRepo) {{
                 try {{
-                    document.querySelectorAll('.anno-edit').forEach(ta => {{
-                        ta.textContent = ta.value; 
-                    }});
-
+                    document.querySelectorAll('.anno-edit').forEach(ta => {{ ta.textContent = ta.value; }});
                     const pathParts = window.location.pathname.split('/');
                     const fileName = pathParts.pop();
                     const month = pathParts.pop();
@@ -404,7 +405,8 @@ def generate_page_wrapper(content_html, page_title, now_str):
                     btn.innerText = '🌐 已翻譯並固化';
                     btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
                     
-                    const htmlSnapshot = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + document.documentElement.innerHTML + '\\n</html>';
+                    // 修復 JS 換行報錯：強制合為單行字串
+                    const htmlSnapshot = '<!DOCTYPE html><html lang="zh-CN">' + document.documentElement.innerHTML + '</html>';
 
                     const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {{ headers: {{ 'Authorization': 'Bearer ' + ghToken }} }});
                     if (fileRes.ok) {{
@@ -498,7 +500,7 @@ def save_batch_tweets_local(username, tweet_ids, now_obj):
 
 
 def generate_index():
-    """日曆樞紐生成器 + 前端 JS"""
+    """日曆樞紐生成器 + 前端 JS (前端動態生成的頁面外殼與批注 UI 同步適配)"""
     archive_data = {}
     if os.path.exists(BASE_DIR):
         years = [d for d in os.listdir(BASE_DIR) if d.isdigit()]
@@ -885,7 +887,6 @@ def generate_index():
         
         .sync-status { padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; display: none; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
         
-        /* 修復：擴大移動端觸控熱區，防止點擊無效 */
         .anno-toggle { display: inline-block; padding: 4px 8px; margin-left: 4px; cursor: pointer; opacity: 0.3; font-size: 0.9rem; vertical-align: middle; transition: all 0.2s; user-select: none; -webkit-tap-highlight-color: transparent; }
         .anno-toggle:hover { opacity: 0.9; transform: scale(1.1); }
         .anno-toggle.has-anno { opacity: 1; }
@@ -895,7 +896,6 @@ def generate_index():
         .anno-view { font-size: 1.05rem; line-height: 1.6; color: #4a4a4a; min-height: 24px; }
         .anno-edit { width: 100%; min-height: 120px; padding: 10px; font-family: monospace; font-size: 1rem; border: 1px dashed #8e7cc3; border-radius: 6px; box-sizing: border-box; resize: vertical; display: none; background: #fff; color: #333; outline: none; }
         .anno-edit:focus { border: 1px solid #8e7cc3; box-shadow: 0 0 0 3px rgba(142,124,195,0.1); }
-        
         .markdown-body p { margin-top: 0; margin-bottom: 8px; }
         .markdown-body p:last-child { margin-bottom: 0; }
         .markdown-body p:empty { display: none; }
@@ -956,7 +956,7 @@ def generate_index():
             statusMsg.innerText = '📡 同步中...';
 
             document.querySelectorAll('.anno-edit').forEach(ta => { ta.textContent = ta.value; });
-            const htmlSnapshot = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + document.documentElement.innerHTML + '\\n</html>';
+            const htmlSnapshot = '<!DOCTYPE html><html lang="zh-CN">' + document.documentElement.innerHTML + '</html>';
             const pathParts = window.location.pathname.split('/');
             const fileName = pathParts.pop();
             const month = pathParts.pop();
@@ -1005,7 +1005,6 @@ def generate_index():
                     try { view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; } catch(e){}
                 }
 
-                // 修復：阻止冒泡與默認事件，增加延遲 Focus 處理虛擬鍵盤彈起衝突
                 toggle.onclick = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -1031,7 +1030,6 @@ def generate_index():
                     edit.value = edit.value; 
                     setTimeout(() => { edit.focus(); }, 150); 
                 };
-                
                 view.addEventListener('dblclick', triggerEdit);
 
                 let lastTap = 0;
@@ -1047,22 +1045,13 @@ def generate_index():
                     }
                 }, {passive: false});
 
-                // 修復：Blur 時增加延時，避免手機端佈局跳轉引起的瞬間閃退
                 edit.addEventListener('blur', () => {
                     setTimeout(() => {
                         const newVal = edit.value.trim();
                         try { view.innerHTML = newVal ? ((typeof marked !== 'undefined') ? marked.parse(newVal) : newVal) : ''; } catch(e){}
-                        
                         edit.style.display = 'none';
-                        
-                        if (newVal) { 
-                            view.style.display = 'block'; 
-                            toggle.classList.add('has-anno'); 
-                        } else { 
-                            view.style.display = 'none'; 
-                            box.style.display = 'none'; 
-                            toggle.classList.remove('has-anno'); 
-                        }
+                        if (newVal) { view.style.display = 'block'; toggle.classList.add('has-anno'); } 
+                        else { view.style.display = 'none'; box.style.display = 'none'; toggle.classList.remove('has-anno'); }
 
                         if (edit.getAttribute('data-old-val') !== newVal) {
                             edit.setAttribute('data-old-val', newVal);
@@ -1070,7 +1059,6 @@ def generate_index():
                         }
                     }, 150);
                 });
-                
                 edit.setAttribute('data-old-val', rawText);
             });
         }
@@ -1139,7 +1127,7 @@ def generate_index():
                     btn.innerText = '🌐 已翻譯並固化';
                     btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
                     
-                    const htmlSnapshot = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + document.documentElement.innerHTML + '\\n</html>';
+                    const htmlSnapshot = '<!DOCTYPE html><html lang="zh-CN">' + document.documentElement.innerHTML + '</html>';
 
                     const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, { headers: { 'Authorization': 'Bearer ' + ghToken } });
                     if (fileRes.ok) {
@@ -1482,7 +1470,7 @@ def generate_index():
 
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首頁日曆 WebApp (已修復移動端批注彈窗閃退) 已生成更新！")
+    print("🚀 首頁日曆 WebApp (已修復 Markdown 批注雙向固化崩潰) 已生成更新！")
 
 def git_push_to_github(msg="Auto-archive"):
     """自動調用本地系統的 Git 指令將更新推送到 GitHub"""
