@@ -162,7 +162,6 @@
                         const wrapper = document.createElement('div'); wrapper.className = 'news-item-wrapper';
                         const a = document.createElement('a'); a.href = news.path; a.className = 'news-item';
                         
-                        // 標題本身就包含了時間，不需要再額外添加時間標籤
                         a.innerHTML = `<span class="news-title">${news.title}</span>`;
                         wrapper.appendChild(a);
 
@@ -249,12 +248,11 @@
             } catch(e) { console.error(e); alert('刪除同步失敗: ' + e.message); document.getElementById('loadingBar').style.width = '0%'; }
         }
 
-        // X 推文前端抓取邏輯 (支援單個與批量)
+        // X 推文前端抓取邏輯 (四重代理備援防攔截)
         document.getElementById('xUrlInput').addEventListener('keypress', async function (e) {
             if (e.key === 'Enter') {
                 const url = this.value.trim();
                 
-                // 判斷是否為單推文或帳號首頁
                 const statusMatch = url.match(/status\/(\d+)/);
                 const userMatch = url.match(/(?:x|twitter)\.com\/([A-Za-z0-9_]+)\/?$/);
                 
@@ -283,28 +281,60 @@
                 this.disabled = true;
 
                 try {
-                    // 若為批量，前端使用代理拉取時間線
                     if (isBatch) {
                         const username = userMatch[1];
-                        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent('https://syndication.twitter.com/srv/timeline-profile/screen-name/' + username)}`;
-                        const res = await fetch(proxyUrl);
-                        const data = await res.json();
-                        const match = data.contents.match(/<script id="__NEXT_DATA__" type="application\/json">(.*?)<\/script>/);
-                        
-                        if (match) {
-                            const parsed = JSON.parse(match[1]);
-                            const entries = parsed.props?.pageProps?.timeline?.entries || [];
-                            entries.forEach(e => {
-                                const tid = e.content?.tweet?.id_str;
-                                if (tid && !tweetIdsToProcess.includes(tid)) tweetIdsToProcess.push(tid);
-                            });
-                            tweetIdsToProcess = tweetIdsToProcess.slice(0, 10);
+                        loadingBar.style.width = '15%';
+
+                        // 備援 1: RSSHub (通常支援 CORS 且最不易被攔截)
+                        try {
+                            const rssUrl = `https://rsshub.rssforever.com/twitter/user/${username}/exclude_rts_replies`;
+                            const rssRes = await fetch(rssUrl);
+                            if (rssRes.ok) {
+                                const rssText = await rssRes.text();
+                                const matches = [...rssText.matchAll(/status\/(\d+)/g)];
+                                matches.forEach(m => {
+                                    if (!tweetIdsToProcess.includes(m[1])) tweetIdsToProcess.push(m[1]);
+                                });
+                            }
+                        } catch(err) { console.warn("RSSHub fetch failed"); }
+
+                        loadingBar.style.width = '25%';
+
+                        // 備援 2~4: Syndication API + 多種跨域代理
+                        if (tweetIdsToProcess.length === 0) {
+                            const synUrl = encodeURIComponent(`https://syndication.twitter.com/srv/timeline-profile/screen-name/${username}`);
+                            const proxies = [
+                                `https://api.allorigins.win/raw?url=${synUrl}`,
+                                `https://corsproxy.io/?url=${synUrl}`,
+                                `https://api.codetabs.com/v1/proxy?quest=${decodeURIComponent(synUrl)}`
+                            ];
+
+                            for (let proxy of proxies) {
+                                try {
+                                    const res = await fetch(proxy);
+                                    if (!res.ok) continue;
+                                    const text = await res.text();
+                                    const match = text.match(/<script id="__NEXT_DATA__" type="application\/json">(.*?)<\/script>/);
+                                    if (match) {
+                                        const parsed = JSON.parse(match[1]);
+                                        const timelineEntries = parsed.props?.pageProps?.timeline?.entries || [];
+                                        timelineEntries.forEach(entry => {
+                                            const tid = entry.content?.tweet?.id_str;
+                                            if (tid && !tweetIdsToProcess.includes(tid)) tweetIdsToProcess.push(tid);
+                                        });
+                                        if (tweetIdsToProcess.length > 0) break;
+                                    }
+                                } catch(err) { console.warn(`Proxy failed:`, proxy); }
+                            }
                         }
-                        
-                        if (tweetIdsToProcess.length === 0) throw new Error("代理節點未能解析出推文");
+
+                        tweetIdsToProcess = tweetIdsToProcess.slice(0, 10);
+                        if (tweetIdsToProcess.length === 0) {
+                            throw new Error("前端代理節點全數遭瀏覽器攔截，請關閉廣告攔截器/防追蹤護盾，或更換網路後重試。");
+                        }
                     }
 
-                    // 處理搜集到的所有 IDs
+                    // 處理搜集到的推文
                     const now = new Date();
                     const yearStr = AppState.year.toString();
                     const monthStr = AppState.month.toString();
@@ -312,14 +342,13 @@
                     const newItems = [];
 
                     for (let i = 0; i < tweetIdsToProcess.length; i++) {
-                        loadingBar.style.width = `${10 + (80 / tweetIdsToProcess.length) * i}%`;
+                        loadingBar.style.width = `${30 + (60 / tweetIdsToProcess.length) * i}%`;
                         const tweetId = tweetIdsToProcess[i];
                         
                         const vRes = await fetch(`https://api.vxtwitter.com/Twitter/status/${tweetId}`);
                         const tweet = await vRes.json();
-                        if (tweet.error) continue; // 略過錯誤的推文
+                        if (tweet.error) continue;
 
-                        // 製造微小的時間差(秒數)，防止檔名重複
                         const d = new Date(now.getTime() - i * 60000); 
                         const hhmmStr = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
                         const hhmmssFile = String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0') + String(d.getSeconds()).padStart(2, '0');
@@ -340,7 +369,6 @@
 
                     if (newItems.length === 0) throw new Error("API 節點阻擋，無法抓取到資料");
 
-                    // 批量更新 index.html (防止連續提交導致 GitHub 報錯)
                     loadingBar.style.width = '95%';
                     const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `Bearer ${ghToken}` } });
                     const idxData = await idxRes.json();
@@ -354,7 +382,6 @@
                     if (!archiveObj[yearStr][monthStr]) archiveObj[yearStr][monthStr] = {};
                     if (!archiveObj[yearStr][monthStr][dayStr]) archiveObj[yearStr][monthStr][dayStr] = [];
                     
-                    // 將新抓取的資料加到陣列最前面
                     archiveObj[yearStr][monthStr][dayStr] = [...newItems, ...archiveObj[yearStr][monthStr][dayStr]];
 
                     const newIdxContent = idxContent.substring(0, dataStart) + JSON.stringify(archiveObj) + idxContent.substring(dataEnd);
@@ -367,7 +394,6 @@
                     
                     if (!putIdxRes.ok) throw new Error("更新 index.html 失敗！");
 
-                    // 更新本地記憶體
                     if (!archiveData[yearStr]) archiveData[yearStr] = {};
                     if (!archiveData[yearStr][monthStr]) archiveData[yearStr][monthStr] = {};
                     if (!archiveData[yearStr][monthStr][dayStr]) archiveData[yearStr][monthStr][dayStr] = [];
@@ -380,7 +406,7 @@
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
 
                 } catch (err) {
-                    alert('❌ 操作失敗: ' + err.message + (isBatch ? ' (若代理節點失效，建議使用 Python 後台終端執行)' : ''));
+                    alert('❌ 操作失敗: ' + err.message);
                     loadingBar.style.width = '0%';
                 } finally {
                     this.disabled = false;
