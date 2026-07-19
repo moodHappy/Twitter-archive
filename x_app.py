@@ -49,7 +49,7 @@ def get_user_tweet_ids(username, limit=10):
     return []
 
 def generate_tweet_card(tweet_data, tweet_id):
-    """生成單個推文卡片的 HTML 結構"""
+    """生成單個推文卡片的 HTML 結構 (Python端)"""
     author = tweet_data.get('user_name', 'Unknown')
     handle = tweet_data.get('user_screen_name', 'unknown')
     text = tweet_data.get('text', '')
@@ -92,10 +92,23 @@ def generate_tweet_card(tweet_data, tweet_id):
                 <span>🔁 {retweets:,} 轉發</span>
             </div>
             <a href="{original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+            
+            <!-- 批注區域 -->
+            <div class="annotation-container">
+                <div class="annotation-content" data-anno-id="{tweet_id}"></div>
+                <div class="annotation-edit-area" id="edit-area-{tweet_id}">
+                    <textarea class="annotation-textarea" id="textarea-{tweet_id}" placeholder="在這裡輸入批注思考、筆記或靈感..."></textarea>
+                    <div class="annotation-actions">
+                        <button class="btn-sm btn-edit" onclick="cancelAnnotation('{tweet_id}')">取消</button>
+                        <button class="btn-sm btn-save-anno" onclick="saveAnnotation('{tweet_id}')">💾 保存批注</button>
+                    </div>
+                </div>
+                <button class="btn-sm btn-edit" id="btn-edit-{tweet_id}" onclick="editAnnotation('{tweet_id}')" style="margin-top:10px;">📝 添加批注</button>
+            </div>
         </div>"""
 
 def generate_page_wrapper(content_html, page_title, now_str):
-    """生成完整 HTML 頁面外殼"""
+    """生成完整 HTML 頁面外殼 (Python端)"""
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -124,6 +137,20 @@ def generate_page_wrapper(content_html, page_title, now_str):
         .btn-link {{ display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }}
         .btn-link:active {{ transform: scale(0.98); background: #1a8cd8; }}
         .time-stamp {{ text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }}
+        
+        /* 批注樣式 */
+        .annotation-container {{ margin-top: 15px; border-top: 1px dashed var(--border); padding-top: 15px; }}
+        .annotation-content {{ white-space: pre-wrap; word-wrap: break-word; color: #444; font-size: 0.95rem; background: #fffde7; padding: 12px; border-radius: 8px; border-left: 4px solid #fbc02d; margin-bottom: 10px; display: none; }}
+        .annotation-content:not(:empty) {{ display: block; }}
+        .annotation-edit-area {{ display: none; flex-direction: column; gap: 8px; margin-bottom: 10px; }}
+        .annotation-textarea {{ width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-family: inherit; font-size: 0.95rem; resize: vertical; min-height: 80px; outline: none; transition: border 0.2s; }}
+        .annotation-textarea:focus {{ border-color: var(--x-blue); }}
+        .annotation-actions {{ display: flex; gap: 10px; justify-content: flex-end; }}
+        .btn-sm {{ padding: 6px 14px; border-radius: 16px; border: none; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: transform 0.1s; }}
+        .btn-sm:active {{ transform: scale(0.95); }}
+        .btn-edit {{ background: #f2f2f7; color: var(--text); border: 1px solid #ccc; }}
+        .btn-save-anno {{ background: var(--x-blue); color: #fff; }}
+        .btn-save-anno[disabled] {{ opacity: 0.7; cursor: not-allowed; }}
     </style>
 </head>
 <body>
@@ -137,6 +164,44 @@ def generate_page_wrapper(content_html, page_title, now_str):
     </div>
     
     <script>
+        // 通用：同步當前頁面 HTML 到 GitHub
+        async function syncPageToGithub() {{
+            const ghToken = localStorage.getItem('GH_TOKEN');
+            const ghOwner = localStorage.getItem('GH_OWNER');
+            const ghRepo = localStorage.getItem('GH_REPO');
+            
+            if (!ghToken || !ghOwner || !ghRepo) return false;
+
+            try {{
+                const pathParts = window.location.pathname.split('/');
+                const fileName = pathParts.pop();
+                const month = pathParts.pop();
+                const year = pathParts.pop();
+                const fileRelPath = year + '/' + month + '/' + fileName;
+
+                // 抓取當前快照，此時 innerText 的變更會反映在 innerHTML 中
+                const htmlSnapshot = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + document.documentElement.innerHTML + '\\n</html>';
+
+                const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {{ headers: {{ 'Authorization': 'Bearer ' + ghToken }} }});
+                if (fileRes.ok) {{
+                    const fileData = await fileRes.json();
+                    const putRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {{
+                        method: 'PUT',
+                        headers: {{ 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' }},
+                        body: JSON.stringify({{ 
+                            message: 'Auto-sync page content (annotations/translations) for ' + fileName, 
+                            content: btoa(unescape(encodeURIComponent(htmlSnapshot))),
+                            sha: fileData.sha
+                        }})
+                    }});
+                    if(putRes.ok) return true;
+                }}
+            }} catch(e) {{
+                console.error('同步失敗', e);
+            }}
+            return false;
+        }}
+
         async function translateAll() {{
             const btn = document.getElementById('translate-btn');
             if(btn.hasAttribute('disabled')) return;
@@ -189,46 +254,82 @@ def generate_page_wrapper(content_html, page_title, now_str):
             }}
 
             btn.innerText = '⏳ 固化至雲端...';
+            const synced = await syncPageToGithub();
             
-            const ghToken = localStorage.getItem('GH_TOKEN');
-            const ghOwner = localStorage.getItem('GH_OWNER');
-            const ghRepo = localStorage.getItem('GH_REPO');
-            
-            if (ghToken && ghOwner && ghRepo) {{
-                try {{
-                    const pathParts = window.location.pathname.split('/');
-                    const fileName = pathParts.pop();
-                    const month = pathParts.pop();
-                    const year = pathParts.pop();
-                    
-                    const fileRelPath = year + '/' + month + '/' + fileName;
-
-                    btn.innerText = '🌐 已翻譯並固化';
-                    btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
-                    
-                    const htmlSnapshot = '<!DOCTYPE html><html lang="zh-CN">' + document.documentElement.innerHTML + '</html>';
-
-                    const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {{ headers: {{ 'Authorization': 'Bearer ' + ghToken }} }});
-                    if (fileRes.ok) {{
-                        const fileData = await fileRes.json();
-                        await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {{
-                            method: 'PUT',
-                            headers: {{ 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' }},
-                            body: JSON.stringify({{ 
-                                message: 'Auto-solidify translation for ' + fileName, 
-                                content: btoa(unescape(encodeURIComponent(htmlSnapshot))),
-                                sha: fileData.sha
-                            }})
-                        }});
-                    }}
-                }} catch(e) {{
-                    console.error('固化失敗', e);
-                    btn.innerText = '⚠️ 僅本地翻譯';
-                }}
+            if (synced) {{
+                btn.innerText = '🌐 已翻譯並固化';
+                btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
             }} else {{
-                btn.innerText = '✅ 翻譯完成';
+                btn.innerText = '⚠️ 僅本地翻譯 (未配置 Token)';
             }}
         }}
+
+        // --- 批注互動邏輯 ---
+        function editAnnotation(tweetId) {{
+            const contentDiv = document.querySelector('.annotation-content[data-anno-id="' + tweetId + '"]');
+            const editArea = document.getElementById('edit-area-' + tweetId);
+            const textarea = document.getElementById('textarea-' + tweetId);
+            const editBtn = document.getElementById('btn-edit-' + tweetId);
+
+            textarea.value = contentDiv.innerText || '';
+            contentDiv.style.display = 'none';
+            editArea.style.display = 'flex';
+            editBtn.style.display = 'none';
+            textarea.focus();
+        }}
+
+        function cancelAnnotation(tweetId) {{
+            const contentDiv = document.querySelector('.annotation-content[data-anno-id="' + tweetId + '"]');
+            const editArea = document.getElementById('edit-area-' + tweetId);
+            const editBtn = document.getElementById('btn-edit-' + tweetId);
+
+            contentDiv.style.display = contentDiv.innerText.trim() ? 'block' : 'none';
+            editArea.style.display = 'none';
+            editBtn.style.display = 'inline-block';
+        }}
+
+        async function saveAnnotation(tweetId) {{
+            const contentDiv = document.querySelector('.annotation-content[data-anno-id="' + tweetId + '"]');
+            const editArea = document.getElementById('edit-area-' + tweetId);
+            const textarea = document.getElementById('textarea-' + tweetId);
+            const editBtn = document.getElementById('btn-edit-' + tweetId);
+            const saveBtn = editArea.querySelector('.btn-save-anno');
+
+            const newText = textarea.value.trim();
+            contentDiv.innerText = newText; // 賦值觸發 DOM 狀態更新，此處會被 innerHTML 捕捉
+            
+            contentDiv.style.display = newText ? 'block' : 'none';
+            editArea.style.display = 'none';
+            editBtn.style.display = 'inline-block';
+            editBtn.innerText = newText ? '📝 修改批注' : '📝 添加批注';
+
+            saveBtn.innerText = '⏳ 保存中...';
+            saveBtn.disabled = true;
+
+            const synced = await syncPageToGithub();
+            
+            saveBtn.innerText = '💾 保存批注';
+            saveBtn.disabled = false;
+            
+            if(!synced) {{
+                if(!localStorage.getItem('GH_TOKEN')) {{
+                    alert('批注已暫存在本頁，但未配置 GitHub Token，刷新後會丟失。請前往首頁配置。');
+                }} else {{
+                    alert('同步 GitHub 失敗，請檢查網路或 Token。');
+                }}
+            }}
+        }}
+
+        // 初始化所有按鈕的文字狀態
+        document.addEventListener('DOMContentLoaded', () => {{
+            document.querySelectorAll('.annotation-content').forEach(el => {{
+                const tweetId = el.getAttribute('data-anno-id');
+                const editBtn = document.getElementById('btn-edit-' + tweetId);
+                if (editBtn) {{
+                    editBtn.innerText = el.innerText.trim() ? '📝 修改批注' : '📝 添加批注';
+                }}
+            }});
+        }});
     </script>
 </body>
 </html>"""
@@ -408,7 +509,7 @@ def generate_index():
     <div class="modal-overlay" id="settingsModal">
         <div class="modal-content">
             <h3 class="modal-title">GitHub 雲端同步配置</h3>
-            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">只需填寫 GitHub Token，即可在網頁端直接同步推文。</p>
+            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">只需填寫 GitHub Token，即可在網頁端直接同步推文與批注。</p>
             <div class="form-group"><label>GitHub Personal Access Token</label><input type="password" id="cfgGhToken" placeholder="ghp_..."></div>
             <div class="form-group"><label>GitHub 用戶名</label><input type="text" id="cfgGhOwner" value="moodHappy" placeholder="例如: moodHappy"></div>
             <div class="form-group"><label>GitHub 倉庫名</label><input type="text" id="cfgGhRepo" placeholder="例如: x-vibe"></div>
@@ -465,7 +566,6 @@ def generate_index():
             deleteMode: false
         };
 
-        // 初始化批量輸入框
         const batchContainer = document.getElementById('batchInputsContainer');
         for(let i=1; i<=10; i++) {
             batchContainer.innerHTML += `<div class="form-group" style="margin-bottom: 10px;"><input type="text" class="batch-input" placeholder="粘貼第 ${i} 條推文鏈接..."></div>`;
@@ -616,7 +716,7 @@ def generate_index():
             } catch(e) { console.error(e); alert('刪除同步失敗: ' + e.message); document.getElementById('loadingBar').style.width = '0%'; }
         }
 
-        // --- HTML 模板組裝 ---
+        // --- HTML 模板組裝 (JS端，供前端直接呼叫抓取使用) ---
         function generateTweetCard(tweet, tweetId) {
             const author = tweet.user_name || 'Unknown';
             const handle = tweet.user_screen_name || 'unknown';
@@ -661,6 +761,19 @@ def generate_index():
                 <span>🔁 ${retweets} 轉發</span>
             </div>
             <a href="${original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+            
+            <!-- 批注區域 -->
+            <div class="annotation-container">
+                <div class="annotation-content" data-anno-id="${tweetId}"></div>
+                <div class="annotation-edit-area" id="edit-area-${tweetId}">
+                    <textarea class="annotation-textarea" id="textarea-${tweetId}" placeholder="在這裡輸入批注思考、筆記或靈感..."></textarea>
+                    <div class="annotation-actions">
+                        <button class="btn-sm btn-edit" onclick="cancelAnnotation('${tweetId}')">取消</button>
+                        <button class="btn-sm btn-save-anno" onclick="saveAnnotation('${tweetId}')">💾 保存批注</button>
+                    </div>
+                </div>
+                <button class="btn-sm btn-edit" id="btn-edit-${tweetId}" onclick="editAnnotation('${tweetId}')" style="margin-top:10px;">📝 添加批注</button>
+            </div>
         </div>`;
         }
 
@@ -693,6 +806,19 @@ def generate_index():
         .btn-link { display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }
         .btn-link:active { transform: scale(0.98); background: #1a8cd8; }
         .time-stamp { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }
+
+        .annotation-container { margin-top: 15px; border-top: 1px dashed var(--border); padding-top: 15px; }
+        .annotation-content { white-space: pre-wrap; word-wrap: break-word; color: #444; font-size: 0.95rem; background: #fffde7; padding: 12px; border-radius: 8px; border-left: 4px solid #fbc02d; margin-bottom: 10px; display: none; }
+        .annotation-content:not(:empty) { display: block; }
+        .annotation-edit-area { display: none; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+        .annotation-textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-family: inherit; font-size: 0.95rem; resize: vertical; min-height: 80px; outline: none; transition: border 0.2s; }
+        .annotation-textarea:focus { border-color: var(--x-blue); }
+        .annotation-actions { display: flex; gap: 10px; justify-content: flex-end; }
+        .btn-sm { padding: 6px 14px; border-radius: 16px; border: none; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: transform 0.1s; }
+        .btn-sm:active { transform: scale(0.95); }
+        .btn-edit { background: #f2f2f7; color: var(--text); border: 1px solid #ccc; }
+        .btn-save-anno { background: var(--x-blue); color: #fff; }
+        .btn-save-anno[disabled] { opacity: 0.7; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -706,6 +832,42 @@ def generate_index():
     </div>
     
     <script>
+        async function syncPageToGithub() {
+            const ghToken = localStorage.getItem('GH_TOKEN');
+            const ghOwner = localStorage.getItem('GH_OWNER');
+            const ghRepo = localStorage.getItem('GH_REPO');
+            
+            if (!ghToken || !ghOwner || !ghRepo) return false;
+
+            try {
+                const pathParts = window.location.pathname.split('/');
+                const fileName = pathParts.pop();
+                const month = pathParts.pop();
+                const year = pathParts.pop();
+                const fileRelPath = year + '/' + month + '/' + fileName;
+
+                const htmlSnapshot = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + document.documentElement.innerHTML + '\\n</html>';
+
+                const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, { headers: { 'Authorization': 'Bearer ' + ghToken } });
+                if (fileRes.ok) {
+                    const fileData = await fileRes.json();
+                    const putRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {
+                        method: 'PUT',
+                        headers: { 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            message: 'Auto-sync page content (annotations/translations) for ' + fileName, 
+                            content: btoa(unescape(encodeURIComponent(htmlSnapshot))),
+                            sha: fileData.sha
+                        })
+                    });
+                    if(putRes.ok) return true;
+                }
+            } catch(e) {
+                console.error('同步失敗', e);
+            }
+            return false;
+        }
+
         async function translateAll() {
             const btn = document.getElementById('translate-btn');
             if(btn.hasAttribute('disabled')) return;
@@ -758,46 +920,81 @@ def generate_index():
             }
 
             btn.innerText = '⏳ 固化至雲端...';
+            const synced = await syncPageToGithub();
             
-            const ghToken = localStorage.getItem('GH_TOKEN');
-            const ghOwner = localStorage.getItem('GH_OWNER');
-            const ghRepo = localStorage.getItem('GH_REPO');
-            
-            if (ghToken && ghOwner && ghRepo) {
-                try {
-                    const pathParts = window.location.pathname.split('/');
-                    const fileName = pathParts.pop();
-                    const month = pathParts.pop();
-                    const year = pathParts.pop();
-                    
-                    const fileRelPath = year + '/' + month + '/' + fileName;
-
-                    btn.innerText = '🌐 已翻譯並固化';
-                    btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
-                    
-                    const htmlSnapshot = '<!DOCTYPE html><html lang="zh-CN">' + document.documentElement.innerHTML + '</html>';
-
-                    const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, { headers: { 'Authorization': 'Bearer ' + ghToken } });
-                    if (fileRes.ok) {
-                        const fileData = await fileRes.json();
-                        await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {
-                            method: 'PUT',
-                            headers: { 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ 
-                                message: 'Auto-solidify translation for ' + fileName, 
-                                content: btoa(unescape(encodeURIComponent(htmlSnapshot))),
-                                sha: fileData.sha
-                            })
-                        });
-                    }
-                } catch(e) {
-                    console.error('固化失敗', e);
-                    btn.innerText = '⚠️ 僅本地翻譯';
-                }
+            if (synced) {
+                btn.innerText = '🌐 已翻譯並固化';
+                btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
             } else {
-                btn.innerText = '✅ 翻譯完成';
+                btn.innerText = '⚠️ 僅本地翻譯 (未配置 Token)';
             }
         }
+
+        // --- 批注互動邏輯 ---
+        function editAnnotation(tweetId) {
+            const contentDiv = document.querySelector('.annotation-content[data-anno-id="' + tweetId + '"]');
+            const editArea = document.getElementById('edit-area-' + tweetId);
+            const textarea = document.getElementById('textarea-' + tweetId);
+            const editBtn = document.getElementById('btn-edit-' + tweetId);
+
+            textarea.value = contentDiv.innerText || '';
+            contentDiv.style.display = 'none';
+            editArea.style.display = 'flex';
+            editBtn.style.display = 'none';
+            textarea.focus();
+        }
+
+        function cancelAnnotation(tweetId) {
+            const contentDiv = document.querySelector('.annotation-content[data-anno-id="' + tweetId + '"]');
+            const editArea = document.getElementById('edit-area-' + tweetId);
+            const editBtn = document.getElementById('btn-edit-' + tweetId);
+
+            contentDiv.style.display = contentDiv.innerText.trim() ? 'block' : 'none';
+            editArea.style.display = 'none';
+            editBtn.style.display = 'inline-block';
+        }
+
+        async function saveAnnotation(tweetId) {
+            const contentDiv = document.querySelector('.annotation-content[data-anno-id="' + tweetId + '"]');
+            const editArea = document.getElementById('edit-area-' + tweetId);
+            const textarea = document.getElementById('textarea-' + tweetId);
+            const editBtn = document.getElementById('btn-edit-' + tweetId);
+            const saveBtn = editArea.querySelector('.btn-save-anno');
+
+            const newText = textarea.value.trim();
+            contentDiv.innerText = newText;
+            
+            contentDiv.style.display = newText ? 'block' : 'none';
+            editArea.style.display = 'none';
+            editBtn.style.display = 'inline-block';
+            editBtn.innerText = newText ? '📝 修改批注' : '📝 添加批注';
+
+            saveBtn.innerText = '⏳ 保存中...';
+            saveBtn.disabled = true;
+
+            const synced = await syncPageToGithub();
+            
+            saveBtn.innerText = '💾 保存批注';
+            saveBtn.disabled = false;
+            
+            if(!synced) {
+                if(!localStorage.getItem('GH_TOKEN')) {
+                    alert('批注已暫存在本頁，但未配置 GitHub Token，刷新後會丟失。請前往首頁配置。');
+                } else {
+                    alert('同步 GitHub 失敗，請檢查網路或 Token。');
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.annotation-content').forEach(el => {
+                const tweetId = el.getAttribute('data-anno-id');
+                const editBtn = document.getElementById('btn-edit-' + tweetId);
+                if (editBtn) {
+                    editBtn.innerText = el.innerText.trim() ? '📝 修改批注' : '📝 添加批注';
+                }
+            });
+        });
     \\x3C/script>
 </body>
 </html>`;
@@ -924,7 +1121,6 @@ def generate_index():
             if (e.key === 'Enter') {
                 const url = this.value.trim();
                 
-                // 【新增機制】若在主輸入框為空時按下回車，直接呼出 10 條自定義組合面板
                 if (!url) {
                     document.querySelectorAll('.batch-input').forEach(input => input.value = '');
                     document.getElementById('batchModal').style.display = 'flex';
@@ -1125,7 +1321,7 @@ def generate_index():
 
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首頁日曆 WebApp (一鍵翻譯+自訂義組合更新) 已生成更新！")
+    print("🚀 首頁日曆 WebApp (加入獨立批注、一鍵翻譯+自訂義組合更新) 已生成！")
 
 def git_push_to_github(msg="Auto-archive"):
     """自動調用本地系統的 Git 指令將更新推送到 GitHub"""
