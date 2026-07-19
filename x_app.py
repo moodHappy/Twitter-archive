@@ -16,10 +16,10 @@ def get_tweet_data(url):
     match = re.search(r'status/(\d+)', url)
     if not match:
         return None, None
-    
+
     tweet_id = match.group(1)
     api_url = f"https://api.vxtwitter.com/Twitter/status/{tweet_id}"
-    
+
     try:
         res = requests.get(api_url, timeout=15).json()
         if 'error' in res:
@@ -47,15 +47,27 @@ def save_tweet_local(tweet_data, tweet_id, now_obj):
     text = tweet_data.get('text', '')
     likes = tweet_data.get('likes', 0)
     retweets = tweet_data.get('retweets', 0)
+    
+    # 優先獲取詳細的媒體資訊
+    media_extended = tweet_data.get('media_extended', [])
     media_urls = tweet_data.get('mediaURLs', [])
     original_url = f"https://x.com/{handle}/status/{tweet_id}"
 
     # 處理媒體附件
     media_html = ""
-    if media_urls:
+    if media_extended:
+        for media in media_extended:
+            m_type = media.get('type')
+            m_url = media.get('url', '')
+            if m_type in ['video', 'gif']:
+                poster = media.get('thumbnail_url', '')
+                media_html += f'<div class="media-container"><video controls src="{m_url}" poster="{poster}" class="media-item" preload="metadata" playsinline></video></div>'
+            else:
+                media_html += f'<div class="media-container"><img src="{m_url}" class="media-item" loading="lazy"></div>'
+    elif media_urls: # 容錯備用邏輯
         for m_url in media_urls:
             if '.mp4' in m_url:
-                media_html += f'<div class="media-container"><video controls src="{m_url}" class="media-item" preload="metadata"></video></div>'
+                media_html += f'<div class="media-container"><video controls src="{m_url}" class="media-item" preload="metadata" playsinline></video></div>'
             else:
                 media_html += f'<div class="media-container"><img src="{m_url}" class="media-item" loading="lazy"></div>'
 
@@ -63,6 +75,7 @@ def save_tweet_local(tweet_data, tweet_id, now_obj):
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <meta name="referrer" content="no-referrer">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Tweet by {author}</title>
     <style>
@@ -77,8 +90,8 @@ def save_tweet_local(tweet_data, tweet_id, now_obj):
         .name {{ font-weight: 700; font-size: 1.1rem; color: var(--text); }}
         .handle {{ color: var(--muted); font-size: 0.95rem; margin-top: 2px; }}
         .content {{ font-size: 1.1rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; margin-bottom: 15px; }}
-        .media-container {{ margin-top: 10px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; }}
-        .media-item {{ width: 100%; height: auto; display: block; max-height: 500px; object-fit: cover; background: #000; }}
+        .media-container {{ margin-top: 10px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; background: #000; }}
+        .media-item {{ width: 100%; height: auto; display: block; max-height: 500px; object-fit: contain; }}
         .stats {{ margin-top: 15px; color: var(--muted); font-size: 0.95rem; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px; font-weight: 500; margin-bottom: 15px; }}
         .btn-link {{ display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }}
         .btn-link:active {{ transform: scale(0.98); background: #1a8cd8; }}
@@ -131,7 +144,7 @@ def generate_index():
                             f_day = str(int(parts[2]))
                             time_str = f"{parts[3][:2]}:{parts[3][2:4]}"
                             file_path = f"{year}/{month}/{file}"
-                            
+
                             title = "🐦 靈感推文"
 
                             if f_year not in archive_data: archive_data[f_year] = {}
@@ -399,7 +412,7 @@ def generate_index():
             } catch(e) { console.error(e); alert('刪除同步失敗: ' + e.message); document.getElementById('loadingBar').style.width = '0%'; }
         }
 
-        // X 推文前端抓取邏輯 (增加錯誤提示機制)
+        // X 推文前端抓取邏輯
         document.getElementById('xUrlInput').addEventListener('keypress', async function (e) {
             if (e.key === 'Enter') {
                 const url = this.value.trim();
@@ -441,7 +454,6 @@ def generate_index():
 
                     loadingBar.style.width = '75%';
                     
-                    // 強化錯誤攔截: 若 GitHub API 拒絕, 會進入 if(!putHtmlRes.ok)
                     const putHtmlRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/${fileRelPath}`, {
                         method: 'PUT',
                         headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' },
@@ -502,13 +514,14 @@ def generate_index():
             }
         });
 
-        // 模板：生成子頁面 HTML
+        // 模板：生成子頁面 HTML (與 Python 端保持同步更新)
         function generateBaseHTMLString(tweet, tweetId, sYear, sMonth, sDay) {
             const author = tweet.user_name || 'Unknown';
             const handle = tweet.user_screen_name || 'unknown';
             const text = tweet.text || '';
             const likes = tweet.likes || 0;
             const retweets = tweet.retweets || 0;
+            const mediaExtended = tweet.media_extended || [];
             const mediaUrls = tweet.mediaURLs || [];
             const original_url = `https://x.com/${handle}/status/${tweetId}`;
             
@@ -516,10 +529,18 @@ def generate_index():
             const now_str = `${sYear}-${String(sMonth).padStart(2,'0')}-${String(sDay).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 
             let media_html = "";
-            if (mediaUrls.length > 0) {
+            if (mediaExtended.length > 0) {
+                mediaExtended.forEach(media => {
+                    if (media.type === 'video' || media.type === 'gif') {
+                        media_html += `<div class="media-container"><video controls src="${media.url}" poster="${media.thumbnail_url || ''}" class="media-item" preload="metadata" playsinline></video></div>`;
+                    } else {
+                        media_html += `<div class="media-container"><img src="${media.url}" class="media-item" loading="lazy"></div>`;
+                    }
+                });
+            } else if (mediaUrls.length > 0) {
                 mediaUrls.forEach(url => {
                     if (url.includes('.mp4')) {
-                        media_html += `<div class="media-container"><video controls src="${url}" class="media-item" preload="metadata"></video></div>`;
+                        media_html += `<div class="media-container"><video controls src="${url}" class="media-item" preload="metadata" playsinline></video></div>`;
                     } else {
                         media_html += `<div class="media-container"><img src="${url}" class="media-item" loading="lazy"></div>`;
                     }
@@ -530,6 +551,7 @@ def generate_index():
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <meta name="referrer" content="no-referrer">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Tweet by ${author}</title>
     <style>
@@ -544,8 +566,8 @@ def generate_index():
         .name { font-weight: 700; font-size: 1.1rem; color: var(--text); }
         .handle { color: var(--muted); font-size: 0.95rem; margin-top: 2px; }
         .content { font-size: 1.1rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; margin-bottom: 15px; }
-        .media-container { margin-top: 10px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; }
-        .media-item { width: 100%; height: auto; display: block; max-height: 500px; object-fit: cover; background: #000; }
+        .media-container { margin-top: 10px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; background: #000; }
+        .media-item { width: 100%; height: auto; display: block; max-height: 500px; object-fit: contain; }
         .stats { margin-top: 15px; color: var(--muted); font-size: 0.95rem; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px; font-weight: 500; margin-bottom: 15px; }
         .btn-link { display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }
         .btn-link:active { transform: scale(0.98); background: #1a8cd8; }
@@ -596,18 +618,18 @@ def git_push_to_github(author="Unknown"):
     try:
         # 添加檔案
         subprocess.run(["git", "add", "docs/"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        
+
         # 檢查是否有檔案變動，沒有就退出
         status = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
         if not status.stdout.strip():
             print("ℹ️ 沒有需要推播的更新。")
             return
-            
+
         # 提交與推送
         commit_msg = f"Auto-archive tweet by {author}"
         subprocess.run(["git", "commit", "-m", commit_msg], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(["git", "push"], check=True)
-        
+
         print("✅ 成功同步到 GitHub！網頁版約在 1~3 分鐘後刷新可見。")
     except subprocess.CalledProcessError as e:
         print(f"❌ Git 執行失敗，請檢查本地是否已經配置好 SSH 或 Token，錯誤碼: {e.returncode}")
@@ -616,23 +638,23 @@ def git_push_to_github(author="Unknown"):
 
 def main():
     os.makedirs(BASE_DIR, exist_ok=True)
-    
+
     # 啟動時先生成一次最新的日曆樞紐
     generate_index()
-    
+
     print("\n=======================================")
     print("🐦 X (Twitter) 語料日曆 - 後台手動錄入")
     print("提示：在終端輸入鏈接將會保存到本地，並自動推送到 GitHub！")
     print("      您也可以直接用瀏覽器打開 docs/index.html 在前端直接抓取！")
     print("=======================================")
-    
+
     while True:
         url = input("\n👉 粘貼 X 推文鏈接 (輸入 q 退出): ").strip()
         if url.lower() == 'q':
             break
         if not url:
             continue
-            
+
         tweet_data, tweet_id = get_tweet_data(url)
         if tweet_data and tweet_id:
             now = datetime.now(tz_utc_8)
