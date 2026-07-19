@@ -46,7 +46,6 @@
         .news-item { flex: 1; background: var(--card); border-radius: 14px; padding: 18px 16px; margin-bottom: 0; display: flex; justify-content: space-between; align-items: center; text-decoration: none; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.03); border-left: 4px solid var(--primary); transition: all 0.2s; overflow: hidden; }
         .news-item:active { transform: scale(0.98); background: #fafafa; }
         .news-title { font-size: 15px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; font-weight: bold; flex: 1; }
-        .news-time { font-size: 12px; color: var(--muted); flex-shrink: 0; margin-left: 10px; }
         .delete-btn { background: #ff3b30; color: white; border: none; border-radius: 10px; padding: 0 15px; height: 54px; font-size: 16px; cursor: pointer; display: none; transition: all 0.2s; flex-shrink: 0; }
         
         .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; background: var(--card); border-radius: 14px; }
@@ -57,7 +56,7 @@
 <body>
     <div id="loadingBar"></div>
     <div class="manual-fetch-bar">
-        <input type="text" id="xUrlInput" class="fetch-input" placeholder="粘貼 X 鏈接，回車歸檔..." autocomplete="off">
+        <input type="text" id="xUrlInput" class="fetch-input" placeholder="粘貼推文或帳號鏈接，回車歸檔..." autocomplete="off">
         <button class="settings-btn" id="openSettingsBtn">⚙️</button>
     </div>
 
@@ -96,7 +95,7 @@
     </div>
 
     <script>
-        const archiveData = /*DATA_START*/{"2026":{"7":{}}}/*DATA_END*/;
+        const archiveData = /*DATA_START*/{}/*DATA_END*/;
         const today = new Date();
         
         const AppState = {
@@ -163,7 +162,8 @@
                         const wrapper = document.createElement('div'); wrapper.className = 'news-item-wrapper';
                         const a = document.createElement('a'); a.href = news.path; a.className = 'news-item';
                         
-                        a.innerHTML = `<span class="news-title">${news.title}</span><span class="news-time">${news.time}</span>`;
+                        // 標題本身就包含了時間，不需要再額外添加時間標籤
+                        a.innerHTML = `<span class="news-title">${news.title}</span>`;
                         wrapper.appendChild(a);
 
                         const delBtn = document.createElement('button'); delBtn.className = 'delete-btn'; delBtn.innerHTML = '🗑️';
@@ -249,14 +249,26 @@
             } catch(e) { console.error(e); alert('刪除同步失敗: ' + e.message); document.getElementById('loadingBar').style.width = '0%'; }
         }
 
-        // X 推文前端抓取邏輯
+        // X 推文前端抓取邏輯 (支援單個與批量)
         document.getElementById('xUrlInput').addEventListener('keypress', async function (e) {
             if (e.key === 'Enter') {
                 const url = this.value.trim();
-                const match = url.match(/status\/(\d+)/);
-                if (!match) return alert('❌ 無法識別的 X (Twitter) 鏈接');
-                const tweetId = match[1];
                 
+                // 判斷是否為單推文或帳號首頁
+                const statusMatch = url.match(/status\/(\d+)/);
+                const userMatch = url.match(/(?:x|twitter)\.com\/([A-Za-z0-9_]+)\/?$/);
+                
+                let tweetIdsToProcess = [];
+                let isBatch = false;
+
+                if (statusMatch) {
+                    tweetIdsToProcess.push(statusMatch[1]);
+                } else if (userMatch && !['i', 'home', 'explore', 'notifications'].includes(userMatch[1].toLowerCase())) {
+                    isBatch = true;
+                } else {
+                    return alert('❌ 無法識別的 X (Twitter) 鏈接或格式不正確');
+                }
+
                 const ghToken = localStorage.getItem('GH_TOKEN');
                 const ghOwner = localStorage.getItem('GH_OWNER');
                 const ghRepo = localStorage.getItem('GH_REPO');
@@ -267,45 +279,70 @@
                 }
 
                 const loadingBar = document.getElementById('loadingBar');
-                loadingBar.style.width = '10%';
+                loadingBar.style.width = '5%';
                 this.disabled = true;
 
                 try {
-                    loadingBar.style.width = '30%';
-                    const vRes = await fetch(`https://api.vxtwitter.com/Twitter/status/${tweetId}`);
-                    const tweet = await vRes.json();
-                    if (tweet.error) throw new Error(tweet.error);
+                    // 若為批量，前端使用代理拉取時間線
+                    if (isBatch) {
+                        const username = userMatch[1];
+                        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent('https://syndication.twitter.com/srv/timeline-profile/screen-name/' + username)}`;
+                        const res = await fetch(proxyUrl);
+                        const data = await res.json();
+                        const match = data.contents.match(/<script id="__NEXT_DATA__" type="application\/json">(.*?)<\/script>/);
+                        
+                        if (match) {
+                            const parsed = JSON.parse(match[1]);
+                            const entries = parsed.props?.pageProps?.timeline?.entries || [];
+                            entries.forEach(e => {
+                                const tid = e.content?.tweet?.id_str;
+                                if (tid && !tweetIdsToProcess.includes(tid)) tweetIdsToProcess.push(tid);
+                            });
+                            tweetIdsToProcess = tweetIdsToProcess.slice(0, 10);
+                        }
+                        
+                        if (tweetIdsToProcess.length === 0) throw new Error("代理節點未能解析出推文");
+                    }
 
-                    loadingBar.style.width = '60%';
-                    const htmlOutput = generateBaseHTMLString(tweet, tweetId, AppState.year, AppState.month, AppState.day);
-
+                    // 處理搜集到的所有 IDs
                     const now = new Date();
                     const yearStr = AppState.year.toString();
                     const monthStr = AppState.month.toString();
                     const dayStr = AppState.day.toString();
-                    const hhmmStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-                    const hhmmFile = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
-                    
-                    const filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmFile}_x.html`;
-                    const fileRelPath = `${yearStr}/${monthStr}/${filename}`;
+                    const newItems = [];
 
-                    loadingBar.style.width = '75%';
-                    
-                    const putHtmlRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/${fileRelPath}`, {
-                        method: 'PUT',
-                        headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: `Add tweet by ${tweet.user_name}`, content: btoa(unescape(encodeURIComponent(htmlOutput))) })
-                    });
-                    
-                    if (!putHtmlRes.ok) {
-                        const errData = await putHtmlRes.json();
-                        throw new Error(`建立 HTML 失敗: ${errData.message}`);
+                    for (let i = 0; i < tweetIdsToProcess.length; i++) {
+                        loadingBar.style.width = `${10 + (80 / tweetIdsToProcess.length) * i}%`;
+                        const tweetId = tweetIdsToProcess[i];
+                        
+                        const vRes = await fetch(`https://api.vxtwitter.com/Twitter/status/${tweetId}`);
+                        const tweet = await vRes.json();
+                        if (tweet.error) continue; // 略過錯誤的推文
+
+                        // 製造微小的時間差(秒數)，防止檔名重複
+                        const d = new Date(now.getTime() - i * 60000); 
+                        const hhmmStr = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+                        const hhmmssFile = String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0') + String(d.getSeconds()).padStart(2, '0');
+                        
+                        const filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_${tweetId}_x.html`;
+                        const fileRelPath = `${yearStr}/${monthStr}/${filename}`;
+
+                        const htmlOutput = generateBaseHTMLString(tweet, tweetId, AppState.year, AppState.month, AppState.day, hhmmStr);
+
+                        await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/${fileRelPath}`, {
+                            method: 'PUT',
+                            headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ message: `Add tweet by ${tweet.user_name}`, content: btoa(unescape(encodeURIComponent(htmlOutput))) })
+                        });
+
+                        newItems.push({ time: hhmmStr, path: fileRelPath, title: `🐦 靈感推文：${hhmmStr}` });
                     }
 
-                    loadingBar.style.width = '85%';
+                    if (newItems.length === 0) throw new Error("API 節點阻擋，無法抓取到資料");
+
+                    // 批量更新 index.html (防止連續提交導致 GitHub 報錯)
+                    loadingBar.style.width = '95%';
                     const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `Bearer ${ghToken}` } });
-                    if (!idxRes.ok) throw new Error("讀取遠端 index.html 失敗，請確認 Token 權限。");
-                    
                     const idxData = await idxRes.json();
                     const idxContent = decodeURIComponent(escape(atob(idxData.content.replace(/\n/g, ''))));
 
@@ -317,33 +354,33 @@
                     if (!archiveObj[yearStr][monthStr]) archiveObj[yearStr][monthStr] = {};
                     if (!archiveObj[yearStr][monthStr][dayStr]) archiveObj[yearStr][monthStr][dayStr] = [];
                     
-                    const newItem = { time: hhmmStr, path: fileRelPath, title: `🐦 靈感推文: ${tweet.user_name}` };
-                    archiveObj[yearStr][monthStr][dayStr].unshift(newItem);
+                    // 將新抓取的資料加到陣列最前面
+                    archiveObj[yearStr][monthStr][dayStr] = [...newItems, ...archiveObj[yearStr][monthStr][dayStr]];
 
                     const newIdxContent = idxContent.substring(0, dataStart) + JSON.stringify(archiveObj) + idxContent.substring(dataEnd);
                     
-                    loadingBar.style.width = '95%';
                     const putIdxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
                         method: 'PUT',
                         headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: `Update index.html with new tweet`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
+                        body: JSON.stringify({ message: `Batch update index.html`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
                     });
                     
                     if (!putIdxRes.ok) throw new Error("更新 index.html 失敗！");
 
+                    // 更新本地記憶體
                     if (!archiveData[yearStr]) archiveData[yearStr] = {};
                     if (!archiveData[yearStr][monthStr]) archiveData[yearStr][monthStr] = {};
                     if (!archiveData[yearStr][monthStr][dayStr]) archiveData[yearStr][monthStr][dayStr] = [];
-                    archiveData[yearStr][monthStr][dayStr].unshift(newItem);
+                    archiveData[yearStr][monthStr][dayStr] = [...newItems, ...archiveData[yearStr][monthStr][dayStr]];
 
                     forceRender(); 
                     loadingBar.style.width = '100%';
-                    alert('🎉 抓取成功！推文已歸檔至 GitHub。');
+                    alert(`🎉 抓取成功！共歸檔 ${newItems.length} 條推文。`);
                     this.value = '';
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
 
                 } catch (err) {
-                    alert('❌ 操作失敗: ' + err.message);
+                    alert('❌ 操作失敗: ' + err.message + (isBatch ? ' (若代理節點失效，建議使用 Python 後台終端執行)' : ''));
                     loadingBar.style.width = '0%';
                 } finally {
                     this.disabled = false;
@@ -351,8 +388,8 @@
             }
         });
 
-        // 模板：生成子頁面 HTML (與 Python 端保持同步更新)
-        function generateBaseHTMLString(tweet, tweetId, sYear, sMonth, sDay) {
+        // 模板：生成極簡版子頁面 HTML
+        function generateBaseHTMLString(tweet, tweetId, sYear, sMonth, sDay, hhmmStr) {
             const author = tweet.user_name || 'Unknown';
             const handle = tweet.user_screen_name || 'unknown';
             const text = tweet.text || '';
@@ -362,36 +399,23 @@
             const mediaUrls = tweet.mediaURLs || [];
             const original_url = `https://x.com/${handle}/status/${tweetId}`;
             
-            const d = new Date();
-            const now_str = `${sYear}-${String(sMonth).padStart(2,'0')}-${String(sDay).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            const now_str = `${sYear}-${String(sMonth).padStart(2,'0')}-${String(sDay).padStart(2,'0')} ${hhmmStr}`;
 
             let media_html = "";
             if (mediaExtended.length > 0) {
                 mediaExtended.forEach(media => {
                     if (media.type === 'video' || media.type === 'gif') {
-                        media_html += `<div class="media-container">
-                            <video controls src="${media.url}" poster="${media.thumbnail_url || ''}" class="media-item" preload="metadata" playsinline></video>
-                            <a href="${media.url}" target="_blank" class="download-link">🔗 播放器若破圖，點此直接開啟/下載影片原始檔</a>
-                        </div>`;
+                        media_html += `<div class="media-container"><video controls src="${media.url}" poster="${media.thumbnail_url || ''}" class="media-item" preload="metadata" playsinline></video></div>`;
                     } else {
-                        media_html += `<div class="media-container">
-                            <img src="${media.url}" class="media-item" loading="lazy">
-                            <a href="${media.url}" target="_blank" class="download-link">🔗 查看圖片原圖</a>
-                        </div>`;
+                        media_html += `<div class="media-container"><img src="${media.url}" class="media-item" loading="lazy"></div>`;
                     }
                 });
             } else if (mediaUrls.length > 0) {
                 mediaUrls.forEach(url => {
                     if (url.includes('.mp4')) {
-                        media_html += `<div class="media-container">
-                            <video controls src="${url}" class="media-item" preload="metadata" playsinline></video>
-                            <a href="${url}" target="_blank" class="download-link">🔗 播放器若破圖，點此直接開啟/下載影片原始檔</a>
-                        </div>`;
+                        media_html += `<div class="media-container"><video controls src="${url}" class="media-item" preload="metadata" playsinline></video></div>`;
                     } else {
-                        media_html += `<div class="media-container">
-                            <img src="${url}" class="media-item" loading="lazy">
-                            <a href="${url}" target="_blank" class="download-link">🔗 查看圖片原圖</a>
-                        </div>`;
+                        media_html += `<div class="media-container"><img src="${url}" class="media-item" loading="lazy"></div>`;
                     }
                 });
             }
@@ -417,11 +441,8 @@
         .content { font-size: 1.1rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; margin-bottom: 15px; }
         .media-container { margin-top: 10px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; background: #000; }
         .media-item { width: 100%; height: auto; display: block; max-height: 500px; object-fit: contain; }
-        .download-link { display: block; text-align: center; font-size: 0.85rem; color: #fff; background: #333; padding: 10px; text-decoration: none; font-weight: bold; transition: background 0.2s; }
-        .download-link:active { background: #555; }
         .stats { margin-top: 15px; color: var(--muted); font-size: 0.95rem; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px; font-weight: 500; margin-bottom: 15px; }
-        .comment-section { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 12px; border: 1px dashed #ccc; text-align: center; font-size: 0.9rem; color: var(--muted); }
-        .btn-link { display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; margin-top: 10px; transition: transform 0.2s; }
+        .btn-link { display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }
         .btn-link:active { transform: scale(0.98); background: #1a8cd8; }
         .time-stamp { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }
     </style>
@@ -443,13 +464,7 @@
                 <span>❤️ ${likes} 喜歡</span>
                 <span>🔁 ${retweets} 轉發</span>
             </div>
-            
-            <div class="comment-section">
-                💬 <strong>評論區無法由免費 API 自動抓取</strong><br>
-                如需查看對應評論，請點擊下方按鈕前往 X 原文。<br>
-                <span style="font-size: 0.8rem; color: #999;">(若發現神評論，建議單獨複製該評論連結重新錄入系統)</span>
-                <a href="${original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及所有評論</a>
-            </div>
+            <a href="${original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
         </div>
     </div>
 </body>
