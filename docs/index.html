@@ -110,7 +110,7 @@
     </div>
 
     <script>
-        const archiveData = /*DATA_START*/{"2026":{"7":{"19":[{"time":"14:50","path":"2026/7/2026_7_19_145036_batch_custom_x.html","title":"🐦 14:50 自定義組合推文"}]}}}/*DATA_END*/;
+        const archiveData = /*DATA_START*/{"2026": {"7": {"19": [{"time": "16:24", "path": "2026/7/2026_7_19_162456_batch_custom_x.html", "title": "\ud83d\udc26 16:24 \u81ea\u5b9a\u7fa9\u7d44\u5408\u63a8\u6587"}, {"time": "16:16", "path": "2026/7/2026_7_19_161619_batch_custom_x.html", "title": "\ud83d\udc26 16:16 \u81ea\u5b9a\u7fa9\u7d44\u5408\u63a8\u6587"}, {"time": "14:50", "path": "2026/7/2026_7_19_145036_batch_custom_x.html", "title": "\ud83d\udc26 14:50 \u81ea\u5b9a\u7fa9\u7d44\u5408\u63a8\u6587"}]}}}/*DATA_END*/;
         const today = new Date();
         
         const AppState = {
@@ -465,7 +465,7 @@
                 let finalHTML = '';
                 let sha = '';
                 
-                // 【核心策略】先拉取 Github 上的純淨版文件，只把自己的 Textarea/翻譯 塞進去，完全阻斷本地插件污染！
+                // 【核心策略】先拉取 Github 上的純淨版文件，只把自己的 Textarea/翻譯 塞進去，完全阻断本地插件污染！
                 const getRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), {
                     headers: { 'Authorization': 'Bearer ' + ghToken }, cache: 'no-store'
                 });
@@ -578,31 +578,18 @@
                     try { view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; } catch(e){}
                 }
 
-                // 【修復按鈕交互死循環】：三重狀態智能判斷，確保 🔴 始終能直接呼出輸入框
                 toggle.onclick = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    
                     if (box.style.display === 'block') { 
-                        if (edit.style.display === 'block') {
-                            // 如果當前就在編輯，點擊紅點 = 關閉
-                            box.style.display = 'none'; 
-                        } else {
-                            // 如果當前是在看渲染視圖，點擊紅點 = 強制進入編輯模式
-                            view.style.display = 'none'; 
-                            edit.style.display = 'block'; 
-                            setTimeout(() => { edit.focus(); }, 150); 
-                        }
+                        box.style.display = 'none'; 
                     } else {
-                        // 如果當前是關閉的，打開它
                         box.style.display = 'block';
                         if (!edit.value.trim()) { 
-                            // 沒字，直接進入編輯模式
                             view.style.display = 'none'; 
                             edit.style.display = 'block'; 
                             setTimeout(() => { edit.focus(); }, 150); 
                         } else { 
-                            // 有字，先展示視圖，想編輯再點一下紅點
                             view.style.display = 'block'; 
                             edit.style.display = 'none'; 
                         }
@@ -616,7 +603,12 @@
                     edit.value = edit.value; 
                     setTimeout(() => { edit.focus(); }, 150); 
                 };
-                view.addEventListener('dblclick', triggerEdit);
+
+                view.addEventListener('dblclick', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    box.style.display = 'none';
+                });
 
                 let lastTap = 0;
                 view.addEventListener('touchstart', e => {
@@ -625,7 +617,7 @@
                         const currentTime = new Date().getTime();
                         if (currentTime - lastTap < 500 && currentTime - lastTap > 0) { 
                             e.preventDefault();
-                            triggerEdit(e); // 移動端雙擊直接進入編輯，不再是關閉，防止誤觸
+                            box.style.display = 'none'; 
                         }
                         lastTap = currentTime;
                     }
