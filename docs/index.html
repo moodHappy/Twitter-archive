@@ -110,7 +110,7 @@
     </div>
 
     <script>
-        const archiveData = /*DATA_START*/{"2026":{"7":{"19":[{"time":"14:50","path":"2026/7/2026_7_19_145036_batch_custom_x.html","title":"🐦 14:50 自定義組合推文"}]}}}/*DATA_END*/;
+        const archiveData = /*DATA_START*/{"2026": {"7": {"19": [{"time": "14:50", "path": "2026/7/2026_7_19_145036_batch_custom_x.html", "title": "\ud83d\udc26 14:50 \u81ea\u5b9a\u7fa9\u7d44\u5408\u63a8\u6587"}]}}}/*DATA_END*/;
         const today = new Date();
         
         const AppState = {
@@ -343,14 +343,18 @@
         .translate-btn[disabled] { opacity: 0.8; cursor: not-allowed; }
         
         .sync-status { padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; display: none; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-        .anno-toggle { display: inline-flex; margin-left: 6px; cursor: pointer; opacity: 0.2; font-size: 0.8rem; vertical-align: middle; transition: all 0.2s; user-select: none; }
-        .anno-toggle:hover { opacity: 0.8; transform: scale(1.1); }
+        
+        /* 修復：擴大移動端觸控熱區，防止點擊無效 */
+        .anno-toggle { display: inline-block; padding: 4px 8px; margin-left: 4px; cursor: pointer; opacity: 0.3; font-size: 0.9rem; vertical-align: middle; transition: all 0.2s; user-select: none; -webkit-tap-highlight-color: transparent; }
+        .anno-toggle:hover { opacity: 0.9; transform: scale(1.1); }
         .anno-toggle.has-anno { opacity: 1; }
         .anno-toggle::after { content: "🔴"; }
+        
         .anno-box { display: none; margin-top: 10px; background: #f8f6ff; border-left: 4px solid #8e7cc3; padding: 12px 16px; border-radius: 0 6px 6px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.02); text-align: left; }
         .anno-view { font-size: 1.05rem; line-height: 1.6; color: #4a4a4a; min-height: 24px; }
         .anno-edit { width: 100%; min-height: 120px; padding: 10px; font-family: monospace; font-size: 1rem; border: 1px dashed #8e7cc3; border-radius: 6px; box-sizing: border-box; resize: vertical; display: none; background: #fff; color: #333; outline: none; }
         .anno-edit:focus { border: 1px solid #8e7cc3; box-shadow: 0 0 0 3px rgba(142,124,195,0.1); }
+        
         .markdown-body p { margin-top: 0; margin-bottom: 8px; }
         .markdown-body p:last-child { margin-bottom: 0; }
         .markdown-body p:empty { display: none; }
@@ -452,46 +456,80 @@
                 const toggle = wrap.querySelector('.anno-toggle');
                 const box = wrap.querySelector('.anno-box');
 
+                if (!view || !edit || !toggle || !box) return;
+
                 const rawText = edit.value.trim();
                 if (rawText) {
                     toggle.classList.add('has-anno');
-                    if (typeof marked !== 'undefined') view.innerHTML = marked.parse(rawText);
+                    try { view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; } catch(e){}
                 }
 
-                toggle.onclick = () => {
-                    if (box.style.display === 'block') { box.style.display = 'none'; } 
-                    else {
+                // 修復：阻止冒泡與默認事件，增加延遲 Focus 處理虛擬鍵盤彈起衝突
+                toggle.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (box.style.display === 'block') { 
+                        box.style.display = 'none'; 
+                    } else {
                         box.style.display = 'block';
-                        if (!edit.value.trim()) { view.style.display = 'none'; edit.style.display = 'block'; edit.focus(); }
-                        else { view.style.display = 'block'; edit.style.display = 'none'; }
+                        if (!edit.value.trim()) { 
+                            view.style.display = 'none'; 
+                            edit.style.display = 'block'; 
+                            setTimeout(() => { edit.focus(); }, 150); 
+                        } else { 
+                            view.style.display = 'block'; 
+                            edit.style.display = 'none'; 
+                        }
                     }
                 };
 
-                const triggerEdit = () => { view.style.display = 'none'; edit.style.display = 'block'; edit.value = edit.value; edit.focus(); };
+                const triggerEdit = (e) => { 
+                    if(e) { e.preventDefault(); e.stopPropagation(); }
+                    view.style.display = 'none'; 
+                    edit.style.display = 'block'; 
+                    edit.value = edit.value; 
+                    setTimeout(() => { edit.focus(); }, 150); 
+                };
+                
                 view.addEventListener('dblclick', triggerEdit);
 
                 let lastTap = 0;
                 view.addEventListener('touchstart', e => {
-                    if (e.touches.length === 2) { triggerEdit(); } 
+                    if (e.touches.length === 2) { triggerEdit(e); } 
                     else if (e.touches.length === 1) {
                         const currentTime = new Date().getTime();
-                        if (currentTime - lastTap < 500 && currentTime - lastTap > 0) { box.style.display = 'none'; }
+                        if (currentTime - lastTap < 500 && currentTime - lastTap > 0) { 
+                            e.preventDefault();
+                            box.style.display = 'none'; 
+                        }
                         lastTap = currentTime;
                     }
-                }, {passive: true});
+                }, {passive: false});
 
-                edit.onblur = async () => {
-                    const newVal = edit.value.trim();
-                    try { view.innerHTML = newVal ? marked.parse(newVal) : ''; } catch(e){}
-                    edit.style.display = 'none';
-                    if (newVal) { view.style.display = 'block'; toggle.classList.add('has-anno'); } 
-                    else { view.style.display = 'none'; box.style.display = 'none'; toggle.classList.remove('has-anno'); }
+                // 修復：Blur 時增加延時，避免手機端佈局跳轉引起的瞬間閃退
+                edit.addEventListener('blur', () => {
+                    setTimeout(() => {
+                        const newVal = edit.value.trim();
+                        try { view.innerHTML = newVal ? ((typeof marked !== 'undefined') ? marked.parse(newVal) : newVal) : ''; } catch(e){}
+                        
+                        edit.style.display = 'none';
+                        
+                        if (newVal) { 
+                            view.style.display = 'block'; 
+                            toggle.classList.add('has-anno'); 
+                        } else { 
+                            view.style.display = 'none'; 
+                            box.style.display = 'none'; 
+                            toggle.classList.remove('has-anno'); 
+                        }
 
-                    if (edit.getAttribute('data-old-val') !== newVal) {
-                        edit.setAttribute('data-old-val', newVal);
-                        scheduleSync(); 
-                    }
-                };
+                        if (edit.getAttribute('data-old-val') !== newVal) {
+                            edit.setAttribute('data-old-val', newVal);
+                            scheduleSync(); 
+                        }
+                    }, 150);
+                });
+                
                 edit.setAttribute('data-old-val', rawText);
             });
         }
