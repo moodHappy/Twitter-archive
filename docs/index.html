@@ -110,7 +110,7 @@
     </div>
 
     <script>
-        const archiveData = /*DATA_START*/{"2026":{"7":{"19":[{"time":"16:16","path":"2026/7/2026_7_19_161619_batch_custom_x.html","title":"🐦 16:16 自定義組合推文 (1條)"},{"time":"14:50","path":"2026/7/2026_7_19_145036_batch_custom_x.html","title":"🐦 14:50 自定義組合推文"}]}}}/*DATA_END*/;
+        const archiveData = /*DATA_START*/{"2026": {"7": {"19": [{"time": "16:16", "path": "2026/7/2026_7_19_161619_batch_custom_x.html", "title": "\ud83d\udc26 16:16 \u81ea\u5b9a\u7fa9\u7d44\u5408\u63a8\u6587"}, {"time": "14:50", "path": "2026/7/2026_7_19_145036_batch_custom_x.html", "title": "\ud83d\udc26 14:50 \u81ea\u5b9a\u7fa9\u7d44\u5408\u63a8\u6587"}]}}}/*DATA_END*/;
         const today = new Date();
         
         const AppState = {
@@ -344,7 +344,6 @@
         
         .sync-status { padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; display: none; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
         
-        /* 修復：擴大移動端觸控熱區，防止點擊無效 */
         .anno-toggle { display: inline-block; padding: 4px 8px; margin-left: 4px; cursor: pointer; opacity: 0.3; font-size: 0.9rem; vertical-align: middle; transition: all 0.2s; user-select: none; -webkit-tap-highlight-color: transparent; }
         .anno-toggle:hover { opacity: 0.9; transform: scale(1.1); }
         .anno-toggle.has-anno { opacity: 1; }
@@ -354,7 +353,6 @@
         .anno-view { font-size: 1.05rem; line-height: 1.6; color: #4a4a4a; min-height: 24px; }
         .anno-edit { width: 100%; min-height: 120px; padding: 10px; font-family: monospace; font-size: 1rem; border: 1px dashed #8e7cc3; border-radius: 6px; box-sizing: border-box; resize: vertical; display: none; background: #fff; color: #333; outline: none; }
         .anno-edit:focus { border: 1px solid #8e7cc3; box-shadow: 0 0 0 3px rgba(142,124,195,0.1); }
-        
         .markdown-body p { margin-top: 0; margin-bottom: 8px; }
         .markdown-body p:last-child { margin-bottom: 0; }
         .markdown-body p:empty { display: none; }
@@ -415,7 +413,7 @@
             statusMsg.innerText = '📡 同步中...';
 
             document.querySelectorAll('.anno-edit').forEach(ta => { ta.textContent = ta.value; });
-            const htmlSnapshot = '<!DOCTYPE html>\n<html lang="zh-CN">\n' + document.documentElement.innerHTML + '\n</html>';
+            const htmlSnapshot = '<!DOCTYPE html><html lang="zh-CN">' + document.documentElement.innerHTML + '</html>';
             const pathParts = window.location.pathname.split('/');
             const fileName = pathParts.pop();
             const month = pathParts.pop();
@@ -464,7 +462,6 @@
                     try { view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; } catch(e){}
                 }
 
-                // 修復：阻止冒泡與默認事件，增加延遲 Focus 處理虛擬鍵盤彈起衝突
                 toggle.onclick = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -490,7 +487,6 @@
                     edit.value = edit.value; 
                     setTimeout(() => { edit.focus(); }, 150); 
                 };
-                
                 view.addEventListener('dblclick', triggerEdit);
 
                 let lastTap = 0;
@@ -506,22 +502,13 @@
                     }
                 }, {passive: false});
 
-                // 修復：Blur 時增加延時，避免手機端佈局跳轉引起的瞬間閃退
                 edit.addEventListener('blur', () => {
                     setTimeout(() => {
                         const newVal = edit.value.trim();
                         try { view.innerHTML = newVal ? ((typeof marked !== 'undefined') ? marked.parse(newVal) : newVal) : ''; } catch(e){}
-                        
                         edit.style.display = 'none';
-                        
-                        if (newVal) { 
-                            view.style.display = 'block'; 
-                            toggle.classList.add('has-anno'); 
-                        } else { 
-                            view.style.display = 'none'; 
-                            box.style.display = 'none'; 
-                            toggle.classList.remove('has-anno'); 
-                        }
+                        if (newVal) { view.style.display = 'block'; toggle.classList.add('has-anno'); } 
+                        else { view.style.display = 'none'; box.style.display = 'none'; toggle.classList.remove('has-anno'); }
 
                         if (edit.getAttribute('data-old-val') !== newVal) {
                             edit.setAttribute('data-old-val', newVal);
@@ -529,7 +516,6 @@
                         }
                     }, 150);
                 });
-                
                 edit.setAttribute('data-old-val', rawText);
             });
         }
@@ -598,7 +584,7 @@
                     btn.innerText = '🌐 已翻譯並固化';
                     btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
                     
-                    const htmlSnapshot = '<!DOCTYPE html>\n<html lang="zh-CN">\n' + document.documentElement.innerHTML + '\n</html>';
+                    const htmlSnapshot = '<!DOCTYPE html><html lang="zh-CN">' + document.documentElement.innerHTML + '</html>';
 
                     const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, { headers: { 'Authorization': 'Bearer ' + ghToken } });
                     if (fileRes.ok) {
