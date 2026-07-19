@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="referrer" content="no-referrer">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Custom Batch Tweets</title>
+    <style>
+        :root { --bg: #f2f2f7; --card: #ffffff; --text: #0f1419; --muted: #536471; --border: #eff3f4; --x-blue: #1d9bf0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+        .nav-back { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: var(--card); border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .nav-back a { text-decoration: none; color: white; background: #000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
+        .translate-btn { background: #f2f2f7; color: #0f1419; border: 1px solid #ccc; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: 0.2s; flex-shrink: 0; outline: none; }
+        .translate-btn:active { background: #e5e5ea; transform: scale(0.95); }
+        .translate-btn[disabled] { opacity: 0.8; cursor: not-allowed; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px 15px 50px 15px; }
+        .tweet-card { background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 25px; }
+        .header { display: flex; align-items: center; margin-bottom: 12px; }
+        .names { display: flex; flex-direction: column; }
+        .name { font-weight: 700; font-size: 1.1rem; color: var(--text); }
+        .handle { color: var(--muted); font-size: 0.95rem; margin-top: 2px; }
+        .content { font-size: 1.1rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; margin-bottom: 15px; }
+        .media-container { margin-top: 10px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; background: #000; }
+        .media-item { width: 100%; height: auto; display: block; max-height: 500px; object-fit: contain; }
+        .stats { margin-top: 15px; color: var(--muted); font-size: 0.95rem; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px; font-weight: 500; margin-bottom: 15px; }
+        .btn-link { display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }
+        .btn-link:active { transform: scale(0.98); background: #1a8cd8; }
+        .time-stamp { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="nav-back">
+        <a href="../../index.html">🔙 返回</a>
+        <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 一鍵翻譯</button>
+    </div>
+    <div class="container">
+        <div class="time-stamp">歸檔時間: 14:50</div>
+        
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">Massimo</span>
+                    <span class="handle">@Rainmaker1973</span>
+                </div>
+            </div>
+            <div class="content">A weather balloon captured a passing airplane traveling at 800 km/h.</div>
+            <div class="media-container"><video controls src="https://video.twimg.com/amplify_video/2078447473605988352/vid/avc1/720x848/hvHc4mfBpHRNs3_G.mp4" poster="https://pbs.twimg.com/amplify_video_thumb/2078447473605988352/img/EnDPNJUG0zgkZvYV.jpg" class="media-item" preload="metadata" playsinline></video></div>
+            <div class="stats">
+                <span>❤️ 7720 喜歡</span>
+                <span>🔁 482 轉發</span>
+            </div>
+            <a href="https://x.com/Rainmaker1973/status/2078482421247553677" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+        </div>
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">Özer Dölekoğlu</span>
+                    <span class="handle">@wrzl</span>
+                </div>
+            </div>
+            <div class="content">The stunning reflection time of cats</div>
+            <div class="media-container"><video controls src="https://video.twimg.com/amplify_video/2078094161677291520/vid/avc1/916x720/Dm4rzTkVoqcfjti8.mp4" poster="https://pbs.twimg.com/amplify_video_thumb/2078094161677291520/img/RBhRYPfYx5tJwHef.jpg" class="media-item" preload="metadata" playsinline></video></div>
+            <div class="stats">
+                <span>❤️ 74 喜歡</span>
+                <span>🔁 30 轉發</span>
+            </div>
+            <a href="https://x.com/wrzl/status/2078469337388662972" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+        </div>
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">Wonder of Science</span>
+                    <span class="handle">@wonderofscience</span>
+                </div>
+            </div>
+            <div class="content">A combination of orographic clouds and the setting sun creates the illusion of flames on the Meili Snow Mountains in China.</div>
+            <div class="media-container"><video controls src="https://video.twimg.com/ext_tw_video/1624753175680126982/pu/vid/720x1280/yG5iPhpomSTHtbGw.mp4" poster="https://pbs.twimg.com/ext_tw_video_thumb/1624753175680126982/pu/img/DxoR6DO_tzXtrC_v.jpg" class="media-item" preload="metadata" playsinline></video></div>
+            <div class="stats">
+                <span>❤️ 708 喜歡</span>
+                <span>🔁 118 轉發</span>
+            </div>
+            <a href="https://x.com/wonderofscience/status/2078506265869721749" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+        </div>
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">Fun Viral Vids 😊</span>
+                    <span class="handle">@Fun_Viral_Vids</span>
+                </div>
+            </div>
+            <div class="content">Someone should tell the cameraman to focus on the ball 🔥😉</div>
+            <div class="media-container"><video controls src="https://video.twimg.com/amplify_video/2078608137653772288/vid/avc1/720x1280/uRk1jsFXgelOoYVq.mp4" poster="https://pbs.twimg.com/amplify_video_thumb/2078608137653772288/img/cqtK83lAzoL4PHHH.jpg" class="media-item" preload="metadata" playsinline></video></div>
+            <div class="stats">
+                <span>❤️ 2577 喜歡</span>
+                <span>🔁 108 轉發</span>
+            </div>
+            <a href="https://x.com/Fun_Viral_Vids/status/2078608160332431841" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+        </div>
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">Science girl</span>
+                    <span class="handle">@sciencegirl</span>
+                </div>
+            </div>
+            <div class="content">Red panda having a health check whilst occupied with a snack</div>
+            <div class="media-container"><video controls src="https://video.twimg.com/amplify_video/2078526978899292160/vid/avc1/960x720/ZY4uqdbq8Rg1YoLq.mp4" poster="https://pbs.twimg.com/amplify_video_thumb/2078526978899292160/img/y6T6pz5n7kcFm9cc.jpg" class="media-item" preload="metadata" playsinline></video></div>
+            <div class="stats">
+                <span>❤️ 5711 喜歡</span>
+                <span>🔁 458 轉發</span>
+            </div>
+            <a href="https://x.com/sciencegirl/status/2078540134039859648" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+        </div>
+    </div>
+    
+    <script>
+        async function translateAll() {
+            const btn = document.getElementById('translate-btn');
+            if(btn.hasAttribute('disabled')) return;
+            btn.innerText = '⏳ 翻譯中...';
+            btn.setAttribute('disabled', 'true');
+
+            let translatedCount = 0;
+            const contents = document.querySelectorAll('.content');
+            for (let i = 0; i < contents.length; i++) {
+                const content = contents[i];
+                if (content.getAttribute('data-translated') === 'true') continue;
+                const text = content.innerText;
+                
+                let textToTranslate = text.replace(/https?:\/\/[^\s]+/g, '').trim();
+                let checkText = textToTranslate.replace(/\p{Extended_Pictographic}/gu, '').trim();
+                
+                if (!checkText) continue;
+
+                try {
+                    const res = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'q=' + encodeURIComponent(textToTranslate)
+                    });
+                    
+                    const data = await res.json();
+                    let translatedText = '';
+                    if (data && data[0]) {
+                        data[0].forEach(item => { if (item[0]) translatedText += item[0]; });
+                    }
+
+                    if (translatedText) {
+                        const transDiv = document.createElement('div');
+                        transDiv.className = 'translated-content';
+                        transDiv.style.cssText = 'color: #0f1419; font-size: 1.05rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
+                        transDiv.innerHTML = translatedText;
+                        
+                        content.parentNode.insertBefore(transDiv, content.nextSibling);
+                        content.setAttribute('data-translated', 'true');
+                        translatedCount++;
+                    }
+                } catch (e) {
+                    console.error('翻譯失敗:', e);
+                }
+            }
+            
+            if (translatedCount === 0) {
+                btn.innerText = '✅ 已全部翻譯';
+                return;
+            }
+
+            btn.innerText = '⏳ 固化至雲端...';
+            
+            const ghToken = localStorage.getItem('GH_TOKEN');
+            const ghOwner = localStorage.getItem('GH_OWNER');
+            const ghRepo = localStorage.getItem('GH_REPO');
+            
+            if (ghToken && ghOwner && ghRepo) {
+                try {
+                    const pathParts = window.location.pathname.split('/');
+                    const fileName = pathParts.pop();
+                    const month = pathParts.pop();
+                    const year = pathParts.pop();
+                    
+                    const fileRelPath = year + '/' + month + '/' + fileName;
+
+                    btn.innerText = '🌐 已翻譯並固化';
+                    btn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
+                    
+                    const htmlSnapshot = '<!DOCTYPE html><html lang="zh-CN">' + document.documentElement.innerHTML + '</html>';
+
+                    const fileRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, { headers: { 'Authorization': 'Bearer ' + ghToken } });
+                    if (fileRes.ok) {
+                        const fileData = await fileRes.json();
+                        await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {
+                            method: 'PUT',
+                            headers: { 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                message: 'Auto-solidify translation for ' + fileName, 
+                                content: btoa(unescape(encodeURIComponent(htmlSnapshot))),
+                                sha: fileData.sha
+                            })
+                        });
+                    }
+                } catch(e) {
+                    console.error('固化失敗', e);
+                    btn.innerText = '⚠️ 僅本地翻譯';
+                }
+            } else {
+                btn.innerText = '✅ 翻譯完成';
+            }
+        }
+    </script>
+</body>
+</html>
