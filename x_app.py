@@ -614,6 +614,11 @@ def generate_index():
         .form-group label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 5px; font-weight: bold; }
         .form-group input { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; transition: border 0.2s; }
         .form-group input:focus { border-color: var(--primary); }
+        
+        /* 新增：批量多行文本框样式 */
+        .batch-textarea { width: 100%; height: 200px; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; transition: border 0.2s; resize: vertical; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.5; }
+        .batch-textarea:focus { border-color: var(--primary); }
+        
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; position: sticky; bottom: 0; background: var(--card); padding-top: 10px; border-top: 1px solid #eee; }
         .btn { padding: 8px 16px; border-radius: 8px; border: none; font-size: 14px; font-weight: bold; cursor: pointer; }
         .btn-cancel { background: #eee; color: #333; }
@@ -669,12 +674,14 @@ def generate_index():
         </div>
     </div>
 
-    <!-- 自定義批量歸檔 Modal -->
+    <!-- 自定義批量歸檔 Modal (已替換為單一多行文本框) -->
     <div class="modal-overlay" id="batchModal">
         <div class="modal-content">
             <h3 class="modal-title">自定義組合歸檔 (最高 10 條)</h3>
-            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">貼入多個獨立推文鏈接，將為您抓取並合併同步為單個文件。</p>
-            <div id="batchInputsContainer"></div>
+            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">貼入多個推文鏈接（支援直接粘貼整段文字），將自動識別並提取最多 10 條同步為單個文件。</p>
+            <div class="form-group">
+                <textarea id="batchInputArea" class="batch-textarea" placeholder="在此粘貼多個推文鏈接...\n\n例如：\nhttps://x.com/i/status/2078970469194092723\nhttps://x.com/i/status/2079072889853321448"></textarea>
+            </div>
             <div class="modal-actions">
                 <button class="btn btn-cancel" id="closeBatchBtn">取消</button>
                 <button class="btn btn-save" id="submitBatchBtn">抓取並合併同步</button>
@@ -712,11 +719,6 @@ def generate_index():
             day: today.getDate(),
             deleteMode: false
         };
-
-        const batchContainer = document.getElementById('batchInputsContainer');
-        for(let i=1; i<=10; i++) {
-            batchContainer.innerHTML += `<div class="form-group" style="margin-bottom: 10px;"><input type="text" class="batch-input" placeholder="粘貼第 ${i} 條推文鏈接..."></div>`;
-        }
 
         function initSelects() {
             const yearSelect = document.getElementById('yearSelect');
@@ -1296,21 +1298,22 @@ def generate_index():
 
         // === 核心：處理前端自定義批量模板同步 ===
         document.getElementById('submitBatchBtn').addEventListener('click', async () => {
-            const inputs = document.querySelectorAll('.batch-input');
+            const inputText = document.getElementById('batchInputArea').value;
             let tweetIdsToProcess = [];
             
-            inputs.forEach(input => {
-                const url = input.value.trim();
-                if (url) {
-                    const match = url.match(/status\\/(\\d+)/);
-                    if (match && !tweetIdsToProcess.includes(match[1])) {
-                        tweetIdsToProcess.push(match[1]);
-                    }
+            // 使用正則匹配多行文本中所有的 status 數字
+            const matches = [...inputText.matchAll(/status\\/(\\d+)/g)];
+            matches.forEach(match => {
+                if (!tweetIdsToProcess.includes(match[1])) {
+                    tweetIdsToProcess.push(match[1]);
                 }
             });
+            
+            // 強制截斷，最高只抓前 10 條
+            tweetIdsToProcess = tweetIdsToProcess.slice(0, 10);
 
             if (tweetIdsToProcess.length === 0) {
-                alert('請至少輸入一條有效的推文鏈接！');
+                alert('請至少粘貼一條有效的推文鏈接！');
                 return;
             }
 
@@ -1414,7 +1417,7 @@ def generate_index():
                 const url = this.value.trim();
                 
                 if (!url) {
-                    document.querySelectorAll('.batch-input').forEach(input => input.value = '');
+                    document.getElementById('batchInputArea').value = '';
                     document.getElementById('batchModal').style.display = 'flex';
                     return;
                 }
@@ -1613,7 +1616,7 @@ def generate_index():
 
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首頁日曆 WebApp (已修復 Markdown 批注雙向固化崩潰) 已生成更新！")
+    print("🚀 首頁日曆 WebApp 已生成更新！(支援多行文本批量組合)")
 
 def git_push_to_github(msg="Auto-archive"):
     """自動調用本地系統的 Git 指令將更新推送到 GitHub"""
