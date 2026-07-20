@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="referrer" content="no-referrer">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Custom Batch Tweets</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style id="core-style">
+        :root { --bg: #f2f2f7; --card: #ffffff; --text: #0f1419; --muted: #536471; --border: #eff3f4; --x-blue: #1d9bf0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+        .nav-back { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: var(--card); border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .nav-back a { text-decoration: none; color: white; background: #000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
+        .translate-btn { background: #f2f2f7; color: #0f1419; border: 1px solid #ccc; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: 0.2s; flex-shrink: 0; outline: none; }
+        .translate-btn:active { background: #e5e5ea; transform: scale(0.95); }
+        .translate-btn[disabled] { opacity: 0.8; cursor: not-allowed; }
+        
+        .sync-status { padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; display: none; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+        
+        .anno-toggle { display: inline-block; padding: 4px 8px; margin-left: 4px; cursor: pointer; opacity: 0.3; font-size: 0.9rem; vertical-align: middle; transition: all 0.2s; user-select: none; -webkit-tap-highlight-color: transparent; }
+        .anno-toggle:hover { opacity: 0.9; transform: scale(1.1); }
+        .anno-toggle.has-anno { opacity: 1; }
+        .anno-toggle::after { content: "🔴"; }
+        
+        .anno-box { display: none; margin-top: 10px; background: #f8f6ff; border-left: 4px solid #8e7cc3; padding: 12px 16px; border-radius: 0 6px 6px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.02); text-align: left; }
+        .anno-view { font-size: 1.05rem; line-height: 1.6; color: #4a4a4a; min-height: 24px; }
+        .anno-edit { width: 100%; min-height: 120px; padding: 10px; font-family: monospace; font-size: 1rem; border: 1px dashed #8e7cc3; border-radius: 6px; box-sizing: border-box; resize: vertical; display: none; background: #fff; color: #333; outline: none; }
+        .anno-edit:focus { border: 1px solid #8e7cc3; box-shadow: 0 0 0 3px rgba(142,124,195,0.1); }
+        .markdown-body p { margin-top: 0; margin-bottom: 8px; }
+        .markdown-body p:last-child { margin-bottom: 0; }
+        .markdown-body p:empty { display: none; }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 { color: #8e7cc3; font-size: 1.15rem; margin: 10px 0 8px 0; border-bottom: 1px dashed #e0d8f0; padding-bottom: 4px; }
+        .markdown-body ul, .markdown-body ol { margin: 0 0 8px 0; padding-left: 20px; }
+        .markdown-body blockquote { margin: 0 0 10px 0; padding: 10px 15px; background: rgba(142,124,195,0.1); border-left: 4px solid #8e7cc3; color: #555; }
+
+        .container { max-width: 600px; margin: 0 auto; padding: 20px 15px 50px 15px; }
+        .tweet-card { background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 25px; }
+        .header { display: flex; align-items: center; margin-bottom: 12px; }
+        .names { display: flex; flex-direction: column; }
+        .name { font-weight: 700; font-size: 1.1rem; color: var(--text); }
+        .handle { color: var(--muted); font-size: 0.95rem; margin-top: 2px; }
+        .content { font-size: 1.1rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
+        .media-container { margin-top: 10px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; background: #000; }
+        .media-item { width: 100%; height: auto; display: block; max-height: 500px; object-fit: contain; }
+        .stats { margin-top: 15px; color: var(--muted); font-size: 0.95rem; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px; font-weight: 500; margin-bottom: 15px; }
+        .btn-link { display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }
+        .btn-link:active { transform: scale(0.98); background: #1a8cd8; }
+        .time-stamp { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="nav-back">
+        <a href="../../index.html">🔙 返回</a>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <span class="sync-status" id="sync-status">📡 同步中...</span>
+            <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 一鍵翻譯</button>
+        </div>
+    </div>
+    <div class="container">
+        <div class="time-stamp">歸檔時間: 23:15</div>
+        
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">Dex</span>
+                    <span class="handle">@DextersRebirth</span>
+                </div>
+            </div>
+            <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
+                <div class="content" style="margin-bottom:0;">@WhiteHouse @FIFAWorldCup Bro thinks he's on the team<span class="anno-toggle"></span></div>
+                <div class="anno-box" style="display:none;">
+                    <div class="anno-view markdown-body"></div>
+                    <textarea class="anno-edit" style="display:none;"></textarea>
+                </div>
+            </div>
+            <div class="media-container"><img src="https://pbs.twimg.com/media/HNoB_FVWgAAGTR-.jpg" class="media-item" loading="lazy"></div>
+            <div class="stats">
+                <span>❤️ 3633 喜歡</span>
+                <span>🔁 116 轉發</span>
+            </div>
+            <a href="https://x.com/DextersRebirth/status/2078976370957263008" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+        </div>
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">W</span>
+                    <span class="handle">@_common_W_</span>
+                </div>
+            </div>
+            <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
+                <div class="content" style="margin-bottom:0;">Argentina are the only team out of all 48 participants not to have a single VAR intervention against them, despite committing the most fouls in the tournament. Do you even realize how insane that is?<span class="anno-toggle"></span></div>
+                <div class="anno-box" style="display:none;">
+                    <div class="anno-view markdown-body"></div>
+                    <textarea class="anno-edit" style="display:none;"></textarea>
+                </div>
+            </div>
+            
+            <div class="stats">
+                <span>❤️ 355451 喜歡</span>
+                <span>🔁 49531 轉發</span>
+            </div>
+            <a href="https://x.com/_common_W_/status/2078541985703448864" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+        </div>
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">sara ♡ is ALIVE! 🏴󠁧󠁢󠁥󠁮󠁧󠁿🇨🇵🇧🇻🇪🇦</span>
+                    <span class="handle">@frostlush</span>
+                </div>
+            </div>
+            <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
+                <div class="content" style="margin-bottom:0;">what the fuck is wrong with these argentine players<span class="anno-toggle"></span></div>
+                <div class="anno-box" style="display:none;">
+                    <div class="anno-view markdown-body"></div>
+                    <textarea class="anno-edit" style="display:none;"></textarea>
+                </div>
+            </div>
+            <div class="media-container"><video controls src="https://video.twimg.com/amplify_video/2078965444279476224/vid/avc1/1280x720/4dlDHqorXh2UZ3wy.mp4" poster="https://pbs.twimg.com/amplify_video_thumb/2078965444279476224/img/wkP0E0VWih7xyCHd.jpg" class="media-item" preload="metadata" playsinline></video></div>
+            <div class="stats">
+                <span>❤️ 50710 喜歡</span>
+                <span>🔁 2793 轉發</span>
+            </div>
+            <a href="https://x.com/frostlush/status/2078965474478768356" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+        </div>
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">Adam Schwarz</span>
+                    <span class="handle">@AdamJSchwarz</span>
+                </div>
+            </div>
+            <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
+                <div class="content" style="margin-bottom:0;">Trump and Infantino are loudly jeered as they walk out to present the World Cup trophy.<span class="anno-toggle"></span></div>
+                <div class="anno-box" style="display:none;">
+                    <div class="anno-view markdown-body"></div>
+                    <textarea class="anno-edit" style="display:none;"></textarea>
+                </div>
+            </div>
+            <div class="media-container"><video controls src="https://video.twimg.com/amplify_video/2078970902125965312/vid/avc1/1280x716/-YLuQOWZBbfqnCdg.mp4" poster="https://pbs.twimg.com/amplify_video_thumb/2078970902125965312/img/5--ah14bCUFe_wiP.jpg" class="media-item" preload="metadata" playsinline></video></div>
+            <div class="stats">
+                <span>❤️ 1456 喜歡</span>
+                <span>🔁 208 轉發</span>
+            </div>
+            <a href="https://x.com/AdamJSchwarz/status/2078971035718754430" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+        </div>
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">MT2</span>
+                    <span class="handle">@madrid_total2</span>
+                </div>
+            </div>
+            <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
+                <div class="content" style="margin-bottom:0;">NO LA FUE A CHECAR NI EL VAR. ESTO ES INCREÍBLE.
+
+JAJAJJAJAJAJAJAJAJAJAJAJAJJAJAJAJAJAJAJAJAJJAJAJAJAJAJAJ<span class="anno-toggle"></span></div>
+                <div class="anno-box" style="display:none;">
+                    <div class="anno-view markdown-body"></div>
+                    <textarea class="anno-edit" style="display:none;"></textarea>
+                </div>
+            </div>
+            <div class="media-container"><video controls src="https://video.twimg.com/amplify_video/2078955113796804608/vid/avc1/1280x720/yiv59xlYYhYanSSb.mp4" poster="https://pbs.twimg.com/amplify_video_thumb/2078955113796804608/img/CfTpuMIv0jra0EoX.jpg" class="media-item" preload="metadata" playsinline></video></div>
+            <div class="stats">
+                <span>❤️ 18147 喜歡</span>
+                <span>🔁 1395 轉發</span>
+            </div>
+            <a href="https://x.com/madrid_total2/status/2078955473961631861" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+        </div>
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">Football Tweet ⚽</span>
+                    <span class="handle">@Footballtweet</span>
+                </div>
+            </div>
+            <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
+                <div class="content" style="margin-bottom:0;">⛔️🇦🇷 Argentina didn't take a single shot in 90 minutes against Spain.<span class="anno-toggle"></span></div>
+                <div class="anno-box" style="display:none;">
+                    <div class="anno-view markdown-body"></div>
+                    <textarea class="anno-edit" style="display:none;"></textarea>
+                </div>
+            </div>
+            <div class="media-container"><img src="https://pbs.twimg.com/media/HNntWGHXwAA-zAL.jpg" class="media-item" loading="lazy"></div>
+            <div class="stats">
+                <span>❤️ 9418 喜歡</span>
+                <span>🔁 2226 轉發</span>
+            </div>
+            <a href="https://x.com/Footballtweet/status/2078953695610314784" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+        </div>
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">Mukhtar</span>
+                    <span class="handle">@I_amMukhtar</span>
+                </div>
+            </div>
+            <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
+                <div class="content" style="margin-bottom:0;">Trump has no shame, and he knows exactly what he’s doing.
+
+Get off the fucking stage and let the players have their moment.<span class="anno-toggle"></span></div>
+                <div class="anno-box" style="display:none;">
+                    <div class="anno-view markdown-body"></div>
+                    <textarea class="anno-edit" style="display:none;"></textarea>
+                </div>
+            </div>
+            <div class="media-container"><video controls src="https://video.twimg.com/amplify_video/2078975308418486272/vid/avc1/1080x600/FA1OL_iP0Jv-wzdH.mp4" poster="https://pbs.twimg.com/amplify_video_thumb/2078975308418486272/img/KdBPIHSDQ8hMfOyp.jpg" class="media-item" preload="metadata" playsinline></video></div>
+            <div class="stats">
+                <span>❤️ 51765 喜歡</span>
+                <span>🔁 3427 轉發</span>
+            </div>
+            <a href="https://x.com/I_amMukhtar/status/2078975410881122370" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+        </div>
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">Piers Morgan</span>
+                    <span class="handle">@piersmorgan</span>
+                </div>
+            </div>
+            <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
+                <div class="content" style="margin-bottom:0;">Congrats to Spain on becoming World Champions. 
+Very worthy winners. 
+Best team in the tournament, and totally outplayed Argentina tonight. 👏👏👏👏<span class="anno-toggle"></span></div>
+                <div class="anno-box" style="display:none;">
+                    <div class="anno-view markdown-body"></div>
+                    <textarea class="anno-edit" style="display:none;"></textarea>
+                </div>
+            </div>
+            <div class="media-container"><img src="https://pbs.twimg.com/media/HNn3pMYW4AEsMWh.jpg" class="media-item" loading="lazy"></div>
+            <div class="stats">
+                <span>❤️ 44506 喜歡</span>
+                <span>🔁 3156 轉發</span>
+            </div>
+            <a href="https://x.com/piersmorgan/status/2078964995434373295" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+        </div>
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">kira 👾</span>
+                    <span class="handle">@kirawontmiss</span>
+                </div>
+            </div>
+            <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
+                <div class="content" style="margin-bottom:0;">They will be remembered as the most disgraceful team in the World Cup history. I’m actually speechless.<span class="anno-toggle"></span></div>
+                <div class="anno-box" style="display:none;">
+                    <div class="anno-view markdown-body"></div>
+                    <textarea class="anno-edit" style="display:none;"></textarea>
+                </div>
+            </div>
+            
+            <div class="stats">
+                <span>❤️ 179907 喜歡</span>
+                <span>🔁 22738 轉發</span>
+            </div>
+            <a href="https://x.com/kirawontmiss/status/2078966549050700217" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+        </div>
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">Republicans against Trump</span>
+                    <span class="handle">@RpsAgainstTrump</span>
+                </div>
+            </div>
+            <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
+                <div class="content" style="margin-bottom:0;">Beyond pathetic. Trump wouldn’t leave the podium during Spain’s World Cup trophy celebration until FIFA President Gianni Infantino pulled him away.<span class="anno-toggle"></span></div>
+                <div class="anno-box" style="display:none;">
+                    <div class="anno-view markdown-body"></div>
+                    <textarea class="anno-edit" style="display:none;"></textarea>
+                </div>
+            </div>
+            <div class="media-container"><video controls src="https://video.twimg.com/amplify_video/2078989839039406080/vid/avc1/1280x720/uUSEcPLc43DIQqO5.mp4" poster="https://pbs.twimg.com/amplify_video_thumb/2078989839039406080/img/HmPR4f5T7bmE9l_d.jpg" class="media-item" preload="metadata" playsinline></video></div>
+            <div class="stats">
+                <span>❤️ 16110 喜歡</span>
+                <span>🔁 2334 轉發</span>
+            </div>
+            <a href="https://x.com/RpsAgainstTrump/status/2078989911365976093" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+        </div>
+    </div>
+    
+    <script id="core-engine">
+        let syncTimeout = null;
+
+        // 【終極隔離方案】純淨 DOM 快照：專治 GitHub 404 及脫機環境備用
+        function getFallbackCleanHTML() {
+            const clone = document.documentElement.cloneNode(true);
+            
+            // 強制重置按鈕狀態，根治被鎖死 "同步中" 的 Bug
+            const statusMsg = clone.querySelector('#sync-status');
+            if (statusMsg) { statusMsg.removeAttribute('style'); statusMsg.innerText = '📡 同步中...'; }
+            const tBtn = clone.querySelector('#translate-btn');
+            if (tBtn) { tBtn.removeAttribute('style'); tBtn.removeAttribute('disabled'); tBtn.innerText = '🌐 一鍵翻譯'; }
+            
+            // 暴力剝離 Relingo 高亮標籤等外部插件污染
+            const removeRelingo = (root) => {
+                const tags = root.querySelectorAll('relin-highlight, relin-hc, [class*="relingo"]');
+                tags.forEach(t => {
+                    const frag = document.createDocumentFragment();
+                    while(t.firstChild) frag.appendChild(t.firstChild);
+                    t.parentNode.replaceChild(frag, t);
+                });
+            };
+            removeRelingo(clone);
+            removeRelingo(clone); // 處理嵌套
+            
+            clone.querySelectorAll('script').forEach(s => {
+                if (!s.src.includes('marked.min.js') && s.id !== 'core-engine') s.remove();
+            });
+            clone.querySelectorAll('style').forEach(s => {
+                if (s.id !== 'core-style') s.remove();
+            });
+            
+            // 同步最新的 textarea 文本
+            const liveTAs = document.querySelectorAll('.anno-edit');
+            clone.querySelectorAll('.anno-edit').forEach((ta, i) => { 
+                if(liveTAs[i]) ta.textContent = liveTAs[i].value;
+                const box = ta.closest('.anno-box');
+                if (box) box.style.display = 'none';
+                const view = box ? box.querySelector('.anno-view') : null;
+                if (view) view.innerHTML = ''; 
+            });
+            
+            clone.querySelectorAll('.anno-toggle').forEach(t => {
+                t.classList.remove('has-anno');
+                const ta = t.closest('.content-wrap').querySelector('.anno-edit');
+                if (ta && ta.textContent.trim()) t.classList.add('has-anno');
+            });
+            
+            return '<!DOCTYPE html>\n<html lang="zh-CN">\n' + clone.innerHTML + '\n</html>';
+        }
+
+        // 【完全隔離插件】雲端同步引擎核心
+        async function syncToCloud(isTranslation = false) {
+            const ghToken = localStorage.getItem('GH_TOKEN');
+            const ghOwner = localStorage.getItem('GH_OWNER');
+            const ghRepo = localStorage.getItem('GH_REPO');
+            if(!ghToken) return isTranslation ? null : alert('缺少 GitHub Token，無法同步！');
+            
+            const statusMsg = document.getElementById('sync-status');
+            const transBtn = document.getElementById('translate-btn');
+            
+            if (!isTranslation) {
+                statusMsg.style.display = 'inline-block';
+                statusMsg.style.backgroundColor = '#2ea44f';
+                statusMsg.innerText = '📡 同步中...';
+            }
+
+            const pathParts = window.location.pathname.split('/');
+            const fileName = pathParts.pop();
+            const month = pathParts.pop();
+            const year = pathParts.pop();
+            const fileRelPath = year + '/' + month + '/' + fileName;
+
+            try {
+                let finalHTML = '';
+                let sha = '';
+                
+                // 【核心策略】先拉取 Github 上的純淨版文件，只把自己的 Textarea/翻譯 塞進去，完全阻断本地插件污染！
+                const getRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), {
+                    headers: { 'Authorization': 'Bearer ' + ghToken }, cache: 'no-store'
+                });
+                
+                if (getRes.ok) {
+                    const fileData = await getRes.json();
+                    sha = fileData.sha;
+                    const cleanHTML = decodeURIComponent(escape(atob(fileData.content)));
+                    const parser = new DOMParser();
+                    const cleanDoc = parser.parseFromString(cleanHTML, 'text/html');
+
+                    // 1. 注入批注文本
+                    const liveTAs = document.querySelectorAll('.anno-edit');
+                    const cleanTAs = cleanDoc.querySelectorAll('.anno-edit');
+                    liveTAs.forEach((liveTa, i) => {
+                        if (cleanTAs[i]) {
+                            cleanTAs[i].textContent = liveTa.value;
+                            const box = cleanTAs[i].closest('.anno-box');
+                            if (box) box.style.display = 'none';
+                            const view = box ? box.querySelector('.anno-view') : null;
+                            if (view) view.innerHTML = '';
+                        }
+                    });
+
+                    // 2. 注入翻譯模塊
+                    const liveContents = document.querySelectorAll('.content');
+                    const cleanContents = cleanDoc.querySelectorAll('.content');
+                    liveContents.forEach((liveC, i) => {
+                        if (liveC.getAttribute('data-translated') === 'true' && cleanContents[i]) {
+                            cleanContents[i].setAttribute('data-translated', 'true');
+                            const liveTrans = liveC.nextElementSibling;
+                            if (liveTrans && liveTrans.classList.contains('translated-content')) {
+                                const cleanTrans = cleanContents[i].nextElementSibling;
+                                if (!cleanTrans || !cleanTrans.classList.contains('translated-content')) {
+                                    const newTrans = cleanDoc.createElement('div');
+                                    newTrans.className = 'translated-content';
+                                    newTrans.style.cssText = liveTrans.style.cssText;
+                                    newTrans.innerHTML = liveTrans.innerHTML;
+                                    cleanContents[i].parentNode.insertBefore(newTrans, cleanContents[i].nextSibling);
+                                }
+                            }
+                        }
+                    });
+                    
+                    // 3. 恢復紅點狀態
+                    cleanDoc.querySelectorAll('.anno-toggle').forEach(t => {
+                        t.classList.remove('has-anno');
+                        const ta = t.closest('.content-wrap').querySelector('.anno-edit');
+                        if (ta && ta.textContent.trim()) t.classList.add('has-anno');
+                    });
+
+                    finalHTML = '<!DOCTYPE html>\n<html lang="zh-CN">\n' + cleanDoc.documentElement.innerHTML + '\n</html>';
+                } else {
+                    // 如果網絡失敗或 Github 本身還沒這個文件（比如剛創建），啟動備用降級防禦方案
+                    finalHTML = getFallbackCleanHTML();
+                }
+
+                const putRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {
+                    method: 'PUT',
+                    headers: { 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: isTranslation ? 'Auto-solidify translation' : 'Auto-save annotation', content: btoa(unescape(encodeURIComponent(finalHTML))), sha: sha || undefined })
+                });
+
+                if(!putRes.ok) throw new Error('Put failed');
+
+                if (isTranslation) {
+                    transBtn.innerText = '🌐 已翻譯並固化';
+                    transBtn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
+                } else {
+                    statusMsg.style.backgroundColor = '#2ea44f';
+                    statusMsg.innerText = '✅ 雲端已同步';
+                    setTimeout(() => { if (statusMsg.innerText === '✅ 雲端已同步') statusMsg.style.display = 'none'; }, 3000);
+                }
+            } catch(e) {
+                console.error(e);
+                if (isTranslation) {
+                    transBtn.innerText = '⚠️ 僅本地翻譯';
+                } else {
+                    statusMsg.style.backgroundColor = '#e74c3c';
+                    statusMsg.innerText = '❌ 同步失敗(點擊重試)';
+                    statusMsg.style.cursor = 'pointer';
+                    statusMsg.onclick = () => { statusMsg.onclick = null; statusMsg.style.cursor = 'default'; syncToCloud(false); };
+                }
+            }
+        }
+
+        function scheduleSync() {
+            const statusMsg = document.getElementById('sync-status');
+            statusMsg.style.display = 'inline-block';
+            statusMsg.style.backgroundColor = '#f39c12';
+            statusMsg.innerText = '⏳ 自動同步中...';
+            statusMsg.style.cursor = 'default';
+            statusMsg.onclick = null;
+            if (syncTimeout) clearTimeout(syncTimeout);
+            syncTimeout = setTimeout(() => { syncToCloud(false); }, 3000);
+        }
+
+        function initAnnotations() {
+            document.querySelectorAll('.content-wrap').forEach(wrap => {
+                const view = wrap.querySelector('.anno-view');
+                const edit = wrap.querySelector('.anno-edit');
+                const toggle = wrap.querySelector('.anno-toggle');
+                const box = wrap.querySelector('.anno-box');
+
+                if (!view || !edit || !toggle || !box) return;
+
+                const rawText = edit.value.trim();
+                if (rawText) {
+                    toggle.classList.add('has-anno');
+                    try { view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; } catch(e){}
+                }
+
+                toggle.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (box.style.display === 'block') { 
+                        box.style.display = 'none'; 
+                    } else {
+                        box.style.display = 'block';
+                        if (!edit.value.trim()) { 
+                            view.style.display = 'none'; 
+                            edit.style.display = 'block'; 
+                            setTimeout(() => { edit.focus(); }, 150); 
+                        } else { 
+                            view.style.display = 'block'; 
+                            edit.style.display = 'none'; 
+                        }
+                    }
+                };
+
+                const triggerEdit = (e) => { 
+                    if(e) { e.preventDefault(); e.stopPropagation(); }
+                    view.style.display = 'none'; 
+                    edit.style.display = 'block'; 
+                    edit.value = edit.value; 
+                    setTimeout(() => { edit.focus(); }, 150); 
+                };
+
+                view.addEventListener('dblclick', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    box.style.display = 'none';
+                });
+
+                let lastTap = 0;
+                view.addEventListener('touchstart', e => {
+                    if (e.touches.length === 2) { triggerEdit(e); } 
+                    else if (e.touches.length === 1) {
+                        const currentTime = new Date().getTime();
+                        if (currentTime - lastTap < 500 && currentTime - lastTap > 0) { 
+                            e.preventDefault();
+                            box.style.display = 'none'; 
+                        }
+                        lastTap = currentTime;
+                    }
+                }, {passive: false});
+
+                edit.addEventListener('blur', () => {
+                    setTimeout(() => {
+                        const newVal = edit.value.trim();
+                        try { view.innerHTML = newVal ? ((typeof marked !== 'undefined') ? marked.parse(newVal) : newVal) : ''; } catch(e){}
+                        edit.style.display = 'none';
+                        if (newVal) { view.style.display = 'block'; toggle.classList.add('has-anno'); } 
+                        else { view.style.display = 'none'; box.style.display = 'none'; toggle.classList.remove('has-anno'); }
+
+                        if (edit.getAttribute('data-old-val') !== newVal) {
+                            edit.setAttribute('data-old-val', newVal);
+                            scheduleSync(); 
+                        }
+                    }, 150);
+                });
+                edit.setAttribute('data-old-val', rawText);
+            });
+        }
+        window.addEventListener('load', initAnnotations);
+
+        async function translateAll() {
+            const btn = document.getElementById('translate-btn');
+            if(btn.hasAttribute('disabled')) return;
+            btn.innerText = '⏳ 翻譯中...';
+            btn.setAttribute('disabled', 'true');
+
+            let translatedCount = 0;
+            const contents = document.querySelectorAll('.content');
+            for (let i = 0; i < contents.length; i++) {
+                const content = contents[i];
+                if (content.getAttribute('data-translated') === 'true') continue;
+                
+                // 【修復翻譯被高亮插件干擾】：在送去翻譯前，扒掉 Relingo 和按鈕代碼
+                const cloneText = content.cloneNode(true);
+                cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle').forEach(el => el.remove());
+                const text = cloneText.innerText;
+                
+                let textToTranslate = text.replace(/https?:\/\/[^\s]+/g, '').trim();
+                let checkText = textToTranslate.replace(/\p{Extended_Pictographic}/gu, '').trim();
+                
+                if (!checkText) continue;
+
+                try {
+                    const res = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'q=' + encodeURIComponent(textToTranslate)
+                    });
+                    
+                    const data = await res.json();
+                    let translatedText = '';
+                    if (data && data[0]) {
+                        data[0].forEach(item => { if (item[0]) translatedText += item[0]; });
+                    }
+
+                    if (translatedText) {
+                        const transDiv = document.createElement('div');
+                        transDiv.className = 'translated-content';
+                        transDiv.style.cssText = 'color: #0f1419; font-size: 1.05rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
+                        transDiv.innerHTML = translatedText;
+                        
+                        content.parentNode.insertBefore(transDiv, content.nextSibling);
+                        content.setAttribute('data-translated', 'true');
+                        translatedCount++;
+                    }
+                } catch (e) { console.error('翻譯失敗:', e); }
+            }
+            
+            if (translatedCount === 0) { btn.innerText = '✅ 已全部翻譯'; return; }
+            btn.innerText = '⏳ 固化至雲端...';
+            
+            syncToCloud(true);
+        }
+    </script>
+</body>
+</html>
