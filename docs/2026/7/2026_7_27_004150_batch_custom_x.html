@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>X Post - Study Archive</title>
+    <style>
+        body { margin: 0; padding: 0; background-color: #ffffff; color: #0f1419; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; justify-content: center; }
+        #container { width: 100%; max-width: 600px; border-left: 1px solid #eff3f4; border-right: 1px solid #eff3f4; min-height: 100vh; box-sizing: border-box; padding-bottom: 80px; }
+        .tweet { display: flex; border-bottom: 1px solid #eff3f4; box-sizing: border-box; width: 100%; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; margin-right: 12px; flex-shrink: 0; background-color: #f7f9f9; }
+        .tweet-body { flex: 1; min-width: 0; }
+        .user-info { margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .name { font-weight: 700; margin-right: 4px; }
+        .handle { color: #536471; font-size: 15px; }
+        .text-content { line-height: 1.5; word-wrap: break-word; white-space: pre-wrap; margin-bottom: 10px; }
+        .text-content img { height: 1.2em; width: 1.2em; vertical-align: -0.2em; }
+        .text-content a { color: #1d9bf0; text-decoration: none; }
+
+        .annotation-area { margin-top: 8px; width: 100%; }
+        .annotation-box { width: 100%; min-height: 65px; background-color: #fcfcfc; border: 1px solid #cfd9de; border-radius: 0px; color: #0f1419; padding: 8px; font-size: 14px; font-family: inherit; resize: vertical; box-sizing: border-box; }
+        .annotation-box:focus { outline: none; border-color: #1d9bf0; background-color: #ffffff; }
+
+        #sync-btn { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 200px; height: 45px; background-color: #00ba7c; color: #ffffff; border: none; border-radius: 0px; font-size: 15px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 1000; }
+    </style>
+</head>
+<body>
+    <div id="container">
+
+            <div class="tweet" style="padding: 16px;">
+                <img class="avatar" src="https://pbs.twimg.com/profile_images/2005136478951657472/DFpCrSHi_x96.jpg" alt="Avatar">
+                <div class="tweet-body">
+                    <div class="user-info">
+                        <span class="name">Degen CPA</span>
+                        <span class="handle">@DrewVento</span>
+                    </div>
+                    <div class="text-content" style="font-size: 17px;"><span class="css-1jxf684 r-bcqeeo r-1ttztb7 r-qvutc0 r-poiln3">We lost the art of having friends come over just to hang out</span></div>
+
+                    <!-- 学习批注框 (不使用 placeholder，保证 innerHTML 干净) -->
+                    <div class="annotation-area">
+                        <textarea class="annotation-box"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tweet" style="padding: 12px 16px;">
+                <img class="avatar" src="https://pbs.twimg.com/profile_images/2076541707097608192/p_VOK9-b_x96.jpg" alt="Avatar">
+                <div class="tweet-body">
+                    <div class="user-info">
+                        <span class="name">Eliza J</span>
+                        <span class="handle">@ElizaReceipt</span>
+                    </div>
+                    <div class="text-content" style="font-size: 15px;"><span class="css-1jxf684 r-bcqeeo r-1ttztb7 r-qvutc0 r-poiln3"><relin-hc data-id="1"><relin-highlight data-relin-mastered="" data-relin-meta="unstarred-0" data-relin-vocabularies=""><relin-origin>Friends</relin-origin></relin-highlight> <relin-highlight data-phrase="used to" data-relin-meta="unstarred-undefined" data-relin-vocabularies=""><relin-origin><relin-highlight data-relin-mastered="" data-relin-meta="starred-0" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6"><relin-origin>used</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="starred-5" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6"><relin-origin>to</relin-origin></relin-highlight></relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="starred-5" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6"><relin-origin>just</relin-origin></relin-highlight> <relin-highlight data-phrase="show up" data-relin-meta="unstarred-undefined" data-relin-vocabularies=""><relin-origin><relin-highlight data-relin-mastered="" data-relin-meta="starred-5" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6"><relin-origin>show</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="starred-5" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6"><relin-origin>up</relin-origin></relin-highlight></relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>with</relin-origin></relin-highlight> <relin-highlight data-relin-meta="unstarred-undefined" data-relin-vocabularies=""><relin-origin>snacks</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="starred-5" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6"><relin-origin>and</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>zero</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-0" data-relin-vocabularies=""><relin-origin>plans</relin-origin></relin-highlight>.
+<relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>Now</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>the</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>only</relin-origin></relin-highlight> <relin-highlight data-relin-meta="starred-1" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6" class="relingo-highlight"><relin-origin>unannounced</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-4" data-relin-vocabularies=""><relin-origin>visitor</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-0" data-relin-vocabularies=""><relin-origin>is</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>the</relin-origin></relin-highlight> <relin-highlight data-relin-meta="unstarred-undefined" data-relin-vocabularies=""><relin-origin>DoorDash</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-4" data-relin-vocabularies=""><relin-origin>guy</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-0" data-relin-vocabularies=""><relin-origin>hoping</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>for</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-0" data-relin-vocabularies=""><relin-origin>a</relin-origin></relin-highlight> <relin-highlight data-relin-meta="unstarred-undefined" data-relin-vocabularies=""><relin-origin>tip</relin-origin></relin-highlight>.</relin-hc></span></div>
+
+                    <!-- 学习批注框 (不使用 placeholder，保证 innerHTML 干净) -->
+                    <div class="annotation-area">
+                        <textarea class="annotation-box"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tweet" style="padding: 12px 16px;">
+                <img class="avatar" src="https://pbs.twimg.com/profile_images/2021002773429641216/V3GYhxYH_x96.jpg" alt="Avatar">
+                <div class="tweet-body">
+                    <div class="user-info">
+                        <span class="name">Veedochops</span>
+                        <span class="handle">@Veedochops</span>
+                    </div>
+                    <div class="text-content" style="font-size: 15px;"><span class="css-1jxf684 r-bcqeeo r-1ttztb7 r-qvutc0 r-poiln3"><relin-hc data-id="2"><relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>we</relin-origin></relin-highlight> <relin-highlight data-relin-meta="unstarred-undefined" data-relin-vocabularies=""><relin-origin>gained</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>the</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="starred-5" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6"><relin-origin>art</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="starred-0" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6"><relin-origin>of</relin-origin></relin-highlight> <relin-highlight data-relin-meta="unstarred-undefined" data-relin-vocabularies=""><relin-origin>narcissistic</relin-origin></relin-highlight> <relin-highlight data-relin-meta="starred-3" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6" class="relingo-highlight"><relin-origin>paranoid</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-4" data-relin-vocabularies=""><relin-origin>shadow</relin-origin></relin-highlight> <relin-highlight data-relin-meta="unstarred-undefined" data-relin-vocabularies=""><relin-origin>competitions</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>with</relin-origin></relin-highlight> <relin-highlight data-relin-meta="unstarred-undefined" data-relin-vocabularies=""><relin-origin>eachother</relin-origin></relin-highlight> <relin-highlight data-relin-meta="unstarred-undefined" data-relin-vocabularies=""><relin-origin>tho</relin-origin></relin-highlight>. <relin-highlight data-relin-mastered="" data-relin-meta="starred-5" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6"><relin-origin>and</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>remember</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-0" data-relin-vocabularies=""><relin-origin>kids</relin-origin></relin-highlight>, <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>positive</relin-origin></relin-highlight> <relin-highlight data-relin-meta="unstarred-undefined" data-relin-vocabularies=""><relin-origin>emotions</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-0" data-relin-vocabularies=""><relin-origin>are</relin-origin></relin-highlight> <relin-highlight data-relin-meta="starred-2" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6" class="relingo-highlight"><relin-origin>cringe</relin-origin></relin-highlight>!</relin-hc></span></div>
+
+                    <!-- 学习批注框 (不使用 placeholder，保证 innerHTML 干净) -->
+                    <div class="annotation-area">
+                        <textarea class="annotation-box"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tweet" style="padding: 12px 16px;">
+                <img class="avatar" src="https://pbs.twimg.com/profile_images/1966084473721683968/EvHBHFDh_x96.png" alt="Avatar">
+                <div class="tweet-body">
+                    <div class="user-info">
+                        <span class="name">Symphonic</span>
+                        <span class="handle">@SymphonicUSA</span>
+                    </div>
+                    <div class="text-content" style="font-size: 15px;"><span class="css-1jxf684 r-bcqeeo r-1ttztb7 r-qvutc0 r-poiln3">你說的「我們」是什麼意思..？</span></div>
+
+                    <!-- 学习批注框 (不使用 placeholder，保证 innerHTML 干净) -->
+                    <div class="annotation-area">
+                        <textarea class="annotation-box"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tweet" style="padding: 12px 16px;">
+                <img class="avatar" src="https://pbs.twimg.com/profile_images/1856322109414252544/wtTg0BXJ_x96.jpg" alt="Avatar">
+                <div class="tweet-body">
+                    <div class="user-info">
+                        <span class="name">Ricky Davis</span>
+                        <span class="handle">@RickyDa66657201</span>
+                    </div>
+                    <div class="text-content" style="font-size: 15px;"><span class="css-1jxf684 r-bcqeeo r-1ttztb7 r-qvutc0 r-poiln3"><relin-hc data-id="3"><relin-highlight data-relin-mastered="" data-relin-meta="starred-5" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6"><relin-origin>Right</relin-origin></relin-highlight>. <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>Hardly</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>ever</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>hear</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="starred-0" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6"><relin-origin>of</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-0" data-relin-vocabularies=""><relin-origin>a</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="starred-5" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6"><relin-origin>party</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-4" data-relin-vocabularies=""><relin-origin>anymore</relin-origin></relin-highlight>. <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>Once</relin-origin></relin-highlight> <relin-highlight data-relin-meta="unstarred-undefined" data-relin-vocabularies=""><relin-origin>I</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>get</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-4" data-relin-vocabularies=""><relin-origin>my</relin-origin></relin-highlight> <relin-highlight data-relin-meta="unstarred-undefined" data-relin-vocabularies=""><relin-origin>grill</relin-origin></relin-highlight> <relin-highlight data-relin-meta="unstarred-undefined" data-relin-vocabularies=""><relin-origin>I</relin-origin></relin-highlight><relin-highlight data-relin-meta="unstarred-undefined" data-relin-vocabularies=""><relin-origin>’ll</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>be</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="starred-0" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6"><relin-origin>starting</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="starred-5" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6"><relin-origin>to</relin-origin></relin-highlight> <relin-highlight data-relin-meta="unstarred-undefined" data-relin-vocabularies=""><relin-origin>invite</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>people</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="starred-5" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6"><relin-origin>to</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-4" data-relin-vocabularies=""><relin-origin>our</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="starred-5" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6"><relin-origin>new</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="starred-5" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6"><relin-origin>home</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="starred-5" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6"><relin-origin>and</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>host</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>something</relin-origin></relin-highlight> <relin-highlight data-phrase="now and then" data-relin-meta="unstarred-undefined" data-relin-vocabularies=""><relin-origin><relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>now</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="starred-5" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6"><relin-origin>and</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>then</relin-origin></relin-highlight></relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="starred-5" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6"><relin-origin>just</relin-origin></relin-highlight> <relin-highlight data-phrase="for fun" data-relin-meta="unstarred-undefined" data-relin-vocabularies=""><relin-origin><relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>for</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-4" data-relin-vocabularies=""><relin-origin>fun</relin-origin></relin-highlight></relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>not</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-0" data-relin-vocabularies=""><relin-origin>a</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-4" data-relin-vocabularies=""><relin-origin>holiday</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>or</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="starred-5" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6"><relin-origin>death</relin-origin></relin-highlight>. <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-0" data-relin-vocabularies=""><relin-origin>Seems</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="starred-5" data-relin-vocabularies="6679c0ee12643b3f0e27a3b6"><relin-origin>to</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>be</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-5" data-relin-vocabularies=""><relin-origin>only</relin-origin></relin-highlight> <relin-highlight data-relin-mastered="" data-relin-meta="unstarred-0" data-relin-vocabularies=""><relin-origin>reasons</relin-
