@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>X 語料日曆樞紐</title>
+    <title>X 语料日历枢纽</title>
     <style>
         :root { --bg: #f5f5f7; --text: #333; --muted: #888; --primary: #1d9bf0; --border: #e0e0e0; --card: #fff; }
         body, html { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; -webkit-font-smoothing: antialiased; background: var(--bg); margin: 0; padding: 0; color: var(--text); }
@@ -61,15 +61,15 @@
 <body>
     <div id="loadingBar"></div>
     <div class="manual-fetch-bar">
-        <input type="text" id="xUrlInput" class="fetch-input" placeholder="粘貼推文或帳號鏈接，回車歸檔..." autocomplete="off">
+        <input type="text" id="xUrlInput" class="fetch-input" placeholder="粘贴推文或账号链接，回车归档..." autocomplete="off">
         <button class="settings-btn" id="openSettingsBtn">⚙️</button>
     </div>
 
-    <!-- 設置 Modal -->
+    <!-- 设置 Modal -->
     <div class="modal-overlay" id="settingsModal">
         <div class="modal-content">
             <h3 class="modal-title">核心配置中心</h3>
-            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">所有密鑰均安全儲存在瀏覽器本地，無雲端洩露風險。</p>
+            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">所有密钥均安全储存在浏览器本地，无云端泄露风险。</p>
             
             <div class="form-group">
                 <label>GitHub Personal Access Token</label>
@@ -77,11 +77,11 @@
             </div>
             <div class="form-group" style="display:flex; gap:10px;">
                 <div style="flex:1;">
-                    <label>GitHub 用戶名</label>
+                    <label>GitHub 用户名</label>
                     <input type="text" id="cfgGhOwner" placeholder="例如: moodHappy">
                 </div>
                 <div style="flex:1;">
-                    <label>GitHub 倉庫名</label>
+                    <label>GitHub 仓库名</label>
                     <input type="text" id="cfgGhRepo" placeholder="例如: x-vibe">
                 </div>
             </div>
@@ -89,19 +89,33 @@
             <div style="border-top: 1px dashed #e0e0e0; margin: 20px 0;"></div>
 
             <div class="form-group">
-                <label>首選 AI 引擎 (失敗自動降級)</label>
+                <label>首选 AI 引擎 (失败自动降级)</label>
                 <select id="cfgPrefAI">
-                    <option value="groq">Groq (Llama-3.3)</option>
-                    <option value="glm">智譜 (GLM-4.5-Flash)</option>
+                    <option value="groq">Groq</option>
+                    <option value="glm">智谱</option>
                 </select>
             </div>
-            <div class="form-group">
-                <label>Groq API Key</label>
-                <input type="password" id="cfgGroqKey" placeholder="gsk_xxxxxxxxxxxxxxxxxxxx">
+            
+            <div class="form-group" style="display:flex; gap:10px;">
+                <div style="flex:1;">
+                    <label>Groq API Key</label>
+                    <input type="password" id="cfgGroqKey" placeholder="gsk_xxxxxxxxxxxxxxxxxxxx">
+                </div>
+                <div style="flex:1;">
+                    <label>Groq 模型名称</label>
+                    <input type="text" id="cfgGroqModel" placeholder="例如: llama-3.3-70b-versatile">
+                </div>
             </div>
-            <div class="form-group">
-                <label>智譜 GLM API Key</label>
-                <input type="password" id="cfgGlmKey" placeholder="填寫智譜 API Key">
+
+            <div class="form-group" style="display:flex; gap:10px;">
+                <div style="flex:1;">
+                    <label>智谱 GLM API Key</label>
+                    <input type="password" id="cfgGlmKey" placeholder="填写智谱 API Key">
+                </div>
+                <div style="flex:1;">
+                    <label>智谱 GLM 模型名称</label>
+                    <input type="text" id="cfgGlmModel" placeholder="例如: GLM-4.5-Flash">
+                </div>
             </div>
 
             <div class="modal-actions">
@@ -111,13 +125,13 @@
         </div>
     </div>
 
-    <!-- 自定義批量歸檔 Modal -->
+    <!-- 自定义批量归档 Modal -->
     <div class="modal-overlay" id="batchModal">
         <div class="modal-content">
-            <h3 class="modal-title">自定義組合歸檔 (最高 10 條)</h3>
-            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">貼入多個推文鏈接（支援直接粘貼整段文字），將自動識別並提取最多 10 條同步為單個文件。</p>
+            <h3 class="modal-title">自定义组合归档 (最高 10 条)</h3>
+            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">贴入多个推文链接（支持直接粘贴整段文字），将自动识别并提取最多 10 条同步为单个文件。</p>
             <div class="form-group">
-                <textarea id="batchInputArea" class="batch-textarea" placeholder="在此粘貼多個推文鏈接...
+                <textarea id="batchInputArea" class="batch-textarea" placeholder="在此粘贴多个推文链接...
 
 例如：
 https://x.com/i/status/2078970469194092723
@@ -125,7 +139,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
             </div>
             <div class="modal-actions">
                 <button class="btn btn-cancel" id="closeBatchBtn">取消</button>
-                <button class="btn btn-save" id="submitBatchBtn">抓取並合併同步</button>
+                <button class="btn btn-save" id="submitBatchBtn">抓取并合并同步</button>
             </div>
         </div>
     </div>
@@ -151,7 +165,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
     </div>
 
     <script>
-        const archiveData = /*DATA_START*/{"2026":{"7":{"19":[{"time":"19:46","path":"2026/7/2026_7_19_194603_batch_custom_x.html","title":"🐦 19:46 自定義組合推文"},{"time":"18:27","path":"2026/7/2026_7_19_182731_batch_BBCWorld_x.html","title":"🐦 18:27 推文集：@BBCWorld"},{"time":"17:27","path":"2026/7/2026_7_19_172706_batch_custom_x.html","title":"🐦 17:27 自定義組合推文"}],"20":[{"time":"23:15","path":"2026/7/2026_7_20_231557_batch_custom_x.html","title":"🐦 23:15 自定義組合推文"},{"time":"23:07","path":"2026/7/2026_7_20_230719_batch_custom_x.html","title":"🐦 23:07 自定義組合推文"}],"22":[{"time":"01:18","path":"2026/7/2026_7_22_011835_batch_custom_x.html","title":"🐦 01:18 自定義組合推文"},{"time":"00:36","path":"2026/7/2026_7_22_003632_batch_custom_x.html","title":"🐦 00:36 自定義組合推文"}],"24":[{"time":"10:41","path":"2026/7/2026_7_24_104150_batch_custom_x.html","title":"🐦 10:41 自定義組合推文"}],"25":[{"time":"19:59","path":"2026/7/2026_7_25_195921_batch_custom_x.html","title":"🐦 19:59 自定義組合推文"},{"time":"17:42","path":"2026/7/2026_7_25_174207_batch_Reuters_x.html","title":"🐦 17:42 推文集：@Reuters"},{"time":"09:40","path":"2026/7/2026_7_25_094029_batch_custom_x.html","title":"🐦 09:40 自定義組合推文"}],"27":[{"time":"17:21","path":"2026/7/2026_7_27_172107_batch_custom_x.html","title":"🐦 17:21 自定義組合推文"},{"time":"02:45","path":"2026/7/2026_7_27_024520_study_x.html","title":"🐦 02:45 靈感推文"},{"time":"02:34","path":"2026/7/2026_7_27_023447_study_x.html","title":"🐦 02:34 靈感推文"},{"time":"00:41","path":"2026/7/2026_7_27_004154_batch_custom_x.html","title":"🐦 00:41 自定義組合推文"}],"28":[{"time":"21:49","path":"2026/7/2026_7_28_214909_batch_custom_x.html","title":"🐦 21:49 自定義組合推文"},{"time":"00:07","path":"2026/7/2026_7_28_000718_batch_custom_x.html","title":"🐦 00:07 自定義組合推文"}]}}}/*DATA_END*/;
+        const archiveData = /*DATA_START*/{"2026": {"7": {"28": [{"time": "21:49", "path": "2026/7/2026_7_28_214909_batch_custom_x.html", "title": "\ud83d\udc26 21:49 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "00:07", "path": "2026/7/2026_7_28_000718_batch_custom_x.html", "title": "\ud83d\udc26 00:07 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "27": [{"time": "17:21", "path": "2026/7/2026_7_27_172107_batch_custom_x.html", "title": "\ud83d\udc26 17:21 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "02:45", "path": "2026/7/2026_7_27_024520_study_x.html", "title": "\ud83d\udc26 02:45 \u7075\u611f\u63a8\u6587"}, {"time": "02:34", "path": "2026/7/2026_7_27_023447_study_x.html", "title": "\ud83d\udc26 02:34 \u7075\u611f\u63a8\u6587"}, {"time": "00:41", "path": "2026/7/2026_7_27_004154_batch_custom_x.html", "title": "\ud83d\udc26 00:41 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "25": [{"time": "19:59", "path": "2026/7/2026_7_25_195921_batch_custom_x.html", "title": "\ud83d\udc26 19:59 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "17:42", "path": "2026/7/2026_7_25_174207_batch_Reuters_x.html", "title": "\ud83d\udc26 17:42 \u63a8\u6587\u96c6\uff1a@Reuters"}, {"time": "09:40", "path": "2026/7/2026_7_25_094029_batch_custom_x.html", "title": "\ud83d\udc26 09:40 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "24": [{"time": "10:41", "path": "2026/7/2026_7_24_104150_batch_custom_x.html", "title": "\ud83d\udc26 10:41 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "22": [{"time": "01:18", "path": "2026/7/2026_7_22_011835_batch_custom_x.html", "title": "\ud83d\udc26 01:18 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "00:36", "path": "2026/7/2026_7_22_003632_batch_custom_x.html", "title": "\ud83d\udc26 00:36 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "20": [{"time": "23:15", "path": "2026/7/2026_7_20_231557_batch_custom_x.html", "title": "\ud83d\udc26 23:15 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "23:07", "path": "2026/7/2026_7_20_230719_batch_custom_x.html", "title": "\ud83d\udc26 23:07 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "19": [{"time": "19:46", "path": "2026/7/2026_7_19_194603_batch_custom_x.html", "title": "\ud83d\udc26 19:46 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "18:27", "path": "2026/7/2026_7_19_182731_batch_BBCWorld_x.html", "title": "\ud83d\udc26 18:27 \u63a8\u6587\u96c6\uff1a@BBCWorld"}, {"time": "17:27", "path": "2026/7/2026_7_19_172706_batch_custom_x.html", "title": "\ud83d\udc26 17:27 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}]}}}/*DATA_END*/;
         const today = new Date();
         
         const AppState = {
@@ -226,7 +240,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
                         
                         delBtn.onclick = async (e) => {
                             e.preventDefault();
-                            if(confirm('確認刪除此條目並同步刪除雲端文件嗎？')) {
+                            if(confirm('确认删除此条目并同步删除云端文件吗？')) {
                                 const pathToDelete = news.path;
                                 dayData.splice(index, 1);
                                 if (dayData.length === 0) delete archiveData[AppState.year][AppState.month][AppState.day];
@@ -237,7 +251,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
                         wrapper.appendChild(delBtn); newsList.appendChild(wrapper);
                     });
                 } else {
-                    newsList.innerHTML = '<div class="empty-state">當日暫無推文歸檔 🕊️</div>';
+                    newsList.innerHTML = '<div class="empty-state">当日暂无推文归档 🕊️</div>';
                 }
             } catch (err) { console.error(err); }
         }
@@ -268,6 +282,8 @@ https://x.com/i/status/2079072889853321448"></textarea>
             document.getElementById('cfgPrefAI').value = localStorage.getItem('PREFERRED_AI') || 'groq';
             document.getElementById('cfgGroqKey').value = localStorage.getItem('GROQ_API_KEY') || '';
             document.getElementById('cfgGlmKey').value = localStorage.getItem('GLM_API_KEY') || '';
+            document.getElementById('cfgGroqModel').value = localStorage.getItem('GROQ_MODEL') || '';
+            document.getElementById('cfgGlmModel').value = localStorage.getItem('GLM_MODEL') || '';
             document.getElementById('settingsModal').style.display = 'flex';
         });
         document.getElementById('closeSettingsBtn').addEventListener('click', () => { document.getElementById('settingsModal').style.display = 'none'; });
@@ -278,6 +294,8 @@ https://x.com/i/status/2079072889853321448"></textarea>
             localStorage.setItem('PREFERRED_AI', document.getElementById('cfgPrefAI').value);
             localStorage.setItem('GROQ_API_KEY', document.getElementById('cfgGroqKey').value.trim());
             localStorage.setItem('GLM_API_KEY', document.getElementById('cfgGlmKey').value.trim());
+            localStorage.setItem('GROQ_MODEL', document.getElementById('cfgGroqModel').value.trim());
+            localStorage.setItem('GLM_MODEL', document.getElementById('cfgGlmModel').value.trim());
             document.getElementById('settingsModal').style.display = 'none';
             alert('配置已本地保存！');
         });
@@ -288,7 +306,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
             const ghRepo = localStorage.getItem('GH_REPO');
-            if (!ghToken || !ghOwner || !ghRepo) return alert('本地已刪除，但未配置 GitHub Token，遠端不會變更。');
+            if (!ghToken || !ghOwner || !ghRepo) return alert('本地已删除，但未配置 GitHub Token，远端不会变更。');
             try {
                 const loadingBar = document.getElementById('loadingBar'); loadingBar.style.width = '20%';
                 const targetFilePath = `docs/${fileRelPath}`;
@@ -309,10 +327,10 @@ https://x.com/i/status/2079072889853321448"></textarea>
                 loadingBar.style.width = '90%';
                 await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { method: 'PUT', headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ message: `Update index.html after deletion`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha }) });
                 loadingBar.style.width = '100%'; setTimeout(() => { loadingBar.style.width = '0%'; }, 1000);
-            } catch(e) { console.error(e); alert('刪除同步失敗: ' + e.message); document.getElementById('loadingBar').style.width = '0%'; }
+            } catch(e) { console.error(e); alert('删除同步失败: ' + e.message); document.getElementById('loadingBar').style.width = '0%'; }
         }
 
-        // --- HTML 模板組裝 (JS 動態生成版) ---
+        // --- HTML 模板组装 (JS 动态生成版) ---
         function generateTweetCard(tweet, tweetId) {
             const author = tweet.user_name || 'Unknown';
             const handle = tweet.user_screen_name || 'unknown';
@@ -354,15 +372,15 @@ https://x.com/i/status/2079072889853321448"></textarea>
                 <div class="content" style="margin-bottom:0;">${text}<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
                 <div class="anno-box" style="display:none;">
                     <div class="anno-view markdown-body"></div>
-                    <textarea class="anno-edit" style="display:none;" placeholder="在此寫下筆記或使用 AI 解析..."></textarea>
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..."></textarea>
                 </div>
             </div>
             ${media_html}
             <div class="stats">
-                <span>❤️ ${likes} 喜歡</span>
-                <span>🔁 ${retweets} 轉發</span>
+                <span>❤️ ${likes} 喜欢</span>
+                <span>🔁 ${retweets} 转发</span>
             </div>
-            <a href="${original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+            <a href="${original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及评论</a>
         </div>`;
         }
 
@@ -426,26 +444,26 @@ https://x.com/i/status/2079072889853321448"></textarea>
         <a href="../../index.html">🔙 返回</a>
         <div style="display:flex; align-items:center; gap:10px;">
             <span class="sync-status" id="sync-status">📡 同步中...</span>
-            <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 一鍵翻譯</button>
+            <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 一键翻译</button>
         </div>
     </div>
     <div class="container">
-        <div class="time-stamp">歸檔時間: ${now_str}</div>
+        <div class="time-stamp">归档时间: ${now_str}</div>
         ${contentHtml}
     </div>
     
     <script id="core-engine">
         let syncTimeout = null;
 
-        // 【AI 解析核心邏輯 - 使用常規字符串拼接避免變量域錯誤】
-        const AI_PROMPT = "請分析以下英文段落，並嚴格按照以下 Markdown 格式輸出（不要輸出任何額外的廢話）：\\n\\n📌 完整翻譯\\n\\n[此處填寫完整翻譯]\\n\\n📌 Key Expressions\\n\\n- **[單詞或短語]**\\n  = [中文釋義]\\n  （[可選的補充說明，如倒裝結構或語境等]）\\n\\n段落內容：\\n";
+        // 【AI 解析核心逻辑 - 使用常规字符串拼接避免变量域错误】
+        const AI_PROMPT = "请分析以下英文段落，并严格按照以下 Markdown 格式输出（不要输出任何额外的废话）：\\n\\n📌 完整翻译\\n\\n[此处填写完整翻译]\\n\\n📌 Key Expressions\\n\\n- **[单词或短语]**\\n  = [中文释义]\\n  （[可选的补充说明，如倒装结构或语境等]）\\n\\n段落内容：\\n";
 
-        async function fetchGroq(text, apiKey) {
+        async function fetchGroq(text, apiKey, modelName) {
             const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
                 method: 'POST',
                 headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    model: 'llama-3.3-70b-versatile',
+                    model: modelName,
                     messages: [
                         { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
                         { role: 'user', content: AI_PROMPT + '"' + text + '"' }
@@ -456,15 +474,15 @@ https://x.com/i/status/2079072889853321448"></textarea>
             if (!res.ok) throw new Error('Groq API Error: ' + res.status);
             const json = await res.json();
             if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
-            throw new Error('Groq返回數據異常');
+            throw new Error('Groq返回数据异常');
         }
 
-        async function fetchGLM(text, apiKey) {
+        async function fetchGLM(text, apiKey, modelName) {
             const res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
                 method: 'POST',
                 headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    model: 'GLM-4.5-Flash',
+                    model: modelName,
                     messages: [
                         { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
                         { role: 'user', content: AI_PROMPT + '"' + text + '"' }
@@ -472,35 +490,39 @@ https://x.com/i/status/2079072889853321448"></textarea>
                     temperature: 0.3
                 })
             });
-            if (!res.ok) throw new Error('智譜GLM API Error: ' + res.status);
+            if (!res.ok) throw new Error('智谱GLM API Error: ' + res.status);
             const json = await res.json();
             if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
-            throw new Error('智譜GLM返回數據異常');
+            throw new Error('智谱GLM返回数据异常');
         }
 
         async function executeAIPipeline(text) {
             const pref = localStorage.getItem('PREFERRED_AI') || 'groq';
             const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
             const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+            const groqModel = localStorage.getItem('GROQ_MODEL') || '';
+            const glmModel = localStorage.getItem('GLM_MODEL') || '';
 
-            if (!groqKey && !glmKey) throw new Error('MISSING_KEYS');
+            if ((!groqKey && !glmKey) || (!groqModel && !glmModel)) throw new Error('MISSING_KEYS_OR_MODELS');
 
             const runGroq = async () => {
                 if (!groqKey) throw new Error("Groq API Key 未配置");
-                return await fetchGroq(text, groqKey);
+                if (!groqModel) throw new Error("Groq 模型未配置");
+                return await fetchGroq(text, groqKey, groqModel);
             };
             const runGLM = async () => {
-                if (!glmKey) throw new Error("智譜GLM API Key 未配置");
-                return await fetchGLM(text, glmKey);
+                if (!glmKey) throw new Error("智谱GLM API Key 未配置");
+                if (!glmModel) throw new Error("智谱GLM 模型未配置");
+                return await fetchGLM(text, glmKey, glmModel);
             };
 
             if (pref === 'groq') {
                 try {
                     return await runGroq();
                 } catch (err) {
-                    console.warn("首選 Groq 失敗，嘗試降級到智譜:", err);
-                    if (glmKey) {
-                        document.getElementById('sync-status').innerText = '⚠️ Groq異常，正降級為智譜...';
+                    console.warn("首选 Groq 失败，尝试降级到智谱:", err);
+                    if (glmKey && glmModel) {
+                        document.getElementById('sync-status').innerText = '⚠️ Groq异常，正降级为智谱...';
                         return await runGLM();
                     }
                     throw err;
@@ -509,9 +531,9 @@ https://x.com/i/status/2079072889853321448"></textarea>
                 try {
                     return await runGLM();
                 } catch (err) {
-                    console.warn("首選 智譜 失敗，嘗試降級到Groq:", err);
-                    if (groqKey) {
-                        document.getElementById('sync-status').innerText = '⚠️ 智譜異常，正降級為Groq...';
+                    console.warn("首选 智谱 失败，尝试降级到Groq:", err);
+                    if (groqKey && groqModel) {
+                        document.getElementById('sync-status').innerText = '⚠️ 智谱异常，正降级为Groq...';
                         return await runGroq();
                     }
                     throw err;
@@ -519,17 +541,17 @@ https://x.com/i/status/2079072889853321448"></textarea>
             }
         }
 
-        // 【終極隔離方案】純淨 DOM 快照：專治 GitHub 404 及脫機環境備用
+        // 【终极隔离方案】纯净 DOM 快照：专治 GitHub 404 及脱机环境备用
         function getFallbackCleanHTML() {
             const clone = document.documentElement.cloneNode(true);
             
-            // 強制重置按鈕狀態，根治被鎖死 "同步中" 的 Bug
+            // 强制重置按钮状态，根治被锁死 "同步中" 的 Bug
             const statusMsg = clone.querySelector('#sync-status');
             if (statusMsg) { statusMsg.removeAttribute('style'); statusMsg.innerText = '📡 同步中...'; }
             const tBtn = clone.querySelector('#translate-btn');
-            if (tBtn) { tBtn.removeAttribute('style'); tBtn.removeAttribute('disabled'); tBtn.innerText = '🌐 一鍵翻譯'; }
+            if (tBtn) { tBtn.removeAttribute('style'); tBtn.removeAttribute('disabled'); tBtn.innerText = '🌐 一键翻译'; }
             
-            // 暴力剝離 Relingo 高亮標籤等外部插件污染
+            // 暴力剥离 Relingo 高亮标签等外部插件污染
             const removeRelingo = (root) => {
                 const tags = root.querySelectorAll('relin-highlight, relin-hc, [class*="relingo"]');
                 tags.forEach(t => {
@@ -539,7 +561,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
                 });
             };
             removeRelingo(clone);
-            removeRelingo(clone); // 處理嵌套
+            removeRelingo(clone); // 处理嵌套
             
             clone.querySelectorAll('script').forEach(s => {
                 if (!s.src.includes('marked.min.js') && s.id !== 'core-engine') s.remove();
@@ -548,7 +570,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
                 if (s.id !== 'core-style') s.remove();
             });
 
-            // 清理 AI loading 狀態
+            // 清理 AI loading 状态
             clone.querySelectorAll('.ai-toggle').forEach(t => {
                 t.classList.remove('loading');
             });
@@ -572,12 +594,12 @@ https://x.com/i/status/2079072889853321448"></textarea>
             return '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + clone.innerHTML + '\\n</html>';
         }
 
-        // 【完全隔離插件】雲端同步引擎核心
+        // 【完全隔离插件】云端同步引擎核心
         async function syncToCloud(isTranslation = false) {
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
             const ghRepo = localStorage.getItem('GH_REPO');
-            if(!ghToken) return isTranslation ? null : alert('缺少 GitHub Token，無法同步！');
+            if(!ghToken) return isTranslation ? null : alert('缺少 GitHub Token，无法同步！');
             
             const statusMsg = document.getElementById('sync-status');
             const transBtn = document.getElementById('translate-btn');
@@ -598,7 +620,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
                 let finalHTML = '';
                 let sha = '';
                 
-                // 【核心策略】先拉取 Github 上的純淨版文件，只把自己的 Textarea/翻譯 塞進去，完全阻斷本地插件污染！
+                // 【核心策略】先拉取 Github 上的纯净版文件，只把自己的 Textarea/翻译 塞进去，完全阻断本地插件污染！
                 const getRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), {
                     headers: { 'Authorization': 'Bearer ' + ghToken }, cache: 'no-store'
                 });
@@ -623,7 +645,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
                         }
                     });
 
-                    // 2. 注入翻譯模塊
+                    // 2. 注入翻译模块
                     const liveContents = document.querySelectorAll('.content');
                     const cleanContents = cleanDoc.querySelectorAll('.content');
                     liveContents.forEach((liveC, i) => {
@@ -643,7 +665,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
                         }
                     });
                     
-                    // 3. 恢復紅點狀態
+                    // 3. 恢复红点状态
                     cleanDoc.querySelectorAll('.anno-toggle').forEach(t => {
                         t.classList.remove('has-anno');
                         const ta = t.closest('.content-wrap').querySelector('.anno-edit');
@@ -652,7 +674,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
 
                     finalHTML = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + cleanDoc.documentElement.innerHTML + '\\n</html>';
                 } else {
-                    // 如果網絡失敗或 Github 本身還沒這個文件（比如剛創建），啟動備用降級防禦方案
+                    // 如果网络失败或 Github 本身还没这个文件（比如刚创建），启动备用降级防御方案
                     finalHTML = getFallbackCleanHTML();
                 }
 
@@ -665,20 +687,20 @@ https://x.com/i/status/2079072889853321448"></textarea>
                 if(!putRes.ok) throw new Error('Put failed');
 
                 if (isTranslation) {
-                    transBtn.innerText = '🌐 已翻譯並固化';
+                    transBtn.innerText = '🌐 已翻译并固化';
                     transBtn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
                 } else {
                     statusMsg.style.backgroundColor = '#2ea44f';
-                    statusMsg.innerText = '✅ 雲端已同步';
-                    setTimeout(() => { if (statusMsg.innerText === '✅ 雲端已同步') statusMsg.style.display = 'none'; }, 3000);
+                    statusMsg.innerText = '✅ 云端已同步';
+                    setTimeout(() => { if (statusMsg.innerText === '✅ 云端已同步') statusMsg.style.display = 'none'; }, 3000);
                 }
             } catch(e) {
                 console.error(e);
                 if (isTranslation) {
-                    transBtn.innerText = '⚠️ 僅本地翻譯';
+                    transBtn.innerText = '⚠️ 仅本地翻译';
                 } else {
                     statusMsg.style.backgroundColor = '#e74c3c';
-                    statusMsg.innerText = '❌ 同步失敗(點擊重試)';
+                    statusMsg.innerText = '❌ 同步失败(点击重试)';
                     statusMsg.style.cursor = 'pointer';
                     statusMsg.onclick = () => { statusMsg.onclick = null; statusMsg.style.cursor = 'default'; syncToCloud(false); };
                 }
@@ -689,7 +711,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
             const statusMsg = document.getElementById('sync-status');
             statusMsg.style.display = 'inline-block';
             statusMsg.style.backgroundColor = '#f39c12';
-            statusMsg.innerText = '⏳ 自動同步中...';
+            statusMsg.innerText = '⏳ 自动同步中...';
             statusMsg.style.cursor = 'default';
             statusMsg.onclick = null;
             if (syncTimeout) clearTimeout(syncTimeout);
@@ -712,7 +734,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
                     try { view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; } catch(e){}
                 }
                 
-                // --- AI 按鈕邏輯 ---
+                // --- AI 按钮逻辑 ---
                 if (aiToggle) {
                     aiToggle.addEventListener('click', async (e) => {
                         e.preventDefault();
@@ -721,18 +743,20 @@ https://x.com/i/status/2079072889853321448"></textarea>
 
                         const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
                         const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+                        const groqModel = localStorage.getItem('GROQ_MODEL') || '';
+                        const glmModel = localStorage.getItem('GLM_MODEL') || '';
 
-                        if (!groqKey && !glmKey) {
-                            alert('⚠️ 請先返回【日曆大廳】右上角的 ⚙️配置中心 設置 API Key！');
+                        if ((!groqKey && !glmKey) || (!groqModel && !glmModel)) {
+                            alert('⚠️ 请先返回【日历大厅】右上角的 ⚙️配置中心 设置 API Key 和模型！');
                             return;
                         }
 
-                        // 提取純文本，避開紅點和機器人圖標
+                        // 提取纯文本，避开红点和机器人图标
                         const pClone = wrap.querySelector('.content').cloneNode(true);
                         pClone.querySelectorAll('.anno-toggle, .ai-toggle, .translated-content').forEach(el => el.remove());
                         let pText = pClone.textContent.trim();
                         
-                        // 【核心過濾】：正則徹底剝離推文內的 http/https 鏈接，防止干擾 AI 或翻譯
+                        // 【核心过滤】：正则彻底剥离推文内的 http/https 链接，防止干扰 AI 或翻译
                         pText = pText.replace(/https?:\\/\\/\\S+/g, '').trim();
 
                         if (!pText) return;
@@ -751,7 +775,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
                             edit.style.display = 'block';
                             edit.value = aiContent;
                             
-                            // 觸發失焦，聯動 Marked.js 渲染與 GitHub 自動保存
+                            // 触发失焦，联动 Marked.js 渲染与 GitHub 自动保存
                             edit.focus();
                             edit.blur();
                             
@@ -760,10 +784,10 @@ https://x.com/i/status/2079072889853321448"></textarea>
                             setTimeout(() => { if (statusMsg.innerText.includes('AI')) statusMsg.style.display = 'none'; }, 2000);
                         } catch (err) {
                             console.error(err);
-                            if (err.message === 'MISSING_KEYS') {
-                                alert('⚠️ 請返回日曆大廳配置 AI 密鑰！');
+                            if (err.message === 'MISSING_KEYS_OR_MODELS') {
+                                alert('⚠️ 请返回日历大厅配置 AI 密钥和模型！');
                             } else {
-                                alert('❌ AI 解析失敗: ' + err.message);
+                                alert('❌ AI 解析失败: ' + err.message);
                             }
                             statusMsg.style.display = 'none';
                         } finally {
@@ -839,7 +863,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
         async function translateAll() {
             const btn = document.getElementById('translate-btn');
             if(btn.hasAttribute('disabled')) return;
-            btn.innerText = '⏳ 翻譯中...';
+            btn.innerText = '⏳ 翻译中...';
             btn.setAttribute('disabled', 'true');
 
             let translatedCount = 0;
@@ -848,12 +872,12 @@ https://x.com/i/status/2079072889853321448"></textarea>
                 const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
                 
-                // 【修復翻譯被高亮插件干擾】：在送去翻譯前，扒掉 Relingo 和按鈕代碼
+                // 【修复翻译被高亮插件干扰】：在送去翻译前，扒掉 Relingo 和按钮代码
                 const cloneText = content.cloneNode(true);
                 cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle, .ai-toggle').forEach(el => el.remove());
                 let textToTranslate = cloneText.innerText;
                 
-                // 【核心過濾】：正則徹底剝離翻譯模塊的 http/https 鏈接
+                // 【核心过滤】：正则彻底剥离翻译模块的 http/https 链接
                 textToTranslate = textToTranslate.replace(/https?:\\/\\/\\S+/g, '').trim();
                 let checkText = textToTranslate.replace(/\\p{Extended_Pictographic}/gu, '').trim();
                 
@@ -883,16 +907,16 @@ https://x.com/i/status/2079072889853321448"></textarea>
                         translatedCount++;
                     }
                 } catch (e) {
-                    console.error('翻譯失敗:', e);
+                    console.error('翻译失败:', e);
                 }
             }
             
             if (translatedCount === 0) {
-                btn.innerText = '✅ 已全部翻譯';
+                btn.innerText = '✅ 已全部翻译';
                 return;
             }
 
-            btn.innerText = '⏳ 固化至雲端...';
+            btn.innerText = '⏳ 固化至云端...';
             
             syncToCloud(true);
         }
@@ -902,12 +926,12 @@ https://x.com/i/status/2079072889853321448"></textarea>
         }
         // ------------------------------------
 
-        // === 核心：處理前端自定義批量模板同步 ===
+        // === 核心：处理前端自定义批量模板同步 ===
         document.getElementById('submitBatchBtn').addEventListener('click', async () => {
             const inputText = document.getElementById('batchInputArea').value;
             let tweetIdsToProcess = [];
             
-            // 使用正則匹配多行文本中所有的 status 數字
+            // 使用正则匹配多行文本中所有的 status 数字
             const matches = [...inputText.matchAll(/status\/(\d+)/g)];
             matches.forEach(match => {
                 if (!tweetIdsToProcess.includes(match[1])) {
@@ -915,11 +939,11 @@ https://x.com/i/status/2079072889853321448"></textarea>
                 }
             });
             
-            // 強制截斷，最高只抓前 10 條
+            // 强制截断，最高只抓前 10 条
             tweetIdsToProcess = tweetIdsToProcess.slice(0, 10);
 
             if (tweetIdsToProcess.length === 0) {
-                alert('請至少粘貼一條有效的推文鏈接！');
+                alert('请至少粘贴一条有效的推文链接！');
                 return;
             }
 
@@ -927,7 +951,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
             const ghOwner = localStorage.getItem('GH_OWNER');
             const ghRepo = localStorage.getItem('GH_REPO');
             if (!ghToken || !ghOwner || !ghRepo) {
-                alert('請先點擊齒輪⚙️配置 GitHub 信息！');
+                alert('请先点击齿轮⚙️配置 GitHub 信息！');
                 document.getElementById('batchModal').style.display = 'none';
                 document.getElementById('settingsModal').style.display = 'flex';
                 return;
@@ -959,12 +983,12 @@ https://x.com/i/status/2079072889853321448"></textarea>
                     validCount++;
                 }
 
-                if (validCount === 0) throw new Error("所有推文數據抓取失敗，請檢查鏈接是否正確。");
+                if (validCount === 0) throw new Error("所有推文数据抓取失败，请检查链接是否正确。");
 
                 const finalHtmlOutput = generatePageWrapper(combinedCardsHtml, `Custom Batch Tweets`, hhmmStr);
                 const filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_batch_custom_x.html`;
                 const fileRelPath = `${yearStr}/${monthStr}/${filename}`;
-                const indexTitle = `🐦 ${hhmmStr} 自定義組合推文 (${validCount}條)`;
+                const indexTitle = `🐦 ${hhmmStr} 自定义组合推文 (${validCount}条)`;
 
                 loadingBar.style.width = '80%';
                 const putHtmlRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/${fileRelPath}`, {
@@ -973,7 +997,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
                     body: JSON.stringify({ message: `Add custom batch tweet HTML`, content: btoa(unescape(encodeURIComponent(finalHtmlOutput))) })
                 });
                 
-                if (!putHtmlRes.ok) throw new Error("HTML 文件上傳 GitHub 失敗");
+                if (!putHtmlRes.ok) throw new Error("HTML 文件上传 GitHub 失败");
 
                 loadingBar.style.width = '90%';
                 const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `Bearer ${ghToken}` } });
@@ -999,7 +1023,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
                     body: JSON.stringify({ message: `Update index.html with custom batch entry`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
                 });
                 
-                if (!putIdxRes.ok) throw new Error("更新 index.html 失敗！");
+                if (!putIdxRes.ok) throw new Error("更新 index.html 失败！");
 
                 if (!archiveData[yearStr]) archiveData[yearStr] = {};
                 if (!archiveData[yearStr][monthStr]) archiveData[yearStr][monthStr] = {};
@@ -1008,16 +1032,16 @@ https://x.com/i/status/2079072889853321448"></textarea>
 
                 forceRender(); 
                 loadingBar.style.width = '100%';
-                alert(`🎉 成功！已為您組合併歸檔 ${validCount} 條推文。`);
+                alert(`🎉 成功！已为您组合并归档 ${validCount} 条推文。`);
                 setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
 
             } catch (err) {
-                alert('❌ 操作失敗: ' + err.message);
+                alert('❌ 操作失败: ' + err.message);
                 loadingBar.style.width = '0%';
             }
         });
 
-        // X 推文前端抓取邏輯
+        // X 推文前端抓取逻辑
         document.getElementById('xUrlInput').addEventListener('keypress', async function (e) {
             if (e.key === 'Enter') {
                 const url = this.value.trim();
@@ -1041,14 +1065,14 @@ https://x.com/i/status/2079072889853321448"></textarea>
                     isBatch = true;
                     username = userMatch[1];
                 } else {
-                    return alert('❌ 無法識別的 X (Twitter) 鏈接或格式不正確');
+                    return alert('❌ 无法识别的 X (Twitter) 链接或格式不正确');
                 }
 
                 const ghToken = localStorage.getItem('GH_TOKEN');
                 const ghOwner = localStorage.getItem('GH_OWNER');
                 const ghRepo = localStorage.getItem('GH_REPO');
                 if (!ghToken || !ghOwner || !ghRepo) {
-                    alert('請先點擊齒輪⚙️配置 GitHub 信息！');
+                    alert('请先点击齿轮⚙️配置 GitHub 信息！');
                     document.getElementById('settingsModal').style.display = 'flex';
                     return;
                 }
@@ -1108,7 +1132,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
 
                         tweetIdsToProcess = tweetIdsToProcess.slice(0, 10);
                         if (tweetIdsToProcess.length === 0) {
-                            throw new Error("前端代理節點全數遭瀏覽器攔截，請關閉廣告攔截器/防追蹤護盾，或更換網路後重試。");
+                            throw new Error("前端代理节点全数遭浏览器拦截，请关闭广告拦截器/防追踪护盾，或更换网络后重试。");
                         }
                     }
 
@@ -1139,7 +1163,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
                             validCount++;
                         }
                         
-                        if (validCount === 0) throw new Error("所有推文數據抓取 down 失敗");
+                        if (validCount === 0) throw new Error("所有推文数据抓取失败");
                         
                         finalHtmlOutput = generatePageWrapper(combinedCardsHtml, `Tweets by @${username}`, hhmmStr);
                         filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_batch_${username}_x.html`;
@@ -1157,7 +1181,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
                         finalHtmlOutput = generatePageWrapper(singleCardHtml, `Tweet by ${tweet.user_name}`, hhmmStr);
                         filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_${tweetId}_x.html`;
                         fileRelPath = `${yearStr}/${monthStr}/${filename}`;
-                        indexTitle = `🐦 ${hhmmStr} 靈感推文`;
+                        indexTitle = `🐦 ${hhmmStr} 灵感推文`;
                     }
 
                     loadingBar.style.width = '85%';
@@ -1167,7 +1191,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
                         body: JSON.stringify({ message: `Add ${isBatch ? 'batch' : 'single'} tweet HTML`, content: btoa(unescape(encodeURIComponent(finalHtmlOutput))) })
                     });
                     
-                    if (!putHtmlRes.ok) throw new Error("HTML 文件上傳 GitHub 失敗");
+                    if (!putHtmlRes.ok) throw new Error("HTML 文件上传 GitHub 失败");
 
                     loadingBar.style.width = '95%';
                     const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `Bearer ${ghToken}` } });
@@ -1193,7 +1217,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
                         body: JSON.stringify({ message: `Update index.html with new ${isBatch ? 'batch' : 'single'} entry`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
                     });
                     
-                    if (!putIdxRes.ok) throw new Error("更新 index.html 失敗！");
+                    if (!putIdxRes.ok) throw new Error("更新 index.html 失败！");
 
                     if (!archiveData[yearStr]) archiveData[yearStr] = {};
                     if (!archiveData[yearStr][monthStr]) archiveData[yearStr][monthStr] = {};
@@ -1202,12 +1226,12 @@ https://x.com/i/status/2079072889853321448"></textarea>
 
                     forceRender(); 
                     loadingBar.style.width = '100%';
-                    alert(`🎉 成功！已為您歸檔最新的原創 ${isBatch ? '帳號瀑布流' : '單條推文'}。`);
+                    alert(`🎉 成功！已为您归档最新的原创 ${isBatch ? '账号瀑布流' : '单条推文'}。`);
                     this.value = '';
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
 
                 } catch (err) {
-                    alert('❌ 操作失敗: ' + err.message);
+                    alert('❌ 操作失败: ' + err.message);
                     loadingBar.style.width = '0%';
                 } finally {
                     this.disabled = false;
