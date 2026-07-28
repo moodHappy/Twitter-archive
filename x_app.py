@@ -49,7 +49,7 @@ def get_user_tweet_ids(username, limit=10):
     return []
 
 def generate_tweet_card(tweet_data, tweet_id):
-    """生成單個推文卡片的 HTML 結構 (新增批注 UI 結構)"""
+    """生成單個推文卡片的 HTML 結構 (新增批注 UI 及 AI 機器人按鈕結構)"""
     author = tweet_data.get('user_name', 'Unknown')
     handle = tweet_data.get('user_screen_name', 'unknown')
     text = tweet_data.get('text', '')
@@ -86,10 +86,10 @@ def generate_tweet_card(tweet_data, tweet_id):
                 </div>
             </div>
             <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
-                <div class="content" style="margin-bottom:0;">{text}<span class="anno-toggle"></span></div>
+                <div class="content" style="margin-bottom:0;">{text}<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
                 <div class="anno-box" style="display:none;">
                     <div class="anno-view markdown-body"></div>
-                    <textarea class="anno-edit" style="display:none;"></textarea>
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此寫下筆記或使用 AI 解析..."></textarea>
                 </div>
             </div>
             {media_html}
@@ -101,7 +101,7 @@ def generate_tweet_card(tweet_data, tweet_id):
         </div>"""
 
 def generate_page_wrapper(content_html, page_title, now_str):
-    """生成完整 HTML 頁面外殼 (Python 本地後端生成版)"""
+    """生成完整 HTML 頁面外殼 (包含雙引擎 AI 腳本與降級容災)"""
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -121,10 +121,14 @@ def generate_page_wrapper(content_html, page_title, now_str):
         
         .sync-status {{ padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; display: none; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }}
         
-        .anno-toggle {{ display: inline-block; padding: 4px 8px; margin-left: 4px; cursor: pointer; opacity: 0.3; font-size: 0.9rem; vertical-align: middle; transition: all 0.2s; user-select: none; -webkit-tap-highlight-color: transparent; }}
-        .anno-toggle:hover {{ opacity: 0.9; transform: scale(1.1); }}
+        .anno-toggle, .ai-toggle {{ display: inline-block; padding: 4px 8px; margin-left: 4px; cursor: pointer; opacity: 0.3; font-size: 0.9rem; vertical-align: middle; transition: all 0.2s; user-select: none; -webkit-tap-highlight-color: transparent; }}
+        .anno-toggle:hover, .ai-toggle:hover {{ opacity: 0.9; transform: scale(1.1); }}
         .anno-toggle.has-anno {{ opacity: 1; }}
         .anno-toggle::after {{ content: "🔴"; }}
+        .ai-toggle {{ opacity: 0.6; padding: 4px 4px; }}
+        .ai-toggle::after {{ content: "🤖"; }}
+        .ai-toggle.loading::after {{ content: "⏳"; display: inline-block; animation: spin 1s linear infinite; }}
+        @keyframes spin {{ 100% {{ transform: rotate(360deg); }} }}
         
         .anno-box {{ display: none; margin-top: 10px; background: #f8f6ff; border-left: 4px solid #8e7cc3; padding: 12px 16px; border-radius: 0 6px 6px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.02); text-align: left; }}
         .anno-view {{ font-size: 1.05rem; line-height: 1.6; color: #4a4a4a; min-height: 24px; }}
@@ -169,17 +173,97 @@ def generate_page_wrapper(content_html, page_title, now_str):
     <script id="core-engine">
         let syncTimeout = null;
 
+        // 【AI 解析核心邏輯】
+        const AI_PROMPT = `請分析以下英文段落，並嚴格按照以下 Markdown 格式輸出（不要輸出任何額外的廢話）：\\n\\n📌 完整翻譯\\n\\n[此處填寫完整翻譯]\\n\\n📌 Key Expressions\\n\\n- **[單詞或短語]**\\n  = [中文釋義]\\n  （[可選的補充說明，如倒裝結構或語境等]）\\n\\n段落內容：\\n`;
+
+        async function fetchGroq(text, apiKey) {{
+            const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {{
+                method: 'POST',
+                headers: {{ 'Authorization': `Bearer ${{apiKey}}`, 'Content-Type': 'application/json' }},
+                body: JSON.stringify({{
+                    model: 'llama-3.3-70b-versatile',
+                    messages: [
+                        {{ role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' }},
+                        {{ role: 'user', content: AI_PROMPT + `"${{text}}"` }}
+                    ],
+                    temperature: 0.3
+                }})
+            }});
+            if (!res.ok) throw new Error(`Groq API Error: ${{res.status}}`);
+            const json = await res.json();
+            if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
+            throw new Error('Groq返回數據異常');
+        }}
+
+        async function fetchGLM(text, apiKey) {{
+            const res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {{
+                method: 'POST',
+                headers: {{ 'Authorization': `Bearer ${{apiKey}}`, 'Content-Type': 'application/json' }},
+                body: JSON.stringify({{
+                    model: 'GLM-4.5-Flash',
+                    messages: [
+                        {{ role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' }},
+                        {{ role: 'user', content: AI_PROMPT + `"${{text}}"` }}
+                    ],
+                    temperature: 0.3
+                }})
+            }});
+            if (!res.ok) throw new Error(`智譜GLM API Error: ${{res.status}}`);
+            const json = await res.json();
+            if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
+            throw new Error('智譜GLM返回數據異常');
+        }}
+
+        async function executeAIPipeline(text) {{
+            const pref = localStorage.getItem('PREFERRED_AI') || 'groq';
+            const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
+            const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+
+            if (!groqKey && !glmKey) throw new Error('MISSING_KEYS');
+
+            const runGroq = async () => {{
+                if (!groqKey) throw new Error("Groq API Key 未配置");
+                return await fetchGroq(text, groqKey);
+            }};
+            const runGLM = async () => {{
+                if (!glmKey) throw new Error("智譜GLM API Key 未配置");
+                return await fetchGLM(text, glmKey);
+            }};
+
+            if (pref === 'groq') {{
+                try {{
+                    return await runGroq();
+                }} catch (err) {{
+                    console.warn("首選 Groq 失敗，嘗試降級到智譜:", err);
+                    if (glmKey) {{
+                        document.getElementById('sync-status').innerText = '⚠️ Groq異常，正降級為智譜...';
+                        return await runGLM();
+                    }}
+                    throw err;
+                }}
+            }} else {{
+                try {{
+                    return await runGLM();
+                }} catch (err) {{
+                    console.warn("首選 智譜 失敗，嘗試降級到Groq:", err);
+                    if (groqKey) {{
+                        document.getElementById('sync-status').innerText = '⚠️ 智譜異常，正降級為Groq...';
+                        return await runGroq();
+                    }}
+                    throw err;
+                }}
+            }}
+        }}
+
         // 【終極隔離方案】純淨 DOM 快照：專治 GitHub 404 及脫機環境備用
         function getFallbackCleanHTML() {{
             const clone = document.documentElement.cloneNode(true);
             
-            // 強制重置按鈕狀態，根治被鎖死 "同步中" 的 Bug
             const statusMsg = clone.querySelector('#sync-status');
             if (statusMsg) {{ statusMsg.removeAttribute('style'); statusMsg.innerText = '📡 同步中...'; }}
             const tBtn = clone.querySelector('#translate-btn');
             if (tBtn) {{ tBtn.removeAttribute('style'); tBtn.removeAttribute('disabled'); tBtn.innerText = '🌐 一鍵翻譯'; }}
             
-            // 暴力剝離 Relingo 高亮標籤等外部插件污染
             const removeRelingo = (root) => {{
                 const tags = root.querySelectorAll('relin-highlight, relin-hc, [class*="relingo"]');
                 tags.forEach(t => {{
@@ -189,7 +273,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 }});
             }};
             removeRelingo(clone);
-            removeRelingo(clone); // 處理嵌套
+            removeRelingo(clone); 
             
             clone.querySelectorAll('script').forEach(s => {{
                 if (!s.src.includes('marked.min.js') && s.id !== 'core-engine') s.remove();
@@ -198,7 +282,9 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 if (s.id !== 'core-style') s.remove();
             }});
             
-            // 同步最新的 textarea 文本
+            // 清理 AI 狀態
+            clone.querySelectorAll('.ai-toggle').forEach(t => t.classList.remove('loading'));
+            
             const liveTAs = document.querySelectorAll('.anno-edit');
             clone.querySelectorAll('.anno-edit').forEach((ta, i) => {{ 
                 if(liveTAs[i]) ta.textContent = liveTAs[i].value;
@@ -243,7 +329,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 let finalHTML = '';
                 let sha = '';
                 
-                // 【核心策略】先拉取 Github 上的純淨版文件，只把自己的 Textarea/翻譯 塞進去，完全阻斷本地插件污染！
                 const getRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), {{
                     headers: {{ 'Authorization': 'Bearer ' + ghToken }}, cache: 'no-store'
                 }});
@@ -255,7 +340,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
                     const parser = new DOMParser();
                     const cleanDoc = parser.parseFromString(cleanHTML, 'text/html');
 
-                    // 1. 注入批注文本
                     const liveTAs = document.querySelectorAll('.anno-edit');
                     const cleanTAs = cleanDoc.querySelectorAll('.anno-edit');
                     liveTAs.forEach((liveTa, i) => {{
@@ -268,7 +352,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         }}
                     }});
 
-                    // 2. 注入翻譯模塊
                     const liveContents = document.querySelectorAll('.content');
                     const cleanContents = cleanDoc.querySelectorAll('.content');
                     liveContents.forEach((liveC, i) => {{
@@ -288,7 +371,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         }}
                     }});
                     
-                    // 3. 恢復紅點狀態
                     cleanDoc.querySelectorAll('.anno-toggle').forEach(t => {{
                         t.classList.remove('has-anno');
                         const ta = t.closest('.content-wrap').querySelector('.anno-edit');
@@ -297,7 +379,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
 
                     finalHTML = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + cleanDoc.documentElement.innerHTML + '\\n</html>';
                 }} else {{
-                    // 如果網絡失敗或 Github 本身還沒這個文件（比如剛創建），啟動備用降級防禦方案
                     finalHTML = getFallbackCleanHTML();
                 }}
 
@@ -346,6 +427,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 const view = wrap.querySelector('.anno-view');
                 const edit = wrap.querySelector('.anno-edit');
                 const toggle = wrap.querySelector('.anno-toggle');
+                const aiToggle = wrap.querySelector('.ai-toggle');
                 const box = wrap.querySelector('.anno-box');
 
                 if (!view || !edit || !toggle || !box) return;
@@ -354,6 +436,65 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 if (rawText) {{
                     toggle.classList.add('has-anno');
                     try {{ view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; }} catch(e){{}}
+                }}
+
+                // --- AI 機器人解析 ---
+                if (aiToggle) {{
+                    aiToggle.addEventListener('click', async (e) => {{
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (aiToggle.classList.contains('loading')) return;
+
+                        const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
+                        const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+
+                        if (!groqKey && !glmKey) {{
+                            alert('⚠️ 請先返回【日曆大廳】右上角的 ⚙️配置中心 設置 API Key！');
+                            return;
+                        }}
+
+                        const pClone = wrap.querySelector('.content').cloneNode(true);
+                        pClone.querySelectorAll('.anno-toggle, .ai-toggle, .translated-content').forEach(el => el.remove());
+                        let pText = pClone.textContent.trim();
+
+                        // 【核心過濾】：剔除推文內所有 http/https 網址鏈接，防止干擾 AI 解析
+                        pText = pText.replace(/https?:\\/\\/[^\\s]+/g, '').trim();
+
+                        if (!pText) return;
+
+                        aiToggle.classList.add('loading');
+                        const statusMsg = document.getElementById('sync-status');
+                        statusMsg.style.display = 'inline-block';
+                        statusMsg.style.backgroundColor = '#0969da';
+                        statusMsg.innerText = '🤖 AI 思考中...';
+
+                        try {{
+                            const aiContent = await executeAIPipeline(pText);
+
+                            box.style.display = 'block';
+                            view.style.display = 'none';
+                            edit.style.display = 'block';
+                            edit.value = aiContent;
+
+                            // 觸發失焦聯動渲染與雲端同步
+                            edit.focus();
+                            edit.blur();
+
+                            statusMsg.style.backgroundColor = '#2ea44f';
+                            statusMsg.innerText = '✅ AI 解析成功';
+                            setTimeout(() => {{ if (statusMsg.innerText.includes('AI')) statusMsg.style.display = 'none'; }}, 2000);
+                        }} catch (err) {{
+                            console.error(err);
+                            if (err.message === 'MISSING_KEYS') {{
+                                alert('⚠️ 請返回日曆大廳配置 AI 密鑰！');
+                            }} else {{
+                                alert('❌ AI 解析失敗: ' + err.message);
+                            }}
+                            statusMsg.style.display = 'none';
+                        }} finally {{
+                            aiToggle.classList.remove('loading');
+                        }}
+                    }});
                 }}
 
                 toggle.onclick = (e) => {{
@@ -432,9 +573,8 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
                 
-                // 【修復翻譯被高亮插件干擾】：在送去翻譯前，扒掉 Relingo 和按鈕代碼
                 const cloneText = content.cloneNode(true);
-                cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle').forEach(el => el.remove());
+                cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle, .ai-toggle').forEach(el => el.remove());
                 const text = cloneText.innerText;
                 
                 let textToTranslate = text.replace(/https?:\\/\\/[^\\s]+/g, '').trim();
@@ -550,7 +690,7 @@ def save_batch_tweets_local(username, tweet_ids, now_obj):
 
 
 def generate_index():
-    """日曆樞紐生成器 + 前端 JS"""
+    """日曆樞紐生成器 + 前端 JS (新增 AI 設置)"""
     archive_data = {}
     if os.path.exists(BASE_DIR):
         years = [d for d in os.listdir(BASE_DIR) if d.isdigit()]
@@ -607,15 +747,14 @@ def generate_index():
         .fetch-input:focus { border-color: var(--primary); background: #fff; }
         .settings-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 5px; }
         
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; padding: 20px; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; padding: 20px; backdrop-filter: blur(2px); }
         .modal-content { background: var(--card); border-radius: 16px; padding: 20px; width: 100%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-height: 85vh; overflow-y: auto; }
         .modal-title { margin: 0 0 15px 0; font-size: 18px; font-weight: bold; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 5px; font-weight: bold; }
-        .form-group input { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; transition: border 0.2s; }
-        .form-group input:focus { border-color: var(--primary); }
+        .form-group input, .form-group select { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; transition: border 0.2s; background: #fff; appearance: none; -webkit-appearance: none; }
+        .form-group input:focus, .form-group select:focus { border-color: var(--primary); }
         
-        /* 新增：批量多行文本框样式 */
         .batch-textarea { width: 100%; height: 200px; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; transition: border 0.2s; resize: vertical; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.5; }
         .batch-textarea:focus { border-color: var(--primary); }
         
@@ -662,11 +801,42 @@ def generate_index():
     <!-- 設置 Modal -->
     <div class="modal-overlay" id="settingsModal">
         <div class="modal-content">
-            <h3 class="modal-title">GitHub 雲端同步配置</h3>
-            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">只需填寫 GitHub Token，即可在網頁端直接同步推文與批注。</p>
-            <div class="form-group"><label>GitHub Personal Access Token</label><input type="password" id="cfgGhToken" placeholder="ghp_..."></div>
-            <div class="form-group"><label>GitHub 用戶名</label><input type="text" id="cfgGhOwner" value="moodHappy" placeholder="例如: moodHappy"></div>
-            <div class="form-group"><label>GitHub 倉庫名</label><input type="text" id="cfgGhRepo" placeholder="例如: x-vibe"></div>
+            <h3 class="modal-title">核心配置中心</h3>
+            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">所有密鑰均安全儲存在瀏覽器本地，無雲端洩露風險。</p>
+            
+            <div class="form-group">
+                <label>GitHub Personal Access Token</label>
+                <input type="password" id="cfgGhToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+            </div>
+            <div class="form-group" style="display:flex; gap:10px;">
+                <div style="flex:1;">
+                    <label>GitHub 用戶名</label>
+                    <input type="text" id="cfgGhOwner" placeholder="例如: moodHappy">
+                </div>
+                <div style="flex:1;">
+                    <label>GitHub 倉庫名</label>
+                    <input type="text" id="cfgGhRepo" placeholder="例如: x-vibe">
+                </div>
+            </div>
+
+            <div style="border-top: 1px dashed #e0e0e0; margin: 20px 0;"></div>
+
+            <div class="form-group">
+                <label>首選 AI 引擎 (失敗自動降級)</label>
+                <select id="cfgPrefAI">
+                    <option value="groq">Groq (Llama-3.3)</option>
+                    <option value="glm">智譜 (GLM-4.5-Flash)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Groq API Key</label>
+                <input type="password" id="cfgGroqKey" placeholder="gsk_xxxxxxxxxxxxxxxxxxxx">
+            </div>
+            <div class="form-group">
+                <label>智譜 GLM API Key</label>
+                <input type="password" id="cfgGlmKey" placeholder="填寫智譜 API Key">
+            </div>
+
             <div class="modal-actions">
                 <button class="btn btn-cancel" id="closeSettingsBtn">取消</button>
                 <button class="btn btn-save" id="saveSettingsBtn">保存配置</button>
@@ -674,7 +844,7 @@ def generate_index():
         </div>
     </div>
 
-    <!-- 自定義批量歸檔 Modal (已替換為單一多行文本框) -->
+    <!-- 自定義批量歸檔 Modal -->
     <div class="modal-overlay" id="batchModal">
         <div class="modal-content">
             <h3 class="modal-title">自定義組合歸檔 (最高 10 條)</h3>
@@ -824,6 +994,9 @@ def generate_index():
             document.getElementById('cfgGhToken').value = localStorage.getItem('GH_TOKEN') || '';
             document.getElementById('cfgGhOwner').value = localStorage.getItem('GH_OWNER') || 'moodHappy';
             document.getElementById('cfgGhRepo').value = localStorage.getItem('GH_REPO') || '';
+            document.getElementById('cfgPrefAI').value = localStorage.getItem('PREFERRED_AI') || 'groq';
+            document.getElementById('cfgGroqKey').value = localStorage.getItem('GROQ_API_KEY') || '';
+            document.getElementById('cfgGlmKey').value = localStorage.getItem('GLM_API_KEY') || '';
             document.getElementById('settingsModal').style.display = 'flex';
         });
         document.getElementById('closeSettingsBtn').addEventListener('click', () => { document.getElementById('settingsModal').style.display = 'none'; });
@@ -831,6 +1004,9 @@ def generate_index():
             localStorage.setItem('GH_TOKEN', document.getElementById('cfgGhToken').value.trim());
             localStorage.setItem('GH_OWNER', document.getElementById('cfgGhOwner').value.trim());
             localStorage.setItem('GH_REPO', document.getElementById('cfgGhRepo').value.trim());
+            localStorage.setItem('PREFERRED_AI', document.getElementById('cfgPrefAI').value);
+            localStorage.setItem('GROQ_API_KEY', document.getElementById('cfgGroqKey').value.trim());
+            localStorage.setItem('GLM_API_KEY', document.getElementById('cfgGlmKey').value.trim());
             document.getElementById('settingsModal').style.display = 'none';
             alert('配置已本地保存！');
         });
@@ -904,10 +1080,10 @@ def generate_index():
                 </div>
             </div>
             <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
-                <div class="content" style="margin-bottom:0;">${text}<span class="anno-toggle"></span></div>
+                <div class="content" style="margin-bottom:0;">${text}<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
                 <div class="anno-box" style="display:none;">
                     <div class="anno-view markdown-body"></div>
-                    <textarea class="anno-edit" style="display:none;"></textarea>
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此寫下筆記或使用 AI 解析..."></textarea>
                 </div>
             </div>
             ${media_html}
@@ -939,15 +1115,20 @@ def generate_index():
         
         .sync-status { padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; display: none; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
         
-        .anno-toggle { display: inline-block; padding: 4px 8px; margin-left: 4px; cursor: pointer; opacity: 0.3; font-size: 0.9rem; vertical-align: middle; transition: all 0.2s; user-select: none; -webkit-tap-highlight-color: transparent; }
-        .anno-toggle:hover { opacity: 0.9; transform: scale(1.1); }
+        .anno-toggle, .ai-toggle { display: inline-block; padding: 4px 8px; margin-left: 4px; cursor: pointer; opacity: 0.3; font-size: 0.9rem; vertical-align: middle; transition: all 0.2s; user-select: none; -webkit-tap-highlight-color: transparent; }
+        .anno-toggle:hover, .ai-toggle:hover { opacity: 0.9; transform: scale(1.1); }
         .anno-toggle.has-anno { opacity: 1; }
         .anno-toggle::after { content: "🔴"; }
+        .ai-toggle { opacity: 0.6; padding: 4px 4px; }
+        .ai-toggle::after { content: "🤖"; }
+        .ai-toggle.loading::after { content: "⏳"; display: inline-block; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
         
         .anno-box { display: none; margin-top: 10px; background: #f8f6ff; border-left: 4px solid #8e7cc3; padding: 12px 16px; border-radius: 0 6px 6px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.02); text-align: left; }
         .anno-view { font-size: 1.05rem; line-height: 1.6; color: #4a4a4a; min-height: 24px; }
         .anno-edit { width: 100%; min-height: 120px; padding: 10px; font-family: monospace; font-size: 1rem; border: 1px dashed #8e7cc3; border-radius: 6px; box-sizing: border-box; resize: vertical; display: none; background: #fff; color: #333; outline: none; }
         .anno-edit:focus { border: 1px solid #8e7cc3; box-shadow: 0 0 0 3px rgba(142,124,195,0.1); }
+        
         .markdown-body p { margin-top: 0; margin-bottom: 8px; }
         .markdown-body p:last-child { margin-bottom: 0; }
         .markdown-body p:empty { display: none; }
@@ -986,6 +1167,88 @@ def generate_index():
     <script id="core-engine">
         let syncTimeout = null;
 
+        // 【AI 解析核心邏輯】
+        const AI_PROMPT = \`請分析以下英文段落，並嚴格按照以下 Markdown 格式輸出（不要輸出任何額外的廢話）：\\n\\n📌 完整翻譯\\n\\n[此處填寫完整翻譯]\\n\\n📌 Key Expressions\\n\\n- **[單詞或短語]**\\n  = [中文釋義]\\n  （[可選的補充說明，如倒裝結構或語境等]）\\n\\n段落內容：\\n\`;
+
+        async function fetchGroq(text, apiKey) {
+            const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Authorization': \`Bearer ${apiKey}\`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: 'llama-3.3-70b-versatile',
+                    messages: [
+                        { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
+                        { role: 'user', content: AI_PROMPT + \`"${text}"\` }
+                    ],
+                    temperature: 0.3
+                })
+            });
+            if (!res.ok) throw new Error(\`Groq API Error: ${res.status}\`);
+            const json = await res.json();
+            if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
+            throw new Error('Groq返回數據異常');
+        }
+
+        async function fetchGLM(text, apiKey) {
+            const res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+                method: 'POST',
+                headers: { 'Authorization': \`Bearer ${apiKey}\`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: 'GLM-4.5-Flash',
+                    messages: [
+                        { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
+                        { role: 'user', content: AI_PROMPT + \`"${text}"\` }
+                    ],
+                    temperature: 0.3
+                })
+            });
+            if (!res.ok) throw new Error(\`智譜GLM API Error: ${res.status}\`);
+            const json = await res.json();
+            if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
+            throw new Error('智譜GLM返回數據異常');
+        }
+
+        async function executeAIPipeline(text) {
+            const pref = localStorage.getItem('PREFERRED_AI') || 'groq';
+            const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
+            const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+
+            if (!groqKey && !glmKey) throw new Error('MISSING_KEYS');
+
+            const runGroq = async () => {
+                if (!groqKey) throw new Error("Groq API Key 未配置");
+                return await fetchGroq(text, groqKey);
+            };
+            const runGLM = async () => {
+                if (!glmKey) throw new Error("智譜GLM API Key 未配置");
+                return await fetchGLM(text, glmKey);
+            };
+
+            if (pref === 'groq') {
+                try {
+                    return await runGroq();
+                } catch (err) {
+                    console.warn("首選 Groq 失敗，嘗試降級到智譜:", err);
+                    if (glmKey) {
+                        document.getElementById('sync-status').innerText = '⚠️ Groq異常，正降級為智譜...';
+                        return await runGLM();
+                    }
+                    throw err;
+                }
+            } else {
+                try {
+                    return await runGLM();
+                } catch (err) {
+                    console.warn("首選 智譜 失敗，嘗試降級到Groq:", err);
+                    if (groqKey) {
+                        document.getElementById('sync-status').innerText = '⚠️ 智譜異常，正降級為Groq...';
+                        return await runGroq();
+                    }
+                    throw err;
+                }
+            }
+        }
+
         // 【終極隔離方案】純淨 DOM 快照：專治 GitHub 404 及脫機環境備用
         function getFallbackCleanHTML() {
             const clone = document.documentElement.cloneNode(true);
@@ -1013,6 +1276,11 @@ def generate_index():
             });
             clone.querySelectorAll('style').forEach(s => {
                 if (s.id !== 'core-style') s.remove();
+            });
+
+            // 清理 AI loading 狀態
+            clone.querySelectorAll('.ai-toggle').forEach(t => {
+                t.classList.remove('loading');
             });
             
             // 同步最新的 textarea 文本
@@ -1060,7 +1328,7 @@ def generate_index():
                 let finalHTML = '';
                 let sha = '';
                 
-                // 【核心策略】先拉取 Github 上的純淨版文件，只把自己的 Textarea/翻譯 塞進去，完全阻断本地插件污染！
+                // 【核心策略】先拉取 Github 上的純淨版文件，只把自己的 Textarea/翻譯 塞進去，完全阻斷本地插件污染！
                 const getRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), {
                     headers: { 'Authorization': 'Bearer ' + ghToken }, cache: 'no-store'
                 });
@@ -1163,6 +1431,7 @@ def generate_index():
                 const view = wrap.querySelector('.anno-view');
                 const edit = wrap.querySelector('.anno-edit');
                 const toggle = wrap.querySelector('.anno-toggle');
+                const aiToggle = wrap.querySelector('.ai-toggle');
                 const box = wrap.querySelector('.anno-box');
 
                 if (!view || !edit || !toggle || !box) return;
@@ -1171,6 +1440,66 @@ def generate_index():
                 if (rawText) {
                     toggle.classList.add('has-anno');
                     try { view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; } catch(e){}
+                }
+                
+                // --- AI 按鈕邏輯 ---
+                if (aiToggle) {
+                    aiToggle.addEventListener('click', async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (aiToggle.classList.contains('loading')) return;
+
+                        const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
+                        const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+
+                        if (!groqKey && !glmKey) {
+                            alert('⚠️ 請先返回【日曆大廳】右上角的 ⚙️配置中心 設置 API Key！');
+                            return;
+                        }
+
+                        // 提取純文本，避開紅點和機器人圖標
+                        const pClone = wrap.querySelector('.content').cloneNode(true);
+                        pClone.querySelectorAll('.anno-toggle, .ai-toggle, .translated-content').forEach(el => el.remove());
+                        let pText = pClone.textContent.trim();
+                        
+                        // 【核心功能】：過濾掉文本中所有的 http/https 鏈接，忽略如圖片中劃掉的網址
+                        pText = pText.replace(/https?:\\\\/\\\\/[^\\\\s]+/g, '').trim();
+
+                        if (!pText) return;
+
+                        aiToggle.classList.add('loading');
+                        const statusMsg = document.getElementById('sync-status');
+                        statusMsg.style.display = 'inline-block';
+                        statusMsg.style.backgroundColor = '#0969da';
+                        statusMsg.innerText = '🤖 AI 思考中...';
+
+                        try {
+                            const aiContent = await executeAIPipeline(pText);
+                            
+                            box.style.display = 'block';
+                            view.style.display = 'none';
+                            edit.style.display = 'block';
+                            edit.value = aiContent;
+                            
+                            // 觸發失焦，聯動 Marked.js 渲染與 GitHub 自動保存
+                            edit.focus();
+                            edit.blur();
+                            
+                            statusMsg.style.backgroundColor = '#2ea44f';
+                            statusMsg.innerText = '✅ AI 解析成功';
+                            setTimeout(() => { if (statusMsg.innerText.includes('AI')) statusMsg.style.display = 'none'; }, 2000);
+                        } catch (err) {
+                            console.error(err);
+                            if (err.message === 'MISSING_KEYS') {
+                                alert('⚠️ 請返回日曆大廳配置 AI 密鑰！');
+                            } else {
+                                alert('❌ AI 解析失敗: ' + err.message);
+                            }
+                            statusMsg.style.display = 'none';
+                        } finally {
+                            aiToggle.classList.remove('loading');
+                        }
+                    });
                 }
 
                 toggle.onclick = (e) => {
@@ -1251,7 +1580,7 @@ def generate_index():
                 
                 // 【修復翻譯被高亮插件干擾】：在送去翻譯前，扒掉 Relingo 和按鈕代碼
                 const cloneText = content.cloneNode(true);
-                cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle').forEach(el => el.remove());
+                cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle, .ai-toggle').forEach(el => el.remove());
                 const text = cloneText.innerText;
                 
                 let textToTranslate = text.replace(/https?:\\\\/\\\\/[^\\\\s]+/g, '').trim();
@@ -1282,10 +1611,16 @@ def generate_index():
                         content.setAttribute('data-translated', 'true');
                         translatedCount++;
                     }
-                } catch (e) { console.error('翻譯失敗:', e); }
+                } catch (e) {
+                    console.error('翻譯失敗:', e);
+                }
             }
             
-            if (translatedCount === 0) { btn.innerText = '✅ 已全部翻譯'; return; }
+            if (translatedCount === 0) {
+                btn.innerText = '✅ 已全部翻譯';
+                return;
+            }
+
             btn.innerText = '⏳ 固化至雲端...';
             
             syncToCloud(true);
