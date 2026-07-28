@@ -173,8 +173,8 @@ def generate_page_wrapper(content_html, page_title, now_str):
     <script id="core-engine">
         let syncTimeout = null;
 
-        // 【AI 解析核心邏輯 - 使用常規字符串拼接避免變量域錯誤】
-        const AI_PROMPT = "請分析以下英文段落，並嚴格按照以下 Markdown 格式輸出（不要輸出任何額外的廢話）：\\n\\n📌 完整翻譯<br>\\n\\n[此處填寫完整翻譯]\\n\\n📌 Key Expressions\\n\\n- **[單詞或短語]**\\n  = [中文釋義]\\n  （[可選的補充說明，如倒裝結構或語境等]）\\n\\n段落內容：\\n";
+// 【AI 解析核心逻辑 - 使用常规字符串拼接避免变量域错误】
+const AI_PROMPT = "请分析以下英文段落，并严格按照以下 Markdown 格式输出（不要输出任何额外的废话）：\\n\\n📌 完整翻译\\n\\n[此处填写完整翻译]\\n\\n📌 Key Expressions\\n\\n- **[单词或短语]**\\n  = [中文释义]\\n  （[可选的补充说明，如倒装结构或语境等]）\\n\\n段落内容：\\n";
 
         async function fetchGroq(text, apiKey) {{
             const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {{
