@@ -200,7 +200,7 @@ const AI_PROMPT = `请分析以下英文段落。
                 method: 'POST',
                 headers: {{ 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' }},
                 body: JSON.stringify({{
-                    model: 'llama-3.3-70b-versatile',
+                    model: 'openai/gpt-oss-120b',
                     messages: [
                         {{ role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' }},
                         {{ role: 'user', content: AI_PROMPT + '"' + text + '"' }}
