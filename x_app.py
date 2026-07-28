@@ -5,15 +5,15 @@ import re
 import subprocess
 from datetime import datetime, timezone, timedelta
 
-# ================= 配置區 =================
+# ================= 配置区 =================
 BASE_DIR = "docs"
 tz_utc_8 = timezone(timedelta(hours=8))
-AUTO_PUSH_GITHUB = True  # 開啟 Python 端自動 Push 到 GitHub 的功能
+AUTO_PUSH_GITHUB = True  # 开启 Python 端自动 Push 到 GitHub 的功能
 # ==========================================
 
 def get_user_tweet_ids(username, limit=10):
-    """通過公開 Syndication API 或備用 RSS 獲取用戶最新原創推文 ID"""
-    print(f"⏳ 正在解析 @{username} 的時間線...")
+    """通过公开 Syndication API 或备用 RSS 获取用户最新原创推文 ID"""
+    print(f"⏳ 正在解析 @{username} 的时间线...")
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
     try:
@@ -33,9 +33,9 @@ def get_user_tweet_ids(username, limit=10):
             if tweet_ids:
                 return tweet_ids[:limit]
     except Exception as e:
-        print(f"⚠️ 解析主節點失敗: {e}")
+        print(f"⚠️ 解析主节点失败: {e}")
 
-    print("⏳ 嘗試使用備用 RSS 節點解析...")
+    print("⏳ 尝试使用备用 RSS 节点解析...")
     try:
         rss_url = f"https://rsshub.rssforever.com/twitter/user/{username}/exclude_rts_replies"
         res = requests.get(rss_url, headers=headers, timeout=10)
@@ -44,12 +44,12 @@ def get_user_tweet_ids(username, limit=10):
         tweet_ids = [x for x in ids if not (x in seen or seen.add(x))]
         return tweet_ids[:limit]
     except Exception as e:
-        print(f"❌ 備用節點解析失敗: {e}")
+        print(f"❌ 备用节点解析失败: {e}")
 
     return []
 
 def generate_tweet_card(tweet_data, tweet_id):
-    """生成單個推文卡片的 HTML 結構"""
+    """生成单个推文卡片的 HTML 结构"""
     author = tweet_data.get('user_name', 'Unknown')
     handle = tweet_data.get('user_screen_name', 'unknown')
     text = tweet_data.get('text', '')
@@ -89,19 +89,19 @@ def generate_tweet_card(tweet_data, tweet_id):
                 <div class="content" style="margin-bottom:0;">{text}<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
                 <div class="anno-box" style="display:none;">
                     <div class="anno-view markdown-body"></div>
-                    <textarea class="anno-edit" style="display:none;" placeholder="在此寫下筆記或使用 AI 解析..."></textarea>
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..."></textarea>
                 </div>
             </div>
             {media_html}
             <div class="stats">
-                <span>❤️ {likes:,} 喜歡</span>
-                <span>🔁 {retweets:,} 轉發</span>
+                <span>❤️ {likes:,} 喜欢</span>
+                <span>🔁 {retweets:,} 转发</span>
             </div>
-            <a href="{original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+            <a href="{original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及评论</a>
         </div>"""
 
 def generate_page_wrapper(content_html, page_title, now_str):
-    """生成完整 HTML 頁面外殼 (Python 本地後端生成版)"""
+    """生成完整 HTML 页面外壳 (Python 本地后端生成版)"""
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -162,45 +162,26 @@ def generate_page_wrapper(content_html, page_title, now_str):
         <a href="../../index.html">🔙 返回</a>
         <div style="display:flex; align-items:center; gap:10px;">
             <span class="sync-status" id="sync-status">📡 同步中...</span>
-            <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 一鍵翻譯</button>
+            <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 一键翻译</button>
         </div>
     </div>
     <div class="container">
-        <div class="time-stamp">歸檔時間: {now_str}</div>
+        <div class="time-stamp">归档时间: {now_str}</div>
         {content_html}
     </div>
     
     <script id="core-engine">
         let syncTimeout = null;
 
-// 【AI 解析核心逻辑 - 使用原生多行字符串，彻底解决转义换行丢失问题】
-const AI_PROMPT = `请分析以下英文段落。
+// 【AI 解析核心逻辑 - 使用常规字符串拼接避免变量域错误】
+const AI_PROMPT = "请分析以下英文段落，并严格按照以下 Markdown 格式输出（不要输出任何额外的废话）：\\n\\n📌 完整翻译\\n\\n[此处填写完整翻译]\\n\\n📌 Key Expressions\\n\\n- **[单词或短语]**\\n  = [中文释义]\\n  （[可选的补充说明，如倒装结构或语境等]）\\n\\n段落内容：\\n";
 
-【强制执行指令】：
-1. 必须全程使用**简体中文**输出。
-2. 严格按照下方的 Markdown 格式，标题与正文之间**必须保留空行**。
-3. 不要输出任何额外的问候语或废话。
-
-📌 完整翻译
-
-[此处填写完整的简体中文翻译]
-
-📌 Key Expressions
-
-- **[单词或短语]**
-  = [中文释义]
-  （[可选的补充说明，如倒装结构或语境等]）
-
-段落内容：
-`;
-
-
-        async function fetchGroq(text, apiKey) {{
+        async function fetchGroq(text, apiKey, modelName) {{
             const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {{
                 method: 'POST',
                 headers: {{ 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' }},
                 body: JSON.stringify({{
-                    model: 'openai/gpt-oss-120b',
+                    model: modelName,
                     messages: [
                         {{ role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' }},
                         {{ role: 'user', content: AI_PROMPT + '"' + text + '"' }}
@@ -211,15 +192,15 @@ const AI_PROMPT = `请分析以下英文段落。
             if (!res.ok) throw new Error('Groq API Error: ' + res.status);
             const json = await res.json();
             if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
-            throw new Error('Groq返回數據異常');
+            throw new Error('Groq返回数据异常');
         }}
 
-        async function fetchGLM(text, apiKey) {{
+        async function fetchGLM(text, apiKey, modelName) {{
             const res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {{
                 method: 'POST',
                 headers: {{ 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' }},
                 body: JSON.stringify({{
-                    model: 'GLM-4.5-Flash',
+                    model: modelName,
                     messages: [
                         {{ role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' }},
                         {{ role: 'user', content: AI_PROMPT + '"' + text + '"' }}
@@ -227,35 +208,39 @@ const AI_PROMPT = `请分析以下英文段落。
                     temperature: 0.3
                 }})
             }});
-            if (!res.ok) throw new Error('智譜GLM API Error: ' + res.status);
+            if (!res.ok) throw new Error('智谱GLM API Error: ' + res.status);
             const json = await res.json();
             if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
-            throw new Error('智譜GLM返回數據異常');
+            throw new Error('智谱GLM返回数据异常');
         }}
 
         async function executeAIPipeline(text) {{
             const pref = localStorage.getItem('PREFERRED_AI') || 'groq';
             const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
             const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+            const groqModel = localStorage.getItem('GROQ_MODEL') || '';
+            const glmModel = localStorage.getItem('GLM_MODEL') || '';
 
-            if (!groqKey && !glmKey) throw new Error('MISSING_KEYS');
+            if ((!groqKey && !glmKey) || (!groqModel && !glmModel)) throw new Error('MISSING_KEYS_OR_MODELS');
 
             const runGroq = async () => {{
                 if (!groqKey) throw new Error("Groq API Key 未配置");
-                return await fetchGroq(text, groqKey);
+                if (!groqModel) throw new Error("Groq 模型未配置");
+                return await fetchGroq(text, groqKey, groqModel);
             }};
             const runGLM = async () => {{
-                if (!glmKey) throw new Error("智譜GLM API Key 未配置");
-                return await fetchGLM(text, glmKey);
+                if (!glmKey) throw new Error("智谱GLM API Key 未配置");
+                if (!glmModel) throw new Error("智谱GLM 模型未配置");
+                return await fetchGLM(text, glmKey, glmModel);
             }};
 
             if (pref === 'groq') {{
                 try {{
                     return await runGroq();
                 }} catch (err) {{
-                    console.warn("首選 Groq 失敗，嘗試降級到智譜:", err);
-                    if (glmKey) {{
-                        document.getElementById('sync-status').innerText = '⚠️ Groq異常，正降級為智譜...';
+                    console.warn("首选 Groq 失败，尝试降级到智谱:", err);
+                    if (glmKey && glmModel) {{
+                        document.getElementById('sync-status').innerText = '⚠️ Groq异常，正降级为智谱...';
                         return await runGLM();
                     }}
                     throw err;
@@ -264,9 +249,9 @@ const AI_PROMPT = `请分析以下英文段落。
                 try {{
                     return await runGLM();
                 }} catch (err) {{
-                    console.warn("首選 智譜 失敗，嘗試降級到Groq:", err);
-                    if (groqKey) {{
-                        document.getElementById('sync-status').innerText = '⚠️ 智譜異常，正降級為Groq...';
+                    console.warn("首选 智谱 失败，尝试降级到Groq:", err);
+                    if (groqKey && groqModel) {{
+                        document.getElementById('sync-status').innerText = '⚠️ 智谱异常，正降级为Groq...';
                         return await runGroq();
                     }}
                     throw err;
@@ -279,7 +264,7 @@ const AI_PROMPT = `请分析以下英文段落。
             const statusMsg = clone.querySelector('#sync-status');
             if (statusMsg) {{ statusMsg.removeAttribute('style'); statusMsg.innerText = '📡 同步中...'; }}
             const tBtn = clone.querySelector('#translate-btn');
-            if (tBtn) {{ tBtn.removeAttribute('style'); tBtn.removeAttribute('disabled'); tBtn.innerText = '🌐 一鍵翻譯'; }}
+            if (tBtn) {{ tBtn.removeAttribute('style'); tBtn.removeAttribute('disabled'); tBtn.innerText = '🌐 一键翻译'; }}
             
             const removeRelingo = (root) => {{
                 const tags = root.querySelectorAll('relin-highlight, relin-hc, [class*="relingo"]');
@@ -323,7 +308,7 @@ const AI_PROMPT = `请分析以下英文段落。
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
             const ghRepo = localStorage.getItem('GH_REPO');
-            if(!ghToken) return isTranslation ? null : alert('缺少 GitHub Token，無法同步！');
+            if(!ghToken) return isTranslation ? null : alert('缺少 GitHub Token，无法同步！');
             
             const statusMsg = document.getElementById('sync-status');
             const transBtn = document.getElementById('translate-btn');
@@ -406,20 +391,20 @@ const AI_PROMPT = `请分析以下英文段落。
                 if(!putRes.ok) throw new Error('Put failed');
 
                 if (isTranslation) {{
-                    transBtn.innerText = '🌐 已翻譯並固化';
+                    transBtn.innerText = '🌐 已翻译并固化';
                     transBtn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
                 }} else {{
                     statusMsg.style.backgroundColor = '#2ea44f';
-                    statusMsg.innerText = '✅ 雲端已同步';
-                    setTimeout(() => {{ if (statusMsg.innerText === '✅ 雲端已同步') statusMsg.style.display = 'none'; }}, 3000);
+                    statusMsg.innerText = '✅ 云端已同步';
+                    setTimeout(() => {{ if (statusMsg.innerText === '✅ 云端已同步') statusMsg.style.display = 'none'; }}, 3000);
                 }}
             }} catch(e) {{
                 console.error(e);
                 if (isTranslation) {{
-                    transBtn.innerText = '⚠️ 僅本地翻譯';
+                    transBtn.innerText = '⚠️ 仅本地翻译';
                 }} else {{
                     statusMsg.style.backgroundColor = '#e74c3c';
-                    statusMsg.innerText = '❌ 同步失敗(點擊重試)';
+                    statusMsg.innerText = '❌ 同步失败(点击重试)';
                     statusMsg.style.cursor = 'pointer';
                     statusMsg.onclick = () => {{ statusMsg.onclick = null; statusMsg.style.cursor = 'default'; syncToCloud(false); }};
                 }}
@@ -430,7 +415,7 @@ const AI_PROMPT = `请分析以下英文段落。
             const statusMsg = document.getElementById('sync-status');
             statusMsg.style.display = 'inline-block';
             statusMsg.style.backgroundColor = '#f39c12';
-            statusMsg.innerText = '⏳ 自動同步中...';
+            statusMsg.innerText = '⏳ 自动同步中...';
             statusMsg.style.cursor = 'default';
             statusMsg.onclick = null;
             if (syncTimeout) clearTimeout(syncTimeout);
@@ -453,7 +438,7 @@ const AI_PROMPT = `请分析以下英文段落。
                     try {{ view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; }} catch(e){{}}
                 }}
 
-                // --- AI 按鈕邏輯 ---
+                // --- AI 按钮逻辑 ---
                 if (aiToggle) {{
                     aiToggle.addEventListener('click', async (e) => {{
                         e.preventDefault();
@@ -462,9 +447,11 @@ const AI_PROMPT = `请分析以下英文段落。
 
                         const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
                         const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+                        const groqModel = localStorage.getItem('GROQ_MODEL') || '';
+                        const glmModel = localStorage.getItem('GLM_MODEL') || '';
 
-                        if (!groqKey && !glmKey) {{
-                            alert('⚠️ 請先返回【日曆大廳】右上角的 ⚙️配置中心 設置 API Key！');
+                        if ((!groqKey && !glmKey) || (!groqModel && !glmModel)) {{
+                            alert('⚠️ 请先返回【日历大厅】右上角的 ⚙️配置中心 设置 API Key 和模型！');
                             return;
                         }}
 
@@ -472,7 +459,7 @@ const AI_PROMPT = `请分析以下英文段落。
                         pClone.querySelectorAll('.anno-toggle, .ai-toggle, .translated-content').forEach(el => el.remove());
                         let pText = pClone.textContent.trim();
                         
-                        // 【核心功能】：正則徹底剝離推文內的 http/https 鏈接
+                        // 【核心功能】：正则彻底剥离推文内的 http/https 链接
                         pText = pText.replace(/https?:\\/\\/\\S+/g, '').trim();
 
                         if (!pText) return;
@@ -499,10 +486,10 @@ const AI_PROMPT = `请分析以下英文段落。
                             setTimeout(() => {{ if (statusMsg.innerText.includes('AI')) statusMsg.style.display = 'none'; }}, 2000);
                         }} catch (err) {{
                             console.error(err);
-                            if (err.message === 'MISSING_KEYS') {{
-                                alert('⚠️ 請返回日曆大廳配置 AI 密鑰！');
+                            if (err.message === 'MISSING_KEYS_OR_MODELS') {{
+                                alert('⚠️ 请返回日历大厅配置 AI 密钥和模型！');
                             }} else {{
-                                alert('❌ AI 解析失敗: ' + err.message);
+                                alert('❌ AI 解析失败: ' + err.message);
                             }}
                             statusMsg.style.display = 'none';
                         }} finally {{
@@ -578,7 +565,7 @@ const AI_PROMPT = `请分析以下英文段落。
         async function translateAll() {{
             const btn = document.getElementById('translate-btn');
             if(btn.hasAttribute('disabled')) return;
-            btn.innerText = '⏳ 翻譯中...';
+            btn.innerText = '⏳ 翻译中...';
             btn.setAttribute('disabled', 'true');
 
             let translatedCount = 0;
@@ -591,7 +578,7 @@ const AI_PROMPT = `请分析以下英文段落。
                 cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle, .ai-toggle').forEach(el => el.remove());
                 let textToTranslate = cloneText.innerText;
                 
-                // 【核心功能】：正則徹底剝離翻譯模塊的 http/https 鏈接
+                // 【核心功能】：正则彻底剥离翻译模块的 http/https 链接
                 textToTranslate = textToTranslate.replace(/https?:\\/\\/\\S+/g, '').trim();
                 let checkText = textToTranslate.replace(/\\p{{Extended_Pictographic}}/gu, '').trim();
                 
@@ -621,16 +608,16 @@ const AI_PROMPT = `请分析以下英文段落。
                         translatedCount++;
                     }}
                 }} catch (e) {{
-                    console.error('翻譯失敗:', e);
+                    console.error('翻译失败:', e);
                 }}
             }}
             
             if (translatedCount === 0) {{
-                btn.innerText = '✅ 已全部翻譯';
+                btn.innerText = '✅ 已全部翻译';
                 return;
             }}
 
-            btn.innerText = '⏳ 固化至雲端...';
+            btn.innerText = '⏳ 固化至云端...';
             
             syncToCloud(true);
         }}
@@ -639,12 +626,12 @@ const AI_PROMPT = `请分析以下英文段落。
 </html>"""
 
 def save_single_tweet_local(tweet_id, now_obj):
-    """處理並保存單條推文"""
+    """处理并保存单条推文"""
     api_url = f"https://api.vxtwitter.com/Twitter/status/{tweet_id}"
     try:
         res = requests.get(api_url, timeout=15).json()
         if 'error' in res:
-            print(f"❌ 抓取失敗: {res.get('error')}")
+            print(f"❌ 抓取失败: {res.get('error')}")
             return False
 
         year_str, month_str = str(now_obj.year), str(now_obj.month)
@@ -661,14 +648,14 @@ def save_single_tweet_local(tweet_id, now_obj):
 
         with open(html_path, "w", encoding="utf-8") as f:
             f.write(page_html)
-        print(f"✅ 單條推文已歸檔: {html_path}")
+        print(f"✅ 单条推文已归档: {html_path}")
         return True
     except Exception as e:
-        print(f"❌ 網絡異常: {e}")
+        print(f"❌ 网络异常: {e}")
         return False
 
 def save_batch_tweets_local(username, tweet_ids, now_obj):
-    """處理並保存帳號推文瀑布流"""
+    """处理并保存账号推文瀑布流"""
     year_str, month_str = str(now_obj.year), str(now_obj.month)
     target_dir = os.path.join(BASE_DIR, year_str, month_str)
     os.makedirs(target_dir, exist_ok=True)
@@ -681,7 +668,7 @@ def save_batch_tweets_local(username, tweet_ids, now_obj):
     cards_html = ""
     success_count = 0
 
-    print(f"⏳ 正在生成 @{username} 的原創推文瀑布流卡片...")
+    print(f"⏳ 正在生成 @{username} 的原创推文瀑布流卡片...")
     for tid in tweet_ids:
         api_url = f"https://api.vxtwitter.com/Twitter/status/{tid}"
         try:
@@ -693,19 +680,19 @@ def save_batch_tweets_local(username, tweet_ids, now_obj):
             pass
 
     if success_count == 0:
-        print("❌ 無法獲取任何推文詳情，放棄生成。")
+        print("❌ 无法获取任何推文详情，放弃生成。")
         return False
 
     page_html = generate_page_wrapper(cards_html, f"Tweets by @{username}", now_str)
 
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(page_html)
-    print(f"✅ 瀑布流集錦已生成 (包含 {success_count} 條): {html_path}")
+    print(f"✅ 瀑布流集锦已生成 (包含 {success_count} 条): {html_path}")
     return True
 
 
 def generate_index():
-    """日曆樞紐生成器 + 前端 JS (新增 AI 設置)"""
+    """日历枢纽生成器 + 前端 JS (新增 AI 设置)"""
     archive_data = {}
     if os.path.exists(BASE_DIR):
         years = [d for d in os.listdir(BASE_DIR) if d.isdigit()]
@@ -725,12 +712,12 @@ def generate_index():
 
                             if "batch" in file:
                                 if "custom" in file:
-                                    title = f"🐦 {time_str} 自定義組合推文"
+                                    title = f"🐦 {time_str} 自定义组合推文"
                                 else:
                                     username = file.split('_batch_')[1].replace('_x.html', '')
                                     title = f"🐦 {time_str} 推文集：@{username}"
                             else:
-                                title = f"🐦 {time_str} 靈感推文"
+                                title = f"🐦 {time_str} 灵感推文"
 
                             if f_year not in archive_data: archive_data[f_year] = {}
                             if f_month not in archive_data[f_year]: archive_data[f_year][f_month] = {}
@@ -751,7 +738,7 @@ def generate_index():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>X 語料日曆樞紐</title>
+    <title>X 语料日历枢纽</title>
     <style>
         :root { --bg: #f5f5f7; --text: #333; --muted: #888; --primary: #1d9bf0; --border: #e0e0e0; --card: #fff; }
         body, html { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; -webkit-font-smoothing: antialiased; background: var(--bg); margin: 0; padding: 0; color: var(--text); }
@@ -809,15 +796,15 @@ def generate_index():
 <body>
     <div id="loadingBar"></div>
     <div class="manual-fetch-bar">
-        <input type="text" id="xUrlInput" class="fetch-input" placeholder="粘貼推文或帳號鏈接，回車歸檔..." autocomplete="off">
+        <input type="text" id="xUrlInput" class="fetch-input" placeholder="粘贴推文或账号链接，回车归档..." autocomplete="off">
         <button class="settings-btn" id="openSettingsBtn">⚙️</button>
     </div>
 
-    <!-- 設置 Modal -->
+    <!-- 设置 Modal -->
     <div class="modal-overlay" id="settingsModal">
         <div class="modal-content">
             <h3 class="modal-title">核心配置中心</h3>
-            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">所有密鑰均安全儲存在瀏覽器本地，無雲端洩露風險。</p>
+            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">所有密钥均安全储存在浏览器本地，无云端泄露风险。</p>
             
             <div class="form-group">
                 <label>GitHub Personal Access Token</label>
@@ -825,11 +812,11 @@ def generate_index():
             </div>
             <div class="form-group" style="display:flex; gap:10px;">
                 <div style="flex:1;">
-                    <label>GitHub 用戶名</label>
+                    <label>GitHub 用户名</label>
                     <input type="text" id="cfgGhOwner" placeholder="例如: moodHappy">
                 </div>
                 <div style="flex:1;">
-                    <label>GitHub 倉庫名</label>
+                    <label>GitHub 仓库名</label>
                     <input type="text" id="cfgGhRepo" placeholder="例如: x-vibe">
                 </div>
             </div>
@@ -837,19 +824,33 @@ def generate_index():
             <div style="border-top: 1px dashed #e0e0e0; margin: 20px 0;"></div>
 
             <div class="form-group">
-                <label>首選 AI 引擎 (失敗自動降級)</label>
+                <label>首选 AI 引擎 (失败自动降级)</label>
                 <select id="cfgPrefAI">
-                    <option value="groq">Groq (Llama-3.3)</option>
-                    <option value="glm">智譜 (GLM-4.5-Flash)</option>
+                    <option value="groq">Groq</option>
+                    <option value="glm">智谱</option>
                 </select>
             </div>
-            <div class="form-group">
-                <label>Groq API Key</label>
-                <input type="password" id="cfgGroqKey" placeholder="gsk_xxxxxxxxxxxxxxxxxxxx">
+            
+            <div class="form-group" style="display:flex; gap:10px;">
+                <div style="flex:1;">
+                    <label>Groq API Key</label>
+                    <input type="password" id="cfgGroqKey" placeholder="gsk_xxxxxxxxxxxxxxxxxxxx">
+                </div>
+                <div style="flex:1;">
+                    <label>Groq 模型名称</label>
+                    <input type="text" id="cfgGroqModel" placeholder="例如: llama-3.3-70b-versatile">
+                </div>
             </div>
-            <div class="form-group">
-                <label>智譜 GLM API Key</label>
-                <input type="password" id="cfgGlmKey" placeholder="填寫智譜 API Key">
+
+            <div class="form-group" style="display:flex; gap:10px;">
+                <div style="flex:1;">
+                    <label>智谱 GLM API Key</label>
+                    <input type="password" id="cfgGlmKey" placeholder="填写智谱 API Key">
+                </div>
+                <div style="flex:1;">
+                    <label>智谱 GLM 模型名称</label>
+                    <input type="text" id="cfgGlmModel" placeholder="例如: GLM-4.5-Flash">
+                </div>
             </div>
 
             <div class="modal-actions">
@@ -859,17 +860,17 @@ def generate_index():
         </div>
     </div>
 
-    <!-- 自定義批量歸檔 Modal -->
+    <!-- 自定义批量归档 Modal -->
     <div class="modal-overlay" id="batchModal">
         <div class="modal-content">
-            <h3 class="modal-title">自定義組合歸檔 (最高 10 條)</h3>
-            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">貼入多個推文鏈接（支援直接粘貼整段文字），將自動識別並提取最多 10 條同步為單個文件。</p>
+            <h3 class="modal-title">自定义组合归档 (最高 10 条)</h3>
+            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">贴入多个推文链接（支持直接粘贴整段文字），将自动识别并提取最多 10 条同步为单个文件。</p>
             <div class="form-group">
-                <textarea id="batchInputArea" class="batch-textarea" placeholder="在此粘貼多個推文鏈接...\n\n例如：\nhttps://x.com/i/status/2078970469194092723\nhttps://x.com/i/status/2079072889853321448"></textarea>
+                <textarea id="batchInputArea" class="batch-textarea" placeholder="在此粘贴多个推文链接...\n\n例如：\nhttps://x.com/i/status/2078970469194092723\nhttps://x.com/i/status/2079072889853321448"></textarea>
             </div>
             <div class="modal-actions">
                 <button class="btn btn-cancel" id="closeBatchBtn">取消</button>
-                <button class="btn btn-save" id="submitBatchBtn">抓取並合併同步</button>
+                <button class="btn btn-save" id="submitBatchBtn">抓取并合并同步</button>
             </div>
         </div>
     </div>
@@ -970,7 +971,7 @@ def generate_index():
                         
                         delBtn.onclick = async (e) => {
                             e.preventDefault();
-                            if(confirm('確認刪除此條目並同步刪除雲端文件嗎？')) {
+                            if(confirm('确认删除此条目并同步删除云端文件吗？')) {
                                 const pathToDelete = news.path;
                                 dayData.splice(index, 1);
                                 if (dayData.length === 0) delete archiveData[AppState.year][AppState.month][AppState.day];
@@ -981,7 +982,7 @@ def generate_index():
                         wrapper.appendChild(delBtn); newsList.appendChild(wrapper);
                     });
                 } else {
-                    newsList.innerHTML = '<div class="empty-state">當日暫無推文歸檔 🕊️</div>';
+                    newsList.innerHTML = '<div class="empty-state">当日暂无推文归档 🕊️</div>';
                 }
             } catch (err) { console.error(err); }
         }
@@ -1012,6 +1013,8 @@ def generate_index():
             document.getElementById('cfgPrefAI').value = localStorage.getItem('PREFERRED_AI') || 'groq';
             document.getElementById('cfgGroqKey').value = localStorage.getItem('GROQ_API_KEY') || '';
             document.getElementById('cfgGlmKey').value = localStorage.getItem('GLM_API_KEY') || '';
+            document.getElementById('cfgGroqModel').value = localStorage.getItem('GROQ_MODEL') || '';
+            document.getElementById('cfgGlmModel').value = localStorage.getItem('GLM_MODEL') || '';
             document.getElementById('settingsModal').style.display = 'flex';
         });
         document.getElementById('closeSettingsBtn').addEventListener('click', () => { document.getElementById('settingsModal').style.display = 'none'; });
@@ -1022,6 +1025,8 @@ def generate_index():
             localStorage.setItem('PREFERRED_AI', document.getElementById('cfgPrefAI').value);
             localStorage.setItem('GROQ_API_KEY', document.getElementById('cfgGroqKey').value.trim());
             localStorage.setItem('GLM_API_KEY', document.getElementById('cfgGlmKey').value.trim());
+            localStorage.setItem('GROQ_MODEL', document.getElementById('cfgGroqModel').value.trim());
+            localStorage.setItem('GLM_MODEL', document.getElementById('cfgGlmModel').value.trim());
             document.getElementById('settingsModal').style.display = 'none';
             alert('配置已本地保存！');
         });
@@ -1032,7 +1037,7 @@ def generate_index():
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
             const ghRepo = localStorage.getItem('GH_REPO');
-            if (!ghToken || !ghOwner || !ghRepo) return alert('本地已刪除，但未配置 GitHub Token，遠端不會變更。');
+            if (!ghToken || !ghOwner || !ghRepo) return alert('本地已删除，但未配置 GitHub Token，远端不会变更。');
             try {
                 const loadingBar = document.getElementById('loadingBar'); loadingBar.style.width = '20%';
                 const targetFilePath = `docs/${fileRelPath}`;
@@ -1053,10 +1058,10 @@ def generate_index():
                 loadingBar.style.width = '90%';
                 await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { method: 'PUT', headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ message: `Update index.html after deletion`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha }) });
                 loadingBar.style.width = '100%'; setTimeout(() => { loadingBar.style.width = '0%'; }, 1000);
-            } catch(e) { console.error(e); alert('刪除同步失敗: ' + e.message); document.getElementById('loadingBar').style.width = '0%'; }
+            } catch(e) { console.error(e); alert('删除同步失败: ' + e.message); document.getElementById('loadingBar').style.width = '0%'; }
         }
 
-        // --- HTML 模板組裝 (JS 動態生成版) ---
+        // --- HTML 模板组装 (JS 动态生成版) ---
         function generateTweetCard(tweet, tweetId) {
             const author = tweet.user_name || 'Unknown';
             const handle = tweet.user_screen_name || 'unknown';
@@ -1098,15 +1103,15 @@ def generate_index():
                 <div class="content" style="margin-bottom:0;">${text}<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
                 <div class="anno-box" style="display:none;">
                     <div class="anno-view markdown-body"></div>
-                    <textarea class="anno-edit" style="display:none;" placeholder="在此寫下筆記或使用 AI 解析..."></textarea>
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..."></textarea>
                 </div>
             </div>
             ${media_html}
             <div class="stats">
-                <span>❤️ ${likes} 喜歡</span>
-                <span>🔁 ${retweets} 轉發</span>
+                <span>❤️ ${likes} 喜欢</span>
+                <span>🔁 ${retweets} 转发</span>
             </div>
-            <a href="${original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及評論</a>
+            <a href="${original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及评论</a>
         </div>`;
         }
 
@@ -1170,26 +1175,26 @@ def generate_index():
         <a href="../../index.html">🔙 返回</a>
         <div style="display:flex; align-items:center; gap:10px;">
             <span class="sync-status" id="sync-status">📡 同步中...</span>
-            <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 一鍵翻譯</button>
+            <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 一键翻译</button>
         </div>
     </div>
     <div class="container">
-        <div class="time-stamp">歸檔時間: ${now_str}</div>
+        <div class="time-stamp">归档时间: ${now_str}</div>
         ${contentHtml}
     </div>
     
     <script id="core-engine">
         let syncTimeout = null;
 
-        // 【AI 解析核心邏輯 - 使用常規字符串拼接避免變量域錯誤】
-        const AI_PROMPT = "請分析以下英文段落，並嚴格按照以下 Markdown 格式輸出（不要輸出任何額外的廢話）：\\\\n\\\\n📌 完整翻譯\\\\n\\\\n[此處填寫完整翻譯]\\\\n\\\\n📌 Key Expressions\\\\n\\\\n- **[單詞或短語]**\\\\n  = [中文釋義]\\\\n  （[可選的補充說明，如倒裝結構或語境等]）\\\\n\\\\n段落內容：\\\\n";
+        // 【AI 解析核心逻辑 - 使用常规字符串拼接避免变量域错误】
+        const AI_PROMPT = "请分析以下英文段落，并严格按照以下 Markdown 格式输出（不要输出任何额外的废话）：\\\\n\\\\n📌 完整翻译\\\\n\\\\n[此处填写完整翻译]\\\\n\\\\n📌 Key Expressions\\\\n\\\\n- **[单词或短语]**\\\\n  = [中文释义]\\\\n  （[可选的补充说明，如倒装结构或语境等]）\\\\n\\\\n段落内容：\\\\n";
 
-        async function fetchGroq(text, apiKey) {
+        async function fetchGroq(text, apiKey, modelName) {
             const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
                 method: 'POST',
                 headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    model: 'llama-3.3-70b-versatile',
+                    model: modelName,
                     messages: [
                         { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
                         { role: 'user', content: AI_PROMPT + '"' + text + '"' }
@@ -1200,15 +1205,15 @@ def generate_index():
             if (!res.ok) throw new Error('Groq API Error: ' + res.status);
             const json = await res.json();
             if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
-            throw new Error('Groq返回數據異常');
+            throw new Error('Groq返回数据异常');
         }
 
-        async function fetchGLM(text, apiKey) {
+        async function fetchGLM(text, apiKey, modelName) {
             const res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
                 method: 'POST',
                 headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    model: 'GLM-4.5-Flash',
+                    model: modelName,
                     messages: [
                         { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
                         { role: 'user', content: AI_PROMPT + '"' + text + '"' }
@@ -1216,35 +1221,39 @@ def generate_index():
                     temperature: 0.3
                 })
             });
-            if (!res.ok) throw new Error('智譜GLM API Error: ' + res.status);
+            if (!res.ok) throw new Error('智谱GLM API Error: ' + res.status);
             const json = await res.json();
             if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
-            throw new Error('智譜GLM返回數據異常');
+            throw new Error('智谱GLM返回数据异常');
         }
 
         async function executeAIPipeline(text) {
             const pref = localStorage.getItem('PREFERRED_AI') || 'groq';
             const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
             const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+            const groqModel = localStorage.getItem('GROQ_MODEL') || '';
+            const glmModel = localStorage.getItem('GLM_MODEL') || '';
 
-            if (!groqKey && !glmKey) throw new Error('MISSING_KEYS');
+            if ((!groqKey && !glmKey) || (!groqModel && !glmModel)) throw new Error('MISSING_KEYS_OR_MODELS');
 
             const runGroq = async () => {
                 if (!groqKey) throw new Error("Groq API Key 未配置");
-                return await fetchGroq(text, groqKey);
+                if (!groqModel) throw new Error("Groq 模型未配置");
+                return await fetchGroq(text, groqKey, groqModel);
             };
             const runGLM = async () => {
-                if (!glmKey) throw new Error("智譜GLM API Key 未配置");
-                return await fetchGLM(text, glmKey);
+                if (!glmKey) throw new Error("智谱GLM API Key 未配置");
+                if (!glmModel) throw new Error("智谱GLM 模型未配置");
+                return await fetchGLM(text, glmKey, glmModel);
             };
 
             if (pref === 'groq') {
                 try {
                     return await runGroq();
                 } catch (err) {
-                    console.warn("首選 Groq 失敗，嘗試降級到智譜:", err);
-                    if (glmKey) {
-                        document.getElementById('sync-status').innerText = '⚠️ Groq異常，正降級為智譜...';
+                    console.warn("首选 Groq 失败，尝试降级到智谱:", err);
+                    if (glmKey && glmModel) {
+                        document.getElementById('sync-status').innerText = '⚠️ Groq异常，正降级为智谱...';
                         return await runGLM();
                     }
                     throw err;
@@ -1253,9 +1262,9 @@ def generate_index():
                 try {
                     return await runGLM();
                 } catch (err) {
-                    console.warn("首選 智譜 失敗，嘗試降級到Groq:", err);
-                    if (groqKey) {
-                        document.getElementById('sync-status').innerText = '⚠️ 智譜異常，正降級為Groq...';
+                    console.warn("首选 智谱 失败，尝试降级到Groq:", err);
+                    if (groqKey && groqModel) {
+                        document.getElementById('sync-status').innerText = '⚠️ 智谱异常，正降级为Groq...';
                         return await runGroq();
                     }
                     throw err;
@@ -1263,17 +1272,17 @@ def generate_index():
             }
         }
 
-        // 【終極隔離方案】純淨 DOM 快照：專治 GitHub 404 及脫機環境備用
+        // 【终极隔离方案】纯净 DOM 快照：专治 GitHub 404 及脱机环境备用
         function getFallbackCleanHTML() {
             const clone = document.documentElement.cloneNode(true);
             
-            // 強制重置按鈕狀態，根治被鎖死 "同步中" 的 Bug
+            // 强制重置按钮状态，根治被锁死 "同步中" 的 Bug
             const statusMsg = clone.querySelector('#sync-status');
             if (statusMsg) { statusMsg.removeAttribute('style'); statusMsg.innerText = '📡 同步中...'; }
             const tBtn = clone.querySelector('#translate-btn');
-            if (tBtn) { tBtn.removeAttribute('style'); tBtn.removeAttribute('disabled'); tBtn.innerText = '🌐 一鍵翻譯'; }
+            if (tBtn) { tBtn.removeAttribute('style'); tBtn.removeAttribute('disabled'); tBtn.innerText = '🌐 一键翻译'; }
             
-            // 暴力剝離 Relingo 高亮標籤等外部插件污染
+            // 暴力剥离 Relingo 高亮标签等外部插件污染
             const removeRelingo = (root) => {
                 const tags = root.querySelectorAll('relin-highlight, relin-hc, [class*="relingo"]');
                 tags.forEach(t => {
@@ -1283,7 +1292,7 @@ def generate_index():
                 });
             };
             removeRelingo(clone);
-            removeRelingo(clone); // 處理嵌套
+            removeRelingo(clone); // 处理嵌套
             
             clone.querySelectorAll('script').forEach(s => {
                 if (!s.src.includes('marked.min.js') && s.id !== 'core-engine') s.remove();
@@ -1292,7 +1301,7 @@ def generate_index():
                 if (s.id !== 'core-style') s.remove();
             });
 
-            // 清理 AI loading 狀態
+            // 清理 AI loading 状态
             clone.querySelectorAll('.ai-toggle').forEach(t => {
                 t.classList.remove('loading');
             });
@@ -1316,12 +1325,12 @@ def generate_index():
             return '<!DOCTYPE html>\\\\n<html lang="zh-CN">\\\\n' + clone.innerHTML + '\\\\n</html>';
         }
 
-        // 【完全隔離插件】雲端同步引擎核心
+        // 【完全隔离插件】云端同步引擎核心
         async function syncToCloud(isTranslation = false) {
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
             const ghRepo = localStorage.getItem('GH_REPO');
-            if(!ghToken) return isTranslation ? null : alert('缺少 GitHub Token，無法同步！');
+            if(!ghToken) return isTranslation ? null : alert('缺少 GitHub Token，无法同步！');
             
             const statusMsg = document.getElementById('sync-status');
             const transBtn = document.getElementById('translate-btn');
@@ -1342,7 +1351,7 @@ def generate_index():
                 let finalHTML = '';
                 let sha = '';
                 
-                // 【核心策略】先拉取 Github 上的純淨版文件，只把自己的 Textarea/翻譯 塞進去，完全阻斷本地插件污染！
+                // 【核心策略】先拉取 Github 上的纯净版文件，只把自己的 Textarea/翻译 塞进去，完全阻断本地插件污染！
                 const getRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), {
                     headers: { 'Authorization': 'Bearer ' + ghToken }, cache: 'no-store'
                 });
@@ -1367,7 +1376,7 @@ def generate_index():
                         }
                     });
 
-                    // 2. 注入翻譯模塊
+                    // 2. 注入翻译模块
                     const liveContents = document.querySelectorAll('.content');
                     const cleanContents = cleanDoc.querySelectorAll('.content');
                     liveContents.forEach((liveC, i) => {
@@ -1387,7 +1396,7 @@ def generate_index():
                         }
                     });
                     
-                    // 3. 恢復紅點狀態
+                    // 3. 恢复红点状态
                     cleanDoc.querySelectorAll('.anno-toggle').forEach(t => {
                         t.classList.remove('has-anno');
                         const ta = t.closest('.content-wrap').querySelector('.anno-edit');
@@ -1396,7 +1405,7 @@ def generate_index():
 
                     finalHTML = '<!DOCTYPE html>\\\\n<html lang="zh-CN">\\\\n' + cleanDoc.documentElement.innerHTML + '\\\\n</html>';
                 } else {
-                    // 如果網絡失敗或 Github 本身還沒這個文件（比如剛創建），啟動備用降級防禦方案
+                    // 如果网络失败或 Github 本身还没这个文件（比如刚创建），启动备用降级防御方案
                     finalHTML = getFallbackCleanHTML();
                 }
 
@@ -1409,20 +1418,20 @@ def generate_index():
                 if(!putRes.ok) throw new Error('Put failed');
 
                 if (isTranslation) {
-                    transBtn.innerText = '🌐 已翻譯並固化';
+                    transBtn.innerText = '🌐 已翻译并固化';
                     transBtn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
                 } else {
                     statusMsg.style.backgroundColor = '#2ea44f';
-                    statusMsg.innerText = '✅ 雲端已同步';
-                    setTimeout(() => { if (statusMsg.innerText === '✅ 雲端已同步') statusMsg.style.display = 'none'; }, 3000);
+                    statusMsg.innerText = '✅ 云端已同步';
+                    setTimeout(() => { if (statusMsg.innerText === '✅ 云端已同步') statusMsg.style.display = 'none'; }, 3000);
                 }
             } catch(e) {
                 console.error(e);
                 if (isTranslation) {
-                    transBtn.innerText = '⚠️ 僅本地翻譯';
+                    transBtn.innerText = '⚠️ 仅本地翻译';
                 } else {
                     statusMsg.style.backgroundColor = '#e74c3c';
-                    statusMsg.innerText = '❌ 同步失敗(點擊重試)';
+                    statusMsg.innerText = '❌ 同步失败(点击重试)';
                     statusMsg.style.cursor = 'pointer';
                     statusMsg.onclick = () => { statusMsg.onclick = null; statusMsg.style.cursor = 'default'; syncToCloud(false); };
                 }
@@ -1433,7 +1442,7 @@ def generate_index():
             const statusMsg = document.getElementById('sync-status');
             statusMsg.style.display = 'inline-block';
             statusMsg.style.backgroundColor = '#f39c12';
-            statusMsg.innerText = '⏳ 自動同步中...';
+            statusMsg.innerText = '⏳ 自动同步中...';
             statusMsg.style.cursor = 'default';
             statusMsg.onclick = null;
             if (syncTimeout) clearTimeout(syncTimeout);
@@ -1456,7 +1465,7 @@ def generate_index():
                     try { view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; } catch(e){}
                 }
                 
-                // --- AI 按鈕邏輯 ---
+                // --- AI 按钮逻辑 ---
                 if (aiToggle) {
                     aiToggle.addEventListener('click', async (e) => {
                         e.preventDefault();
@@ -1465,18 +1474,20 @@ def generate_index():
 
                         const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
                         const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+                        const groqModel = localStorage.getItem('GROQ_MODEL') || '';
+                        const glmModel = localStorage.getItem('GLM_MODEL') || '';
 
-                        if (!groqKey && !glmKey) {
-                            alert('⚠️ 請先返回【日曆大廳】右上角的 ⚙️配置中心 設置 API Key！');
+                        if ((!groqKey && !glmKey) || (!groqModel && !glmModel)) {
+                            alert('⚠️ 请先返回【日历大厅】右上角的 ⚙️配置中心 设置 API Key 和模型！');
                             return;
                         }
 
-                        // 提取純文本，避開紅點和機器人圖標
+                        // 提取纯文本，避开红点和机器人图标
                         const pClone = wrap.querySelector('.content').cloneNode(true);
                         pClone.querySelectorAll('.anno-toggle, .ai-toggle, .translated-content').forEach(el => el.remove());
                         let pText = pClone.textContent.trim();
                         
-                        // 【核心過濾】：正則徹底剝離推文內的 http/https 鏈接，防止干擾 AI 或翻譯
+                        // 【核心过滤】：正则彻底剥离推文内的 http/https 链接，防止干扰 AI 或翻译
                         pText = pText.replace(/https?:\\\\/\\\\/\\\\S+/g, '').trim();
 
                         if (!pText) return;
@@ -1495,7 +1506,7 @@ def generate_index():
                             edit.style.display = 'block';
                             edit.value = aiContent;
                             
-                            // 觸發失焦，聯動 Marked.js 渲染與 GitHub 自動保存
+                            // 触发失焦，联动 Marked.js 渲染与 GitHub 自动保存
                             edit.focus();
                             edit.blur();
                             
@@ -1504,10 +1515,10 @@ def generate_index():
                             setTimeout(() => { if (statusMsg.innerText.includes('AI')) statusMsg.style.display = 'none'; }, 2000);
                         } catch (err) {
                             console.error(err);
-                            if (err.message === 'MISSING_KEYS') {
-                                alert('⚠️ 請返回日曆大廳配置 AI 密鑰！');
+                            if (err.message === 'MISSING_KEYS_OR_MODELS') {
+                                alert('⚠️ 请返回日历大厅配置 AI 密钥和模型！');
                             } else {
-                                alert('❌ AI 解析失敗: ' + err.message);
+                                alert('❌ AI 解析失败: ' + err.message);
                             }
                             statusMsg.style.display = 'none';
                         } finally {
@@ -1583,7 +1594,7 @@ def generate_index():
         async function translateAll() {
             const btn = document.getElementById('translate-btn');
             if(btn.hasAttribute('disabled')) return;
-            btn.innerText = '⏳ 翻譯中...';
+            btn.innerText = '⏳ 翻译中...';
             btn.setAttribute('disabled', 'true');
 
             let translatedCount = 0;
@@ -1592,12 +1603,12 @@ def generate_index():
                 const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
                 
-                // 【修復翻譯被高亮插件干擾】：在送去翻譯前，扒掉 Relingo 和按鈕代碼
+                // 【修复翻译被高亮插件干扰】：在送去翻译前，扒掉 Relingo 和按钮代码
                 const cloneText = content.cloneNode(true);
                 cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle, .ai-toggle').forEach(el => el.remove());
                 let textToTranslate = cloneText.innerText;
                 
-                // 【核心過濾】：正則徹底剝離翻譯模塊的 http/https 鏈接
+                // 【核心过滤】：正则彻底剥离翻译模块的 http/https 链接
                 textToTranslate = textToTranslate.replace(/https?:\\\\/\\\\/\\\\S+/g, '').trim();
                 let checkText = textToTranslate.replace(/\\\\p{Extended_Pictographic}/gu, '').trim();
                 
@@ -1627,16 +1638,16 @@ def generate_index():
                         translatedCount++;
                     }
                 } catch (e) {
-                    console.error('翻譯失敗:', e);
+                    console.error('翻译失败:', e);
                 }
             }
             
             if (translatedCount === 0) {
-                btn.innerText = '✅ 已全部翻譯';
+                btn.innerText = '✅ 已全部翻译';
                 return;
             }
 
-            btn.innerText = '⏳ 固化至雲端...';
+            btn.innerText = '⏳ 固化至云端...';
             
             syncToCloud(true);
         }
@@ -1646,12 +1657,12 @@ def generate_index():
         }
         // ------------------------------------
 
-        // === 核心：處理前端自定義批量模板同步 ===
+        // === 核心：处理前端自定义批量模板同步 ===
         document.getElementById('submitBatchBtn').addEventListener('click', async () => {
             const inputText = document.getElementById('batchInputArea').value;
             let tweetIdsToProcess = [];
             
-            // 使用正則匹配多行文本中所有的 status 數字
+            // 使用正则匹配多行文本中所有的 status 数字
             const matches = [...inputText.matchAll(/status\\/(\\d+)/g)];
             matches.forEach(match => {
                 if (!tweetIdsToProcess.includes(match[1])) {
@@ -1659,11 +1670,11 @@ def generate_index():
                 }
             });
             
-            // 強制截斷，最高只抓前 10 條
+            // 强制截断，最高只抓前 10 条
             tweetIdsToProcess = tweetIdsToProcess.slice(0, 10);
 
             if (tweetIdsToProcess.length === 0) {
-                alert('請至少粘貼一條有效的推文鏈接！');
+                alert('请至少粘贴一条有效的推文链接！');
                 return;
             }
 
@@ -1671,7 +1682,7 @@ def generate_index():
             const ghOwner = localStorage.getItem('GH_OWNER');
             const ghRepo = localStorage.getItem('GH_REPO');
             if (!ghToken || !ghOwner || !ghRepo) {
-                alert('請先點擊齒輪⚙️配置 GitHub 信息！');
+                alert('请先点击齿轮⚙️配置 GitHub 信息！');
                 document.getElementById('batchModal').style.display = 'none';
                 document.getElementById('settingsModal').style.display = 'flex';
                 return;
@@ -1703,12 +1714,12 @@ def generate_index():
                     validCount++;
                 }
 
-                if (validCount === 0) throw new Error("所有推文數據抓取失敗，請檢查鏈接是否正確。");
+                if (validCount === 0) throw new Error("所有推文数据抓取失败，请检查链接是否正确。");
 
                 const finalHtmlOutput = generatePageWrapper(combinedCardsHtml, `Custom Batch Tweets`, hhmmStr);
                 const filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_batch_custom_x.html`;
                 const fileRelPath = `${yearStr}/${monthStr}/${filename}`;
-                const indexTitle = `🐦 ${hhmmStr} 自定義組合推文 (${validCount}條)`;
+                const indexTitle = `🐦 ${hhmmStr} 自定义组合推文 (${validCount}条)`;
 
                 loadingBar.style.width = '80%';
                 const putHtmlRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/${fileRelPath}`, {
@@ -1717,7 +1728,7 @@ def generate_index():
                     body: JSON.stringify({ message: `Add custom batch tweet HTML`, content: btoa(unescape(encodeURIComponent(finalHtmlOutput))) })
                 });
                 
-                if (!putHtmlRes.ok) throw new Error("HTML 文件上傳 GitHub 失敗");
+                if (!putHtmlRes.ok) throw new Error("HTML 文件上传 GitHub 失败");
 
                 loadingBar.style.width = '90%';
                 const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `Bearer ${ghToken}` } });
@@ -1743,7 +1754,7 @@ def generate_index():
                     body: JSON.stringify({ message: `Update index.html with custom batch entry`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
                 });
                 
-                if (!putIdxRes.ok) throw new Error("更新 index.html 失敗！");
+                if (!putIdxRes.ok) throw new Error("更新 index.html 失败！");
 
                 if (!archiveData[yearStr]) archiveData[yearStr] = {};
                 if (!archiveData[yearStr][monthStr]) archiveData[yearStr][monthStr] = {};
@@ -1752,16 +1763,16 @@ def generate_index():
 
                 forceRender(); 
                 loadingBar.style.width = '100%';
-                alert(`🎉 成功！已為您組合併歸檔 ${validCount} 條推文。`);
+                alert(`🎉 成功！已为您组合并归档 ${validCount} 条推文。`);
                 setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
 
             } catch (err) {
-                alert('❌ 操作失敗: ' + err.message);
+                alert('❌ 操作失败: ' + err.message);
                 loadingBar.style.width = '0%';
             }
         });
 
-        // X 推文前端抓取邏輯
+        // X 推文前端抓取逻辑
         document.getElementById('xUrlInput').addEventListener('keypress', async function (e) {
             if (e.key === 'Enter') {
                 const url = this.value.trim();
@@ -1785,14 +1796,14 @@ def generate_index():
                     isBatch = true;
                     username = userMatch[1];
                 } else {
-                    return alert('❌ 無法識別的 X (Twitter) 鏈接或格式不正確');
+                    return alert('❌ 无法识别的 X (Twitter) 链接或格式不正确');
                 }
 
                 const ghToken = localStorage.getItem('GH_TOKEN');
                 const ghOwner = localStorage.getItem('GH_OWNER');
                 const ghRepo = localStorage.getItem('GH_REPO');
                 if (!ghToken || !ghOwner || !ghRepo) {
-                    alert('請先點擊齒輪⚙️配置 GitHub 信息！');
+                    alert('请先点击齿轮⚙️配置 GitHub 信息！');
                     document.getElementById('settingsModal').style.display = 'flex';
                     return;
                 }
@@ -1852,7 +1863,7 @@ def generate_index():
 
                         tweetIdsToProcess = tweetIdsToProcess.slice(0, 10);
                         if (tweetIdsToProcess.length === 0) {
-                            throw new Error("前端代理節點全數遭瀏覽器攔截，請關閉廣告攔截器/防追蹤護盾，或更換網路後重試。");
+                            throw new Error("前端代理节点全数遭浏览器拦截，请关闭广告拦截器/防追踪护盾，或更换网络后重试。");
                         }
                     }
 
@@ -1883,7 +1894,7 @@ def generate_index():
                             validCount++;
                         }
                         
-                        if (validCount === 0) throw new Error("所有推文數據抓取 down 失敗");
+                        if (validCount === 0) throw new Error("所有推文数据抓取失败");
                         
                         finalHtmlOutput = generatePageWrapper(combinedCardsHtml, `Tweets by @${username}`, hhmmStr);
                         filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_batch_${username}_x.html`;
@@ -1901,7 +1912,7 @@ def generate_index():
                         finalHtmlOutput = generatePageWrapper(singleCardHtml, `Tweet by ${tweet.user_name}`, hhmmStr);
                         filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_${tweetId}_x.html`;
                         fileRelPath = `${yearStr}/${monthStr}/${filename}`;
-                        indexTitle = `🐦 ${hhmmStr} 靈感推文`;
+                        indexTitle = `🐦 ${hhmmStr} 灵感推文`;
                     }
 
                     loadingBar.style.width = '85%';
@@ -1911,7 +1922,7 @@ def generate_index():
                         body: JSON.stringify({ message: `Add ${isBatch ? 'batch' : 'single'} tweet HTML`, content: btoa(unescape(encodeURIComponent(finalHtmlOutput))) })
                     });
                     
-                    if (!putHtmlRes.ok) throw new Error("HTML 文件上傳 GitHub 失敗");
+                    if (!putHtmlRes.ok) throw new Error("HTML 文件上传 GitHub 失败");
 
                     loadingBar.style.width = '95%';
                     const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `Bearer ${ghToken}` } });
@@ -1937,7 +1948,7 @@ def generate_index():
                         body: JSON.stringify({ message: `Update index.html with new ${isBatch ? 'batch' : 'single'} entry`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
                     });
                     
-                    if (!putIdxRes.ok) throw new Error("更新 index.html 失敗！");
+                    if (!putIdxRes.ok) throw new Error("更新 index.html 失败！");
 
                     if (!archiveData[yearStr]) archiveData[yearStr] = {};
                     if (!archiveData[yearStr][monthStr]) archiveData[yearStr][monthStr] = {};
@@ -1946,12 +1957,12 @@ def generate_index():
 
                     forceRender(); 
                     loadingBar.style.width = '100%';
-                    alert(`🎉 成功！已為您歸檔最新的原創 ${isBatch ? '帳號瀑布流' : '單條推文'}。`);
+                    alert(`🎉 成功！已为您归档最新的原创 ${isBatch ? '账号瀑布流' : '单条推文'}。`);
                     this.value = '';
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
 
                 } catch (err) {
-                    alert('❌ 操作失敗: ' + err.message);
+                    alert('❌ 操作失败: ' + err.message);
                     loadingBar.style.width = '0%';
                 } finally {
                     this.disabled = false;
@@ -1966,43 +1977,43 @@ def generate_index():
 
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首頁日曆 WebApp 已生成更新！(支援多行文本批量組合)")
+    print("🚀 首页日历 WebApp 已生成更新！(支持多行文本批量组合)")
 
 def git_push_to_github(msg="Auto-archive"):
-    """自動調用本地系統的 Git 指令將更新推送到 GitHub"""
+    """自动调用本地系统的 Git 指令将更新推送到 GitHub"""
     if not AUTO_PUSH_GITHUB:
         return
-    print("\n⏳ 正在自動推送變更到 GitHub...")
+    print("\n⏳ 正在自动推送变更到 GitHub...")
     if not os.path.exists(".git"):
-        print("⚠️ 當前目錄並非 Git 倉庫，跳過自動同步。")
+        print("⚠️ 当前目录并非 Git 仓库，跳过自动同步。")
         return
     try:
         subprocess.run(["git", "add", "docs/"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         status = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
         if not status.stdout.strip():
-            print("ℹ️ 沒有需要推播的更新。")
+            print("ℹ️ 没有需要推播的更新。")
             return
 
         subprocess.run(["git", "commit", "-m", msg], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(["git", "push"], check=True)
-        print("✅ 成功同步到 GitHub！網頁版約在 1~3 分鐘後刷新可見。")
+        print("✅ 成功同步到 GitHub！网页版约在 1~3 分钟后刷新可见。")
     except subprocess.CalledProcessError as e:
-        print(f"❌ Git 執行失敗，錯誤碼: {e.returncode}")
+        print(f"❌ Git 执行失败，错误码: {e.returncode}")
     except FileNotFoundError:
-        print("❌ 系統找不到 Git，請確認您已安裝 Git 並將其加入環境變數中。")
+        print("❌ 系统找不到 Git，请确认您已安装 Git 并将其加入环境变量中。")
 
 def main():
     os.makedirs(BASE_DIR, exist_ok=True)
     generate_index()
 
     print("\n=======================================")
-    print("🐦 X (Twitter) 語料日曆 - 後台錄入")
-    print("提示1：粘貼 [單推文鏈接] 即可抓取單條推文")
-    print("提示2：粘貼 [帳號首頁鏈接] 將為您生成該帳號最新 10 條原創推文的瀑布流網頁！")
+    print("🐦 X (Twitter) 语料日历 - 后台录入")
+    print("提示1：粘贴 [单推文链接] 即可抓取单条推文")
+    print("提示2：粘贴 [账号首页链接] 将为您生成该账号最新 10 条原创推文的瀑布流网页！")
     print("=======================================")
 
     while True:
-        url = input("\n👉 粘貼 X 推文或帳號鏈接 (輸入 q 退出): ").strip()
+        url = input("\n👉 粘贴 X 推文或账号链接 (输入 q 退出): ").strip()
         if url.lower() == 'q':
             break
         if not url:
@@ -2022,19 +2033,19 @@ def main():
         elif user_match:
             username = user_match.group(1)
             if username.lower() in ['i', 'home', 'explore', 'notifications', 'messages']:
-                print("❌ 鏈接無效，請輸入真實的帳號首頁")
+                print("❌ 链接无效，请输入真实的账号首页")
                 continue
 
             tweet_ids = get_user_tweet_ids(username, limit=10)
             if not tweet_ids:
-                print("❌ 找不到該帳號的原創推文或解析時間線失敗。")
+                print("❌ 找不到该账号的原创推文或解析时间线失败。")
                 continue
 
             if save_batch_tweets_local(username, tweet_ids, now):
                 generate_index()
                 git_push_to_github(f"Batch archive {len(tweet_ids)} tweets from {username}")
         else:
-            print("❌ 無法識別的鏈接格式。")
+            print("❌ 无法识别的链接格式。")
 
 if __name__ == "__main__":
     main()
