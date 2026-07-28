@@ -1,4 +1,3 @@
-
 import os
 import requests
 import json
@@ -50,7 +49,7 @@ def get_user_tweet_ids(username, limit=10):
     return []
 
 def generate_tweet_card(tweet_data, tweet_id):
-    """生成單個推文卡片的 HTML 結構 (新增批注 UI 及 AI 機器人按鈕結構)"""
+    """生成單個推文卡片的 HTML 結構"""
     author = tweet_data.get('user_name', 'Unknown')
     handle = tweet_data.get('user_screen_name', 'unknown')
     text = tweet_data.get('text', '')
@@ -102,7 +101,7 @@ def generate_tweet_card(tweet_data, tweet_id):
         </div>"""
 
 def generate_page_wrapper(content_html, page_title, now_str):
-    """生成完整 HTML 頁面外殼 (包含雙引擎 AI 腳本與降級容災)"""
+    """生成完整 HTML 頁面外殼 (Python 本地後端生成版)"""
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -174,23 +173,23 @@ def generate_page_wrapper(content_html, page_title, now_str):
     <script id="core-engine">
         let syncTimeout = null;
 
-        // 【AI 解析核心邏輯】
-        const AI_PROMPT = `請分析以下英文段落，並嚴格按照以下 Markdown 格式輸出（不要輸出任何額外的廢話）：\\n\\n📌 完整翻譯\\n\\n[此處填寫完整翻譯]\\n\\n📌 Key Expressions\\n\\n- **[單詞或短語]**\\n  = [中文釋義]\\n  （[可選的補充說明，如倒裝結構或語境等]）\\n\\n段落內容：\\n`;
+        // 【AI 解析核心邏輯 - 使用常規字符串拼接避免變量域錯誤】
+        const AI_PROMPT = "請分析以下英文段落，並嚴格按照以下 Markdown 格式輸出（不要輸出任何額外的廢話）：\\n\\n📌 完整翻譯\\n\\n[此處填寫完整翻譯]\\n\\n📌 Key Expressions\\n\\n- **[單詞或短語]**\\n  = [中文釋義]\\n  （[可選的補充說明，如倒裝結構或語境等]）\\n\\n段落內容：\\n";
 
         async function fetchGroq(text, apiKey) {{
             const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {{
                 method: 'POST',
-                headers: {{ 'Authorization': `Bearer ${{apiKey}}`, 'Content-Type': 'application/json' }},
+                headers: {{ 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' }},
                 body: JSON.stringify({{
                     model: 'llama-3.3-70b-versatile',
                     messages: [
                         {{ role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' }},
-                        {{ role: 'user', content: AI_PROMPT + `"${{text}}"` }}
+                        {{ role: 'user', content: AI_PROMPT + '"' + text + '"' }}
                     ],
                     temperature: 0.3
                 }})
             }});
-            if (!res.ok) throw new Error(`Groq API Error: ${{res.status}}`);
+            if (!res.ok) throw new Error('Groq API Error: ' + res.status);
             const json = await res.json();
             if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
             throw new Error('Groq返回數據異常');
@@ -199,17 +198,17 @@ def generate_page_wrapper(content_html, page_title, now_str):
         async function fetchGLM(text, apiKey) {{
             const res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {{
                 method: 'POST',
-                headers: {{ 'Authorization': `Bearer ${{apiKey}}`, 'Content-Type': 'application/json' }},
+                headers: {{ 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' }},
                 body: JSON.stringify({{
                     model: 'GLM-4.5-Flash',
                     messages: [
                         {{ role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' }},
-                        {{ role: 'user', content: AI_PROMPT + `"${{text}}"` }}
+                        {{ role: 'user', content: AI_PROMPT + '"' + text + '"' }}
                     ],
                     temperature: 0.3
                 }})
             }});
-            if (!res.ok) throw new Error(`智譜GLM API Error: ${{res.status}}`);
+            if (!res.ok) throw new Error('智譜GLM API Error: ' + res.status);
             const json = await res.json();
             if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
             throw new Error('智譜GLM返回數據異常');
@@ -256,10 +255,8 @@ def generate_page_wrapper(content_html, page_title, now_str):
             }}
         }}
 
-        // 【終極隔離方案】純淨 DOM 快照：專治 GitHub 404 及脫機環境備用
         function getFallbackCleanHTML() {{
             const clone = document.documentElement.cloneNode(true);
-            
             const statusMsg = clone.querySelector('#sync-status');
             if (statusMsg) {{ statusMsg.removeAttribute('style'); statusMsg.innerText = '📡 同步中...'; }}
             const tBtn = clone.querySelector('#translate-btn');
@@ -282,8 +279,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
             clone.querySelectorAll('style').forEach(s => {{
                 if (s.id !== 'core-style') s.remove();
             }});
-            
-            // 清理 AI 狀態
+
             clone.querySelectorAll('.ai-toggle').forEach(t => t.classList.remove('loading'));
             
             const liveTAs = document.querySelectorAll('.anno-edit');
@@ -304,7 +300,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
             return '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + clone.innerHTML + '\\n</html>';
         }}
 
-        // 【完全隔離插件】雲端同步引擎核心
         async function syncToCloud(isTranslation = false) {{
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
@@ -439,7 +434,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
                     try {{ view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; }} catch(e){{}}
                 }}
 
-                // --- AI 機器人解析 ---
+                // --- AI 按鈕邏輯 ---
                 if (aiToggle) {{
                     aiToggle.addEventListener('click', async (e) => {{
                         e.preventDefault();
@@ -457,9 +452,9 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         const pClone = wrap.querySelector('.content').cloneNode(true);
                         pClone.querySelectorAll('.anno-toggle, .ai-toggle, .translated-content').forEach(el => el.remove());
                         let pText = pClone.textContent.trim();
-
-                        // 【核心過濾】：剔除推文內所有 http/https 網址鏈接，防止干擾 AI 解析
-                        pText = pText.replace(/https?:\\/\\/[^\\s]+/g, '').trim();
+                        
+                        // 【核心功能】：正則徹底剝離推文內的 http/https 鏈接
+                        pText = pText.replace(/https?:\\/\\/\\S+/g, '').trim();
 
                         if (!pText) return;
 
@@ -471,16 +466,15 @@ def generate_page_wrapper(content_html, page_title, now_str):
 
                         try {{
                             const aiContent = await executeAIPipeline(pText);
-
+                            
                             box.style.display = 'block';
                             view.style.display = 'none';
                             edit.style.display = 'block';
                             edit.value = aiContent;
-
-                            // 觸發失焦聯動渲染與雲端同步
+                            
                             edit.focus();
                             edit.blur();
-
+                            
                             statusMsg.style.backgroundColor = '#2ea44f';
                             statusMsg.innerText = '✅ AI 解析成功';
                             setTimeout(() => {{ if (statusMsg.innerText.includes('AI')) statusMsg.style.display = 'none'; }}, 2000);
@@ -576,9 +570,10 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 
                 const cloneText = content.cloneNode(true);
                 cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle, .ai-toggle').forEach(el => el.remove());
-                const text = cloneText.innerText;
+                let textToTranslate = cloneText.innerText;
                 
-                let textToTranslate = text.replace(/https?:\\/\\/[^\\s]+/g, '').trim();
+                // 【核心功能】：正則徹底剝離翻譯模塊的 http/https 鏈接
+                textToTranslate = textToTranslate.replace(/https?:\\/\\/\\S+/g, '').trim();
                 let checkText = textToTranslate.replace(/\\p{{Extended_Pictographic}}/gu, '').trim();
                 
                 if (!checkText) continue;
@@ -1129,7 +1124,6 @@ def generate_index():
         .anno-view { font-size: 1.05rem; line-height: 1.6; color: #4a4a4a; min-height: 24px; }
         .anno-edit { width: 100%; min-height: 120px; padding: 10px; font-family: monospace; font-size: 1rem; border: 1px dashed #8e7cc3; border-radius: 6px; box-sizing: border-box; resize: vertical; display: none; background: #fff; color: #333; outline: none; }
         .anno-edit:focus { border: 1px solid #8e7cc3; box-shadow: 0 0 0 3px rgba(142,124,195,0.1); }
-        
         .markdown-body p { margin-top: 0; margin-bottom: 8px; }
         .markdown-body p:last-child { margin-bottom: 0; }
         .markdown-body p:empty { display: none; }
@@ -1168,23 +1162,23 @@ def generate_index():
     <script id="core-engine">
         let syncTimeout = null;
 
-        // 【AI 解析核心邏輯】
-        const AI_PROMPT = \`請分析以下英文段落，並嚴格按照以下 Markdown 格式輸出（不要輸出任何額外的廢話）：\\n\\n📌 完整翻譯\\n\\n[此處填寫完整翻譯]\\n\\n📌 Key Expressions\\n\\n- **[單詞或短語]**\\n  = [中文釋義]\\n  （[可選的補充說明，如倒裝結構或語境等]）\\n\\n段落內容：\\n\`;
+        // 【AI 解析核心邏輯 - 使用常規字符串拼接避免變量域錯誤】
+        const AI_PROMPT = "請分析以下英文段落，並嚴格按照以下 Markdown 格式輸出（不要輸出任何額外的廢話）：\\\\n\\\\n📌 完整翻譯\\\\n\\\\n[此處填寫完整翻譯]\\\\n\\\\n📌 Key Expressions\\\\n\\\\n- **[單詞或短語]**\\\\n  = [中文釋義]\\\\n  （[可選的補充說明，如倒裝結構或語境等]）\\\\n\\\\n段落內容：\\\\n";
 
         async function fetchGroq(text, apiKey) {
             const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
                 method: 'POST',
-                headers: { 'Authorization': \`Bearer ${apiKey}\`, 'Content-Type': 'application/json' },
+                headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     model: 'llama-3.3-70b-versatile',
                     messages: [
                         { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
-                        { role: 'user', content: AI_PROMPT + \`"${text}"\` }
+                        { role: 'user', content: AI_PROMPT + '"' + text + '"' }
                     ],
                     temperature: 0.3
                 })
             });
-            if (!res.ok) throw new Error(\`Groq API Error: ${res.status}\`);
+            if (!res.ok) throw new Error('Groq API Error: ' + res.status);
             const json = await res.json();
             if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
             throw new Error('Groq返回數據異常');
@@ -1193,17 +1187,17 @@ def generate_index():
         async function fetchGLM(text, apiKey) {
             const res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
                 method: 'POST',
-                headers: { 'Authorization': \`Bearer ${apiKey}\`, 'Content-Type': 'application/json' },
+                headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     model: 'GLM-4.5-Flash',
                     messages: [
                         { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
-                        { role: 'user', content: AI_PROMPT + \`"${text}"\` }
+                        { role: 'user', content: AI_PROMPT + '"' + text + '"' }
                     ],
                     temperature: 0.3
                 })
             });
-            if (!res.ok) throw new Error(\`智譜GLM API Error: ${res.status}\`);
+            if (!res.ok) throw new Error('智譜GLM API Error: ' + res.status);
             const json = await res.json();
             if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
             throw new Error('智譜GLM返回數據異常');
@@ -1463,8 +1457,8 @@ def generate_index():
                         pClone.querySelectorAll('.anno-toggle, .ai-toggle, .translated-content').forEach(el => el.remove());
                         let pText = pClone.textContent.trim();
                         
-                        // 【核心功能】：過濾掉文本中所有的 http/https 鏈接，忽略如圖片中劃掉的網址
-                        pText = pText.replace(/https?:\\\\/\\\\/[^\\\\s]+/g, '').trim();
+                        // 【核心過濾】：正則徹底剝離推文內的 http/https 鏈接，防止干擾 AI 或翻譯
+                        pText = pText.replace(/https?:\\\\/\\\\/\\\\S+/g, '').trim();
 
                         if (!pText) return;
 
@@ -1582,9 +1576,10 @@ def generate_index():
                 // 【修復翻譯被高亮插件干擾】：在送去翻譯前，扒掉 Relingo 和按鈕代碼
                 const cloneText = content.cloneNode(true);
                 cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle, .ai-toggle').forEach(el => el.remove());
-                const text = cloneText.innerText;
+                let textToTranslate = cloneText.innerText;
                 
-                let textToTranslate = text.replace(/https?:\\\\/\\\\/[^\\\\s]+/g, '').trim();
+                // 【核心過濾】：正則徹底剝離翻譯模塊的 http/https 鏈接
+                textToTranslate = textToTranslate.replace(/https?:\\\\/\\\\/\\\\S+/g, '').trim();
                 let checkText = textToTranslate.replace(/\\\\p{Extended_Pictographic}/gu, '').trim();
                 
                 if (!checkText) continue;
