@@ -91,18 +91,18 @@
             <div class="form-group">
                 <label>首选 AI 引擎 (失败自动降级)</label>
                 <select id="cfgPrefAI">
-                    <option value="custom">🌐 自定义 AI (DeepSeek / Kimi / ChatAnywhere 等)</option>
+                    <option value="custom">🌐 自定义 AI (兼容OpenAI格式 / Gemini / Claude)</option>
                     <option value="groq">Groq</option>
                     <option value="glm">智谱 (GLM)</option>
                 </select>
             </div>
-
-            <!-- 自定义 API 区域 -->
+            
+            <!-- 新增：自定义 AI 配置面板 -->
             <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 15px;">
-                <p style="margin-top:0; margin-bottom:10px; font-size:13px; font-weight:bold; color:#1d9bf0;">🔌 自定义 AI 接口 (兼容国内外绝大多数大模型)</p>
+                <p style="margin-top:0; margin-bottom:10px; font-size:13px; font-weight:bold; color:#1d9bf0;">🔌 自定义 AI 接口配置</p>
                 <div class="form-group">
-                    <label>API Endpoint (包含完整 URL)</label>
-                    <input type="text" id="cfgCustomUrl" placeholder="例如: https://api.chatanywhere.tech/v1/chat/completions">
+                    <label>API Endpoint (包含完整 URL 路径)</label>
+                    <input type="text" id="cfgCustomUrl" placeholder="如: https://api.chatanywhere.tech/v1/chat/completions">
                 </div>
                 <div class="form-group" style="display:flex; gap:10px; margin-bottom:0;">
                     <div style="flex:1;">
@@ -111,7 +111,7 @@
                     </div>
                     <div style="flex:1;">
                         <label>模型名称</label>
-                        <input type="text" id="cfgCustomModel" placeholder="例如: gpt-5-nano-ca">
+                        <input type="text" id="cfgCustomModel" placeholder="如: gpt-5-nano-ca">
                     </div>
                 </div>
             </div>
@@ -299,16 +299,16 @@ https://x.com/i/status/2079072889853321448"></textarea>
             document.getElementById('cfgGhToken').value = localStorage.getItem('GH_TOKEN') || '';
             document.getElementById('cfgGhOwner').value = localStorage.getItem('GH_OWNER') || 'moodHappy';
             document.getElementById('cfgGhRepo').value = localStorage.getItem('GH_REPO') || '';
-            document.getElementById('cfgPrefAI').value = localStorage.getItem('PREFERRED_AI') || 'custom';
-            document.getElementById('cfgGroqKey').value = localStorage.getItem('GROQ_API_KEY') || '';
-            document.getElementById('cfgGlmKey').value = localStorage.getItem('GLM_API_KEY') || '';
-            document.getElementById('cfgGroqModel').value = localStorage.getItem('GROQ_MODEL') || '';
-            document.getElementById('cfgGlmModel').value = localStorage.getItem('GLM_MODEL') || '';
             
+            document.getElementById('cfgPrefAI').value = localStorage.getItem('PREFERRED_AI') || 'custom';
             document.getElementById('cfgCustomUrl').value = localStorage.getItem('CUSTOM_API_URL') || '';
             document.getElementById('cfgCustomKey').value = localStorage.getItem('CUSTOM_API_KEY') || '';
             document.getElementById('cfgCustomModel').value = localStorage.getItem('CUSTOM_MODEL') || '';
             
+            document.getElementById('cfgGroqKey').value = localStorage.getItem('GROQ_API_KEY') || '';
+            document.getElementById('cfgGlmKey').value = localStorage.getItem('GLM_API_KEY') || '';
+            document.getElementById('cfgGroqModel').value = localStorage.getItem('GROQ_MODEL') || '';
+            document.getElementById('cfgGlmModel').value = localStorage.getItem('GLM_MODEL') || '';
             document.getElementById('settingsModal').style.display = 'flex';
         });
         document.getElementById('closeSettingsBtn').addEventListener('click', () => { document.getElementById('settingsModal').style.display = 'none'; });
@@ -316,17 +316,16 @@ https://x.com/i/status/2079072889853321448"></textarea>
             localStorage.setItem('GH_TOKEN', document.getElementById('cfgGhToken').value.trim());
             localStorage.setItem('GH_OWNER', document.getElementById('cfgGhOwner').value.trim());
             localStorage.setItem('GH_REPO', document.getElementById('cfgGhRepo').value.trim());
+            
             localStorage.setItem('PREFERRED_AI', document.getElementById('cfgPrefAI').value);
+            localStorage.setItem('CUSTOM_API_URL', document.getElementById('cfgCustomUrl').value.trim());
+            localStorage.setItem('CUSTOM_API_KEY', document.getElementById('cfgCustomKey').value.trim());
+            localStorage.setItem('CUSTOM_MODEL', document.getElementById('cfgCustomModel').value.trim());
             
             localStorage.setItem('GROQ_API_KEY', document.getElementById('cfgGroqKey').value.trim());
             localStorage.setItem('GLM_API_KEY', document.getElementById('cfgGlmKey').value.trim());
             localStorage.setItem('GROQ_MODEL', document.getElementById('cfgGroqModel').value.trim());
             localStorage.setItem('GLM_MODEL', document.getElementById('cfgGlmModel').value.trim());
-            
-            localStorage.setItem('CUSTOM_API_URL', document.getElementById('cfgCustomUrl').value.trim());
-            localStorage.setItem('CUSTOM_API_KEY', document.getElementById('cfgCustomKey').value.trim());
-            localStorage.setItem('CUSTOM_MODEL', document.getElementById('cfgCustomModel').value.trim());
-            
             document.getElementById('settingsModal').style.display = 'none';
             alert('配置已本地保存！');
         });
@@ -416,13 +415,13 @@ https://x.com/i/status/2079072889853321448"></textarea>
         }
 
         function generatePageWrapper(contentHtml, pageTitle, now_str) {
-            const html_template = `<!DOCTYPE html>
+            return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="referrer" content="no-referrer">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>__PAGE_TITLE__</title>
+    <title>${pageTitle}</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"><\/script>
     <style id="core-style">
         :root { --bg: #f2f2f7; --card: #ffffff; --text: #0f1419; --muted: #536471; --border: #eff3f4; --x-blue: #1d9bf0; }
@@ -479,8 +478,8 @@ https://x.com/i/status/2079072889853321448"></textarea>
         </div>
     </div>
     <div class="container">
-        <div class="time-stamp">归档时间: __NOW_STR__</div>
-        __CONTENT_HTML__
+        <div class="time-stamp">归档时间: ${now_str}</div>
+        ${contentHtml}
     </div>
     
     <script id="core-engine">
@@ -533,6 +532,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
             if (url.includes('anthropic.com')) {
                 headers['x-api-key'] = apiKey;
                 headers['anthropic-version'] = '2023-06-01';
+                headers['anthropic-dangerous-direct-browser-access'] = 'true';
                 bodyData = {
                     model: modelName,
                     max_tokens: 2000,
@@ -588,7 +588,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
         }
 
         async function executeAIPipeline(text) {
-            const pref = localStorage.getItem('PREFERRED_AI') || 'groq';
+            const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
             const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
             const glmKey = localStorage.getItem('GLM_API_KEY') || '';
             const groqModel = localStorage.getItem('GROQ_MODEL') || '';
@@ -598,11 +598,11 @@ https://x.com/i/status/2079072889853321448"></textarea>
             const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
 
             const runGroq = async () => {
-                if (!groqKey || !groqModel) throw new Error("Groq 配置不完整");
+                if (!groqKey || !groqModel) throw new Error("Groq API Key 未配置");
                 return await fetchGroq(text, groqKey, groqModel);
             };
             const runGLM = async () => {
-                if (!glmKey || !glmModel) throw new Error("智谱GLM 配置不完整");
+                if (!glmKey || !glmModel) throw new Error("智谱GLM API Key 未配置");
                 return await fetchGLM(text, glmKey, glmModel);
             };
             const runCustom = async () => {
@@ -616,34 +616,24 @@ https://x.com/i/status/2079072889853321448"></textarea>
                 } catch (err) {
                     console.warn("自定义 AI 失败，尝试降级:", err);
                     if (groqKey && groqModel) {
-                        document.getElementById('sync-status').innerText = '⚠️ 自定义异常，降级Groq...';
+                        document.getElementById('sync-status').innerText = '⚠️ 自定义异常，正降级为Groq...';
                         try { return await runGroq(); } catch(e2) { if (glmKey && glmModel) return await runGLM(); throw e2; }
                     } else if (glmKey && glmModel) {
-                        document.getElementById('sync-status').innerText = '⚠️ 自定义异常，降级智谱...';
+                        document.getElementById('sync-status').innerText = '⚠️ 自定义异常，正降级为智谱...';
                         return await runGLM();
                     }
                     throw err;
                 }
             } else if (pref === 'groq') {
-                try {
-                    return await runGroq();
-                } catch (err) {
-                    console.warn("Groq 失败，尝试降级:", err);
-                    if (glmKey && glmModel) {
-                        document.getElementById('sync-status').innerText = '⚠️ Groq异常，降级智谱...';
-                        return await runGLM();
-                    }
+                try { return await runGroq(); } catch (err) {
+                    console.warn("首选 Groq 失败，尝试降级到智谱:", err);
+                    if (glmKey && glmModel) { document.getElementById('sync-status').innerText = '⚠️ Groq异常，正降级为智谱...'; return await runGLM(); }
                     throw err;
                 }
             } else {
-                try {
-                    return await runGLM();
-                } catch (err) {
-                    console.warn("智谱 失败，尝试降级:", err);
-                    if (groqKey && groqModel) {
-                        document.getElementById('sync-status').innerText = '⚠️ 智谱异常，降级Groq...';
-                        return await runGroq();
-                    }
+                try { return await runGLM(); } catch (err) {
+                    console.warn("首选 智谱 失败，尝试降级到Groq:", err);
+                    if (groqKey && groqModel) { document.getElementById('sync-status').innerText = '⚠️ 智谱异常，正降级为Groq...'; return await runGroq(); }
                     throw err;
                 }
             }
@@ -651,7 +641,6 @@ https://x.com/i/status/2079072889853321448"></textarea>
 
         function getFallbackCleanHTML() {
             const clone = document.documentElement.cloneNode(true);
-            
             const statusMsg = clone.querySelector('#sync-status');
             if (statusMsg) { statusMsg.removeAttribute('style'); statusMsg.innerText = '📡 同步中...'; }
             const tBtn = clone.querySelector('#translate-btn');
@@ -675,9 +664,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
                 if (s.id !== 'core-style') s.remove();
             });
 
-            clone.querySelectorAll('.ai-toggle').forEach(t => {
-                t.classList.remove('loading');
-            });
+            clone.querySelectorAll('.ai-toggle').forEach(t => t.classList.remove('loading'));
             
             const liveTAs = document.querySelectorAll('.anno-edit');
             clone.querySelectorAll('.anno-edit').forEach((ta, i) => { 
@@ -831,6 +818,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
                     try { view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; } catch(e){}
                 }
                 
+                // --- AI 按钮逻辑 ---
                 if (aiToggle) {
                     aiToggle.addEventListener('click', async (e) => {
                         e.preventDefault();
@@ -847,15 +835,17 @@ https://x.com/i/status/2079072889853321448"></textarea>
                         if (pref === 'custom' && customUrl && customKey) isReady = true;
                         if (pref === 'groq' && groqKey) isReady = true;
                         if (pref === 'glm' && glmKey) isReady = true;
-                        
+
                         if (!isReady && !groqKey && !glmKey && !customKey) {
-                            alert('⚠️ 请先返回【日历大厅】右上角的 ⚙️配置中心 设置 AI 引擎的 URL 和密钥！');
+                            alert('⚠️ 请先返回【日历大厅】右上角的 ⚙️配置中心 设置 AI 接口 URL 和密钥！');
                             return;
                         }
 
                         const pClone = wrap.querySelector('.content').cloneNode(true);
                         pClone.querySelectorAll('.anno-toggle, .ai-toggle, .translated-content').forEach(el => el.remove());
                         let pText = pClone.textContent.trim();
+                        
+                        // 【核心功能】：正则彻底剥离推文内的 http/https 链接
                         pText = pText.replace(/https?:\\/\\/\\S+/g, '').trim();
 
                         if (!pText) return;
@@ -874,6 +864,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
                             edit.style.display = 'block';
                             edit.value = aiContent;
                             
+                            // 触发失焦，联动 Marked.js 渲染与 GitHub 自动保存
                             edit.focus();
                             edit.blur();
                             
@@ -966,10 +957,12 @@ https://x.com/i/status/2079072889853321448"></textarea>
                 const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
                 
+                // 【修复翻译被高亮插件干扰】：在送去翻译前，扒掉 Relingo 和按钮代码
                 const cloneText = content.cloneNode(true);
                 cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle, .ai-toggle').forEach(el => el.remove());
                 let textToTranslate = cloneText.innerText;
                 
+                // 【核心过滤】：正则彻底剥离翻译模块的 http/https 链接
                 textToTranslate = textToTranslate.replace(/https?:\\/\\/\\S+/g, '').trim();
                 let checkText = textToTranslate.replace(/\\p{Extended_Pictographic}/gu, '').trim();
                 
@@ -1014,16 +1007,16 @@ https://x.com/i/status/2079072889853321448"></textarea>
         }
     <\/script>
 </body>
-</html>`
-    return html_template.replace('__PAGE_TITLE__', page_title).replace('__NOW_STR__', now_str).replace('__CONTENT_HTML__', content_html)
+</html>`;
+        }
+        // ------------------------------------
 
-// --- 这里修复结束，下方代码保持不变 ---
-        
-        // === 处理前端自定义批量模板同步 ===
+        // === 核心：处理前端自定义批量模板同步 ===
         document.getElementById('submitBatchBtn').addEventListener('click', async () => {
             const inputText = document.getElementById('batchInputArea').value;
             let tweetIdsToProcess = [];
             
+            // 使用正则匹配多行文本中所有的 status 数字
             const matches = [...inputText.matchAll(/status\/(\d+)/g)];
             matches.forEach(match => {
                 if (!tweetIdsToProcess.includes(match[1])) {
@@ -1031,6 +1024,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
                 }
             });
             
+            // 强制截断，最高只抓前 10 条
             tweetIdsToProcess = tweetIdsToProcess.slice(0, 10);
 
             if (tweetIdsToProcess.length === 0) {
@@ -1132,6 +1126,7 @@ https://x.com/i/status/2079072889853321448"></textarea>
             }
         });
 
+        // X 推文前端抓取逻辑
         document.getElementById('xUrlInput').addEventListener('keypress', async function (e) {
             if (e.key === 'Enter') {
                 const url = this.value.trim();
