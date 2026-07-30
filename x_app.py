@@ -173,8 +173,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
     <script id="core-engine">
         let syncTimeout = null;
 
-// 【AI 解析核心逻辑 - 加入了 ### 触发 Markdown 三级标题和 CSS 虚线样式】
-const AI_PROMPT = "请分析以下英文段落，并严格按照以下 Markdown 格式输出（不要输出任何额外的废话）：\\n\\n### 📌 完整翻译\\n\\n[此处填写完整翻译]\\n\\n### 📌 Key Expressions\\n\\n- **[单词或短语]**\\n  = [中文释义]\\n  （[可选的补充说明，如倒装结构或语境等]）\\n\\n段落内容：\\n";
+        const AI_PROMPT = "请分析以下英文段落，并严格按照以下 Markdown 格式输出（不要输出任何额外的废话）：\\n\\n### 📌 完整翻译\\n\\n[此处填写完整翻译]\\n\\n### 📌 Key Expressions\\n\\n- **[单词或短语]**\\n  = [中文释义]\\n  （[可选的补充说明，如倒装结构或语境等]）\\n\\n段落内容：\\n";
 
         async function fetchGroq(text, apiKey, modelName) {{
             const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {{
@@ -214,33 +213,119 @@ const AI_PROMPT = "请分析以下英文段落，并严格按照以下 Markdown 
             throw new Error('智谱GLM返回数据异常');
         }}
 
+        // Universal AI fetcher: 全球/国内主流 AI 超级适配器
+        async function fetchCustomAI(text, url, apiKey, modelName) {{
+            let headers = {{ 'Content-Type': 'application/json' }};
+            let bodyData = {{}};
+
+            // 特殊适配 1: Anthropic Claude 官方原生 API
+            if (url.includes('anthropic.com')) {{
+                headers['x-api-key'] = apiKey;
+                headers['anthropic-version'] = '2023-06-01';
+                bodyData = {{
+                    model: modelName,
+                    max_tokens: 2000,
+                    messages: [{{ role: 'user', content: AI_PROMPT + '"' + text + '"' }}]
+                }};
+            }}
+            // 特殊适配 2: Google Gemini 官方原生 API
+            else if (url.includes('generativelanguage.googleapis.com')) {{
+                let targetUrl = url;
+                if (!targetUrl.includes('key=')) {{
+                    targetUrl += (targetUrl.includes('?') ? '&' : '?') + 'key=' + apiKey;
+                }}
+                const res = await fetch(targetUrl, {{
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({{
+                        contents: [{{ parts: [{{ text: AI_PROMPT + '"' + text + '"' }}] }}]
+                    }})
+                }});
+                if (!res.ok) throw new Error('Gemini API Error: ' + res.status);
+                const json = await res.json();
+                if (json.candidates && json.candidates[0]?.content?.parts[0]?.text) {{
+                    return json.candidates[0].content.parts[0].text.trim();
+                }}
+                throw new Error('Gemini 返回数据异常');
+            }}
+            // 标准适配: 涵盖 OpenAI, DeepSeek, 通义千问, Kimi, 硅基流动, ChatAnywhere, OpenRouter 等 98% 国内外厂商
+            else {{
+                headers['Authorization'] = 'Bearer ' + apiKey;
+                bodyData = {{
+                    model: modelName,
+                    messages: [
+                        {{ role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' }},
+                        {{ role: 'user', content: AI_PROMPT + '"' + text + '"' }}
+                    ],
+                    temperature: 0.3
+                }};
+            }}
+
+            const res = await fetch(url, {{
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(bodyData)
+            }});
+
+            if (!res.ok) throw new Error('自定义 AI 接口报错: ' + res.status);
+            const json = await res.json();
+
+            // Claude 原生解析
+            if (json.content && Array.isArray(json.content) && json.content[0]?.text) {{
+                return json.content[0].text.trim();
+            }}
+            // OpenAI 标准解析
+            if (json.choices && json.choices.length > 0) {{
+                return json.choices[0].message.content.trim();
+            }}
+
+            throw new Error('自定义 AI 返回结构不符合预期');
+        }}
+
         async function executeAIPipeline(text) {{
             const pref = localStorage.getItem('PREFERRED_AI') || 'groq';
             const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
             const glmKey = localStorage.getItem('GLM_API_KEY') || '';
             const groqModel = localStorage.getItem('GROQ_MODEL') || '';
             const glmModel = localStorage.getItem('GLM_MODEL') || '';
-
-            if ((!groqKey && !glmKey) || (!groqModel && !glmModel)) throw new Error('MISSING_KEYS_OR_MODELS');
+            const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
+            const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
+            const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
 
             const runGroq = async () => {{
-                if (!groqKey) throw new Error("Groq API Key 未配置");
-                if (!groqModel) throw new Error("Groq 模型未配置");
+                if (!groqKey || !groqModel) throw new Error("Groq 配置不完整");
                 return await fetchGroq(text, groqKey, groqModel);
             }};
             const runGLM = async () => {{
-                if (!glmKey) throw new Error("智谱GLM API Key 未配置");
-                if (!glmModel) throw new Error("智谱GLM 模型未配置");
+                if (!glmKey || !glmModel) throw new Error("智谱GLM 配置不完整");
                 return await fetchGLM(text, glmKey, glmModel);
             }};
+            const runCustom = async () => {{
+                if (!customUrl || !customKey || !customModel) throw new Error("自定义 AI 配置不完整");
+                return await fetchCustomAI(text, customUrl, customKey, customModel);
+            }};
 
-            if (pref === 'groq') {{
+            if (pref === 'custom') {{
+                try {{
+                    return await runCustom();
+                }} catch (err) {{
+                    console.warn("自定义 AI 失败，尝试降级:", err);
+                    if (groqKey && groqModel) {{
+                        document.getElementById('sync-status').innerText = '⚠️ 自定义异常，降级Groq...';
+                        try {{ return await runGroq(); }} catch(e2) {{ if (glmKey && glmModel) return await runGLM(); throw e2; }}
+                    }} else if (glmKey && glmModel) {{
+                        document.getElementById('sync-status').innerText = '⚠️ 自定义异常，降级智谱...';
+                        return await runGLM();
+                    }}
+                    throw err;
+                }}
+            }} else if (pref === 'groq') {{
                 try {{
                     return await runGroq();
                 }} catch (err) {{
-                    console.warn("首选 Groq 失败，尝试降级到智谱:", err);
+                    console.warn("Groq 失败，尝试降级:", err);
                     if (glmKey && glmModel) {{
-                        document.getElementById('sync-status').innerText = '⚠️ Groq异常，正降级为智谱...';
+                        document.getElementById('sync-status').innerText = '⚠️ Groq异常，降级智谱...';
                         return await runGLM();
                     }}
                     throw err;
@@ -249,9 +334,9 @@ const AI_PROMPT = "请分析以下英文段落，并严格按照以下 Markdown 
                 try {{
                     return await runGLM();
                 }} catch (err) {{
-                    console.warn("首选 智谱 失败，尝试降级到Groq:", err);
+                    console.warn("智谱 失败，尝试降级:", err);
                     if (groqKey && groqModel) {{
-                        document.getElementById('sync-status').innerText = '⚠️ 智谱异常，正降级为Groq...';
+                        document.getElementById('sync-status').innerText = '⚠️ 智谱异常，降级Groq...';
                         return await runGroq();
                     }}
                     throw err;
@@ -406,7 +491,7 @@ const AI_PROMPT = "请分析以下英文段落，并严格按照以下 Markdown 
                     statusMsg.style.backgroundColor = '#e74c3c';
                     statusMsg.innerText = '❌ 同步失败(点击重试)';
                     statusMsg.style.cursor = 'pointer';
-                    statusMsg.onclick = () => {{ statusMsg.onclick = null; statusMsg.style.cursor = 'default'; syncToCloud(false); }};
+                    statusMsg.onclick = () => {{ statusMsg.onclick = null; statusMsg.style.cursor = 'default'; syncToCloud(false); };
                 }}
             }}
         }}
@@ -438,28 +523,31 @@ const AI_PROMPT = "请分析以下英文段落，并严格按照以下 Markdown 
                     try {{ view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; }} catch(e){{}}
                 }}
 
-                // --- AI 按钮逻辑 ---
                 if (aiToggle) {{
                     aiToggle.addEventListener('click', async (e) => {{
                         e.preventDefault();
                         e.stopPropagation();
                         if (aiToggle.classList.contains('loading')) return;
 
+                        const pref = localStorage.getItem('PREFERRED_AI') || 'groq';
                         const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
                         const glmKey = localStorage.getItem('GLM_API_KEY') || '';
-                        const groqModel = localStorage.getItem('GROQ_MODEL') || '';
-                        const glmModel = localStorage.getItem('GLM_MODEL') || '';
-
-                        if ((!groqKey && !glmKey) || (!groqModel && !glmModel)) {{
-                            alert('⚠️ 请先返回【日历大厅】右上角的 ⚙️配置中心 设置 API Key 和模型！');
+                        const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
+                        const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
+                        
+                        let isReady = false;
+                        if (pref === 'custom' && customUrl && customKey) isReady = true;
+                        if (pref === 'groq' && groqKey) isReady = true;
+                        if (pref === 'glm' && glmKey) isReady = true;
+                        
+                        if (!isReady && !groqKey && !glmKey && !customKey) {{
+                            alert('⚠️ 请先返回【日历大厅】右上角的 ⚙️配置中心 设置 AI 引擎的 URL 和密钥！');
                             return;
                         }}
 
                         const pClone = wrap.querySelector('.content').cloneNode(true);
                         pClone.querySelectorAll('.anno-toggle, .ai-toggle, .translated-content').forEach(el => el.remove());
                         let pText = pClone.textContent.trim();
-                        
-                        // 【核心功能】：正则彻底剥离推文内的 http/https 链接
                         pText = pText.replace(/https?:\\/\\/\\S+/g, '').trim();
 
                         if (!pText) return;
@@ -486,11 +574,7 @@ const AI_PROMPT = "请分析以下英文段落，并严格按照以下 Markdown 
                             setTimeout(() => {{ if (statusMsg.innerText.includes('AI')) statusMsg.style.display = 'none'; }}, 2000);
                         }} catch (err) {{
                             console.error(err);
-                            if (err.message === 'MISSING_KEYS_OR_MODELS') {{
-                                alert('⚠️ 请返回日历大厅配置 AI 密钥和模型！');
-                            }} else {{
-                                alert('❌ AI 解析失败: ' + err.message);
-                            }}
+                            alert('❌ AI 解析失败: ' + err.message);
                             statusMsg.style.display = 'none';
                         }} finally {{
                             aiToggle.classList.remove('loading');
@@ -578,7 +662,6 @@ const AI_PROMPT = "请分析以下英文段落，并严格按照以下 Markdown 
                 cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle, .ai-toggle').forEach(el => el.remove());
                 let textToTranslate = cloneText.innerText;
                 
-                // 【核心功能】：正则彻底剥离翻译模块的 http/https 链接
                 textToTranslate = textToTranslate.replace(/https?:\\/\\/\\S+/g, '').trim();
                 let checkText = textToTranslate.replace(/\\p{{Extended_Pictographic}}/gu, '').trim();
                 
@@ -692,7 +775,7 @@ def save_batch_tweets_local(username, tweet_ids, now_obj):
 
 
 def generate_index():
-    """日历枢纽生成器 + 前端 JS (新增 AI 设置)"""
+    """日历枢纽生成器 + 前端 JS"""
     archive_data = {}
     if os.path.exists(BASE_DIR):
         years = [d for d in os.listdir(BASE_DIR) if d.isdigit()]
@@ -826,11 +909,31 @@ def generate_index():
             <div class="form-group">
                 <label>首选 AI 引擎 (失败自动降级)</label>
                 <select id="cfgPrefAI">
+                    <option value="custom">🌐 自定义 AI (DeepSeek / Kimi / ChatAnywhere 等)</option>
                     <option value="groq">Groq</option>
-                    <option value="glm">智谱</option>
+                    <option value="glm">智谱 (GLM)</option>
                 </select>
             </div>
-            
+
+            <!-- 自定义 API 区域 -->
+            <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 15px;">
+                <p style="margin-top:0; margin-bottom:10px; font-size:13px; font-weight:bold; color:#1d9bf0;">🔌 自定义 AI 接口 (兼容国内外绝大多数大模型)</p>
+                <div class="form-group">
+                    <label>API Endpoint (包含完整 URL)</label>
+                    <input type="text" id="cfgCustomUrl" placeholder="例如: https://api.chatanywhere.tech/v1/chat/completions">
+                </div>
+                <div class="form-group" style="display:flex; gap:10px; margin-bottom:0;">
+                    <div style="flex:1;">
+                        <label>API Key</label>
+                        <input type="password" id="cfgCustomKey" placeholder="sk-xxxxxx">
+                    </div>
+                    <div style="flex:1;">
+                        <label>模型名称</label>
+                        <input type="text" id="cfgCustomModel" placeholder="例如: gpt-5-nano-ca">
+                    </div>
+                </div>
+            </div>
+
             <div class="form-group" style="display:flex; gap:10px;">
                 <div style="flex:1;">
                     <label>Groq API Key</label>
@@ -849,7 +952,7 @@ def generate_index():
                 </div>
                 <div style="flex:1;">
                     <label>智谱 GLM 模型名称</label>
-                    <input type="text" id="cfgGlmModel" placeholder="例如: GLM-4.5-Flash">
+                    <input type="text" id="cfgGlmModel" placeholder="例如: glm-4-flash">
                 </div>
             </div>
 
@@ -866,7 +969,7 @@ def generate_index():
             <h3 class="modal-title">自定义组合归档 (最高 10 条)</h3>
             <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">贴入多个推文链接（支持直接粘贴整段文字），将自动识别并提取最多 10 条同步为单个文件。</p>
             <div class="form-group">
-                <textarea id="batchInputArea" class="batch-textarea" placeholder="在此粘贴多个推文链接...\n\n例如：\nhttps://x.com/i/status/2078970469194092723\nhttps://x.com/i/status/2079072889853321448"></textarea>
+                <textarea id="batchInputArea" class="batch-textarea" placeholder="在此粘贴多个推文链接...\\n\\n例如：\\nhttps://x.com/i/status/2078970469194092723\\nhttps://x.com/i/status/2079072889853321448"></textarea>
             </div>
             <div class="modal-actions">
                 <button class="btn btn-cancel" id="closeBatchBtn">取消</button>
@@ -1010,11 +1113,16 @@ def generate_index():
             document.getElementById('cfgGhToken').value = localStorage.getItem('GH_TOKEN') || '';
             document.getElementById('cfgGhOwner').value = localStorage.getItem('GH_OWNER') || 'moodHappy';
             document.getElementById('cfgGhRepo').value = localStorage.getItem('GH_REPO') || '';
-            document.getElementById('cfgPrefAI').value = localStorage.getItem('PREFERRED_AI') || 'groq';
+            document.getElementById('cfgPrefAI').value = localStorage.getItem('PREFERRED_AI') || 'custom';
             document.getElementById('cfgGroqKey').value = localStorage.getItem('GROQ_API_KEY') || '';
             document.getElementById('cfgGlmKey').value = localStorage.getItem('GLM_API_KEY') || '';
             document.getElementById('cfgGroqModel').value = localStorage.getItem('GROQ_MODEL') || '';
             document.getElementById('cfgGlmModel').value = localStorage.getItem('GLM_MODEL') || '';
+            
+            document.getElementById('cfgCustomUrl').value = localStorage.getItem('CUSTOM_API_URL') || '';
+            document.getElementById('cfgCustomKey').value = localStorage.getItem('CUSTOM_API_KEY') || '';
+            document.getElementById('cfgCustomModel').value = localStorage.getItem('CUSTOM_MODEL') || '';
+            
             document.getElementById('settingsModal').style.display = 'flex';
         });
         document.getElementById('closeSettingsBtn').addEventListener('click', () => { document.getElementById('settingsModal').style.display = 'none'; });
@@ -1023,10 +1131,16 @@ def generate_index():
             localStorage.setItem('GH_OWNER', document.getElementById('cfgGhOwner').value.trim());
             localStorage.setItem('GH_REPO', document.getElementById('cfgGhRepo').value.trim());
             localStorage.setItem('PREFERRED_AI', document.getElementById('cfgPrefAI').value);
+            
             localStorage.setItem('GROQ_API_KEY', document.getElementById('cfgGroqKey').value.trim());
             localStorage.setItem('GLM_API_KEY', document.getElementById('cfgGlmKey').value.trim());
             localStorage.setItem('GROQ_MODEL', document.getElementById('cfgGroqModel').value.trim());
             localStorage.setItem('GLM_MODEL', document.getElementById('cfgGlmModel').value.trim());
+            
+            localStorage.setItem('CUSTOM_API_URL', document.getElementById('cfgCustomUrl').value.trim());
+            localStorage.setItem('CUSTOM_API_KEY', document.getElementById('cfgCustomKey').value.trim());
+            localStorage.setItem('CUSTOM_MODEL', document.getElementById('cfgCustomModel').value.trim());
+            
             document.getElementById('settingsModal').style.display = 'none';
             alert('配置已本地保存！');
         });
@@ -1186,7 +1300,6 @@ def generate_index():
     <script id="core-engine">
         let syncTimeout = null;
 
-        // 【AI 解析核心逻辑 - 加入了 ### 触发 Markdown 三级标题和 CSS 虚线样式】
         const AI_PROMPT = "请分析以下英文段落，并严格按照以下 Markdown 格式输出（不要输出任何额外的废话）：\\\\n\\\\n### 📌 完整翻译\\\\n\\\\n[此处填写完整翻译]\\\\n\\\\n### 📌 Key Expressions\\\\n\\\\n- **[单词或短语]**\\\\n  = [中文释义]\\\\n  （[可选的补充说明，如倒装结构或语境等]）\\\\n\\\\n段落内容：\\\\n";
 
         async function fetchGroq(text, apiKey, modelName) {
@@ -1227,33 +1340,111 @@ def generate_index():
             throw new Error('智谱GLM返回数据异常');
         }
 
+        async function fetchCustomAI(text, url, apiKey, modelName) {
+            let headers = { 'Content-Type': 'application/json' };
+            let bodyData = {};
+
+            if (url.includes('anthropic.com')) {
+                headers['x-api-key'] = apiKey;
+                headers['anthropic-version'] = '2023-06-01';
+                bodyData = {
+                    model: modelName,
+                    max_tokens: 2000,
+                    messages: [{ role: 'user', content: AI_PROMPT + '"' + text + '"' }]
+                };
+            } else if (url.includes('generativelanguage.googleapis.com')) {
+                let targetUrl = url;
+                if (!targetUrl.includes('key=')) {
+                    targetUrl += (targetUrl.includes('?') ? '&' : '?') + 'key=' + apiKey;
+                }
+                const res = await fetch(targetUrl, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: AI_PROMPT + '"' + text + '"' }] }]
+                    })
+                });
+                if (!res.ok) throw new Error('Gemini API Error: ' + res.status);
+                const json = await res.json();
+                if (json.candidates && json.candidates[0]?.content?.parts[0]?.text) {
+                    return json.candidates[0].content.parts[0].text.trim();
+                }
+                throw new Error('Gemini 返回数据异常');
+            } else {
+                headers['Authorization'] = 'Bearer ' + apiKey;
+                bodyData = {
+                    model: modelName,
+                    messages: [
+                        { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
+                        { role: 'user', content: AI_PROMPT + '"' + text + '"' }
+                    ],
+                    temperature: 0.3
+                };
+            }
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(bodyData)
+            });
+
+            if (!res.ok) throw new Error('自定义 AI 接口报错: ' + res.status);
+            const json = await res.json();
+
+            if (json.content && Array.isArray(json.content) && json.content[0]?.text) {
+                return json.content[0].text.trim();
+            }
+            if (json.choices && json.choices.length > 0) {
+                return json.choices[0].message.content.trim();
+            }
+
+            throw new Error('自定义 AI 返回结构不符合预期');
+        }
+
         async function executeAIPipeline(text) {
             const pref = localStorage.getItem('PREFERRED_AI') || 'groq';
             const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
             const glmKey = localStorage.getItem('GLM_API_KEY') || '';
             const groqModel = localStorage.getItem('GROQ_MODEL') || '';
             const glmModel = localStorage.getItem('GLM_MODEL') || '';
-
-            if ((!groqKey && !glmKey) || (!groqModel && !glmModel)) throw new Error('MISSING_KEYS_OR_MODELS');
+            const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
+            const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
+            const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
 
             const runGroq = async () => {
-                if (!groqKey) throw new Error("Groq API Key 未配置");
-                if (!groqModel) throw new Error("Groq 模型未配置");
+                if (!groqKey || !groqModel) throw new Error("Groq 配置不完整");
                 return await fetchGroq(text, groqKey, groqModel);
             };
             const runGLM = async () => {
-                if (!glmKey) throw new Error("智谱GLM API Key 未配置");
-                if (!glmModel) throw new Error("智谱GLM 模型未配置");
+                if (!glmKey || !glmModel) throw new Error("智谱GLM 配置不完整");
                 return await fetchGLM(text, glmKey, glmModel);
             };
+            const runCustom = async () => {
+                if (!customUrl || !customKey || !customModel) throw new Error("自定义 AI 配置不完整");
+                return await fetchCustomAI(text, customUrl, customKey, customModel);
+            };
 
-            if (pref === 'groq') {
+            if (pref === 'custom') {
+                try {
+                    return await runCustom();
+                } catch (err) {
+                    console.warn("自定义 AI 失败，尝试降级:", err);
+                    if (groqKey && groqModel) {
+                        document.getElementById('sync-status').innerText = '⚠️ 自定义异常，降级Groq...';
+                        try { return await runGroq(); } catch(e2) { if (glmKey && glmModel) return await runGLM(); throw e2; }
+                    } else if (glmKey && glmModel) {
+                        document.getElementById('sync-status').innerText = '⚠️ 自定义异常，降级智谱...';
+                        return await runGLM();
+                    }
+                    throw err;
+                }
+            } else if (pref === 'groq') {
                 try {
                     return await runGroq();
                 } catch (err) {
-                    console.warn("首选 Groq 失败，尝试降级到智谱:", err);
+                    console.warn("Groq 失败，尝试降级:", err);
                     if (glmKey && glmModel) {
-                        document.getElementById('sync-status').innerText = '⚠️ Groq异常，正降级为智谱...';
+                        document.getElementById('sync-status').innerText = '⚠️ Groq异常，降级智谱...';
                         return await runGLM();
                     }
                     throw err;
@@ -1262,9 +1453,9 @@ def generate_index():
                 try {
                     return await runGLM();
                 } catch (err) {
-                    console.warn("首选 智谱 失败，尝试降级到Groq:", err);
+                    console.warn("智谱 失败，尝试降级:", err);
                     if (groqKey && groqModel) {
-                        document.getElementById('sync-status').innerText = '⚠️ 智谱异常，正降级为Groq...';
+                        document.getElementById('sync-status').innerText = '⚠️ 智谱异常，降级Groq...';
                         return await runGroq();
                     }
                     throw err;
@@ -1272,17 +1463,14 @@ def generate_index():
             }
         }
 
-        // 【终极隔离方案】纯净 DOM 快照：专治 GitHub 404 及脱机环境备用
         function getFallbackCleanHTML() {
             const clone = document.documentElement.cloneNode(true);
             
-            // 强制重置按钮状态，根治被锁死 "同步中" 的 Bug
             const statusMsg = clone.querySelector('#sync-status');
             if (statusMsg) { statusMsg.removeAttribute('style'); statusMsg.innerText = '📡 同步中...'; }
             const tBtn = clone.querySelector('#translate-btn');
             if (tBtn) { tBtn.removeAttribute('style'); tBtn.removeAttribute('disabled'); tBtn.innerText = '🌐 一键翻译'; }
             
-            // 暴力剥离 Relingo 高亮标签等外部插件污染
             const removeRelingo = (root) => {
                 const tags = root.querySelectorAll('relin-highlight, relin-hc, [class*="relingo"]');
                 tags.forEach(t => {
@@ -1292,7 +1480,7 @@ def generate_index():
                 });
             };
             removeRelingo(clone);
-            removeRelingo(clone); // 处理嵌套
+            removeRelingo(clone); 
             
             clone.querySelectorAll('script').forEach(s => {
                 if (!s.src.includes('marked.min.js') && s.id !== 'core-engine') s.remove();
@@ -1301,12 +1489,10 @@ def generate_index():
                 if (s.id !== 'core-style') s.remove();
             });
 
-            // 清理 AI loading 状态
             clone.querySelectorAll('.ai-toggle').forEach(t => {
                 t.classList.remove('loading');
             });
             
-            // 同步最新的 textarea 文本
             const liveTAs = document.querySelectorAll('.anno-edit');
             clone.querySelectorAll('.anno-edit').forEach((ta, i) => { 
                 if(liveTAs[i]) ta.textContent = liveTAs[i].value;
@@ -1325,7 +1511,6 @@ def generate_index():
             return '<!DOCTYPE html>\\\\n<html lang="zh-CN">\\\\n' + clone.innerHTML + '\\\\n</html>';
         }
 
-        // 【完全隔离插件】云端同步引擎核心
         async function syncToCloud(isTranslation = false) {
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
@@ -1351,7 +1536,6 @@ def generate_index():
                 let finalHTML = '';
                 let sha = '';
                 
-                // 【核心策略】先拉取 Github 上的纯净版文件，只把自己的 Textarea/翻译 塞进去，完全阻断本地插件污染！
                 const getRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), {
                     headers: { 'Authorization': 'Bearer ' + ghToken }, cache: 'no-store'
                 });
@@ -1363,7 +1547,6 @@ def generate_index():
                     const parser = new DOMParser();
                     const cleanDoc = parser.parseFromString(cleanHTML, 'text/html');
 
-                    // 1. 注入批注文本
                     const liveTAs = document.querySelectorAll('.anno-edit');
                     const cleanTAs = cleanDoc.querySelectorAll('.anno-edit');
                     liveTAs.forEach((liveTa, i) => {
@@ -1376,7 +1559,6 @@ def generate_index():
                         }
                     });
 
-                    // 2. 注入翻译模块
                     const liveContents = document.querySelectorAll('.content');
                     const cleanContents = cleanDoc.querySelectorAll('.content');
                     liveContents.forEach((liveC, i) => {
@@ -1396,7 +1578,6 @@ def generate_index():
                         }
                     });
                     
-                    // 3. 恢复红点状态
                     cleanDoc.querySelectorAll('.anno-toggle').forEach(t => {
                         t.classList.remove('has-anno');
                         const ta = t.closest('.content-wrap').querySelector('.anno-edit');
@@ -1405,7 +1586,6 @@ def generate_index():
 
                     finalHTML = '<!DOCTYPE html>\\\\n<html lang="zh-CN">\\\\n' + cleanDoc.documentElement.innerHTML + '\\\\n</html>';
                 } else {
-                    // 如果网络失败或 Github 本身还没这个文件（比如刚创建），启动备用降级防御方案
                     finalHTML = getFallbackCleanHTML();
                 }
 
@@ -1465,29 +1645,31 @@ def generate_index():
                     try { view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; } catch(e){}
                 }
                 
-                // --- AI 按钮逻辑 ---
                 if (aiToggle) {
                     aiToggle.addEventListener('click', async (e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         if (aiToggle.classList.contains('loading')) return;
 
+                        const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
                         const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
                         const glmKey = localStorage.getItem('GLM_API_KEY') || '';
-                        const groqModel = localStorage.getItem('GROQ_MODEL') || '';
-                        const glmModel = localStorage.getItem('GLM_MODEL') || '';
-
-                        if ((!groqKey && !glmKey) || (!groqModel && !glmModel)) {
-                            alert('⚠️ 请先返回【日历大厅】右上角的 ⚙️配置中心 设置 API Key 和模型！');
+                        const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
+                        const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
+                        
+                        let isReady = false;
+                        if (pref === 'custom' && customUrl && customKey) isReady = true;
+                        if (pref === 'groq' && groqKey) isReady = true;
+                        if (pref === 'glm' && glmKey) isReady = true;
+                        
+                        if (!isReady && !groqKey && !glmKey && !customKey) {
+                            alert('⚠️ 请先返回【日历大厅】右上角的 ⚙️配置中心 设置 AI 引擎的 URL 和密钥！');
                             return;
                         }
 
-                        // 提取纯文本，避开红点和机器人图标
                         const pClone = wrap.querySelector('.content').cloneNode(true);
                         pClone.querySelectorAll('.anno-toggle, .ai-toggle, .translated-content').forEach(el => el.remove());
                         let pText = pClone.textContent.trim();
-                        
-                        // 【核心过滤】：正则彻底剥离推文内的 http/https 链接，防止干扰 AI 或翻译
                         pText = pText.replace(/https?:\\\\/\\\\/\\\\S+/g, '').trim();
 
                         if (!pText) return;
@@ -1506,7 +1688,6 @@ def generate_index():
                             edit.style.display = 'block';
                             edit.value = aiContent;
                             
-                            // 触发失焦，联动 Marked.js 渲染与 GitHub 自动保存
                             edit.focus();
                             edit.blur();
                             
@@ -1515,11 +1696,7 @@ def generate_index():
                             setTimeout(() => { if (statusMsg.innerText.includes('AI')) statusMsg.style.display = 'none'; }, 2000);
                         } catch (err) {
                             console.error(err);
-                            if (err.message === 'MISSING_KEYS_OR_MODELS') {
-                                alert('⚠️ 请返回日历大厅配置 AI 密钥和模型！');
-                            } else {
-                                alert('❌ AI 解析失败: ' + err.message);
-                            }
+                            alert('❌ AI 解析失败: ' + err.message);
                             statusMsg.style.display = 'none';
                         } finally {
                             aiToggle.classList.remove('loading');
@@ -1603,12 +1780,10 @@ def generate_index():
                 const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
                 
-                // 【修复翻译被高亮插件干扰】：在送去翻译前，扒掉 Relingo 和按钮代码
                 const cloneText = content.cloneNode(true);
                 cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle, .ai-toggle').forEach(el => el.remove());
                 let textToTranslate = cloneText.innerText;
                 
-                // 【核心过滤】：正则彻底剥离翻译模块的 http/https 链接
                 textToTranslate = textToTranslate.replace(/https?:\\\\/\\\\/\\\\S+/g, '').trim();
                 let checkText = textToTranslate.replace(/\\\\p{Extended_Pictographic}/gu, '').trim();
                 
@@ -1655,14 +1830,12 @@ def generate_index():
 </body>
 </html>`;
         }
-        // ------------------------------------
 
-        // === 核心：处理前端自定义批量模板同步 ===
+        // === 处理前端自定义批量模板同步 ===
         document.getElementById('submitBatchBtn').addEventListener('click', async () => {
             const inputText = document.getElementById('batchInputArea').value;
             let tweetIdsToProcess = [];
             
-            // 使用正则匹配多行文本中所有的 status 数字
             const matches = [...inputText.matchAll(/status\\/(\\d+)/g)];
             matches.forEach(match => {
                 if (!tweetIdsToProcess.includes(match[1])) {
@@ -1670,7 +1843,6 @@ def generate_index():
                 }
             });
             
-            // 强制截断，最高只抓前 10 条
             tweetIdsToProcess = tweetIdsToProcess.slice(0, 10);
 
             if (tweetIdsToProcess.length === 0) {
@@ -1772,7 +1944,6 @@ def generate_index():
             }
         });
 
-        // X 推文前端抓取逻辑
         document.getElementById('xUrlInput').addEventListener('keypress', async function (e) {
             if (e.key === 'Enter') {
                 const url = this.value.trim();
@@ -1977,7 +2148,7 @@ def generate_index():
 
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首页日历 WebApp 已生成更新！(支持多行文本批量组合)")
+    print("🚀 首页日历 WebApp 已生成更新！")
 
 def git_push_to_github(msg="Auto-archive"):
     """自动调用本地系统的 Git 指令将更新推送到 GitHub"""
