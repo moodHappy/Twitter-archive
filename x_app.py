@@ -101,60 +101,60 @@ def generate_tweet_card(tweet_data, tweet_id):
         </div>"""
 
 def generate_page_wrapper(content_html, page_title, now_str):
-    """生成完整 HTML 页面外壳 (Python 本地后端生成版)"""
-    return f"""<!DOCTYPE html>
+    """生成完整 HTML 页面外壳 (彻底解决大括号转义问题)"""
+    html_template = """<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="referrer" content="no-referrer">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>{page_title}</title>
+    <title>__PAGE_TITLE__</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style id="core-style">
-        :root {{ --bg: #f2f2f7; --card: #ffffff; --text: #0f1419; --muted: #536471; --border: #eff3f4; --x-blue: #1d9bf0; }}
-        body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }}
-        .nav-back {{ display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: var(--card); border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }}
-        .nav-back a {{ text-decoration: none; color: white; background: #000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }}
-        .translate-btn {{ background: #f2f2f7; color: #0f1419; border: 1px solid #ccc; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: 0.2s; flex-shrink: 0; outline: none; }}
-        .translate-btn:active {{ background: #e5e5ea; transform: scale(0.95); }}
-        .translate-btn[disabled] {{ opacity: 0.8; cursor: not-allowed; }}
+        :root { --bg: #f2f2f7; --card: #ffffff; --text: #0f1419; --muted: #536471; --border: #eff3f4; --x-blue: #1d9bf0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+        .nav-back { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: var(--card); border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .nav-back a { text-decoration: none; color: white; background: #000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
+        .translate-btn { background: #f2f2f7; color: #0f1419; border: 1px solid #ccc; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: 0.2s; flex-shrink: 0; outline: none; }
+        .translate-btn:active { background: #e5e5ea; transform: scale(0.95); }
+        .translate-btn[disabled] { opacity: 0.8; cursor: not-allowed; }
         
-        .sync-status {{ padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; display: none; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }}
+        .sync-status { padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; display: none; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
         
-        .anno-toggle, .ai-toggle {{ display: inline-block; padding: 4px 8px; margin-left: 4px; cursor: pointer; opacity: 0.3; font-size: 0.9rem; vertical-align: middle; transition: all 0.2s; user-select: none; -webkit-tap-highlight-color: transparent; }}
-        .anno-toggle:hover, .ai-toggle:hover {{ opacity: 0.9; transform: scale(1.1); }}
-        .anno-toggle.has-anno {{ opacity: 1; }}
-        .anno-toggle::after {{ content: "🔴"; }}
-        .ai-toggle {{ opacity: 0.6; padding: 4px 4px; }}
-        .ai-toggle::after {{ content: "🤖"; }}
-        .ai-toggle.loading::after {{ content: "⏳"; display: inline-block; animation: spin 1s linear infinite; }}
-        @keyframes spin {{ 100% {{ transform: rotate(360deg); }} }}
+        .anno-toggle, .ai-toggle { display: inline-block; padding: 4px 8px; margin-left: 4px; cursor: pointer; opacity: 0.3; font-size: 0.9rem; vertical-align: middle; transition: all 0.2s; user-select: none; -webkit-tap-highlight-color: transparent; }
+        .anno-toggle:hover, .ai-toggle:hover { opacity: 0.9; transform: scale(1.1); }
+        .anno-toggle.has-anno { opacity: 1; }
+        .anno-toggle::after { content: "🔴"; }
+        .ai-toggle { opacity: 0.6; padding: 4px 4px; }
+        .ai-toggle::after { content: "🤖"; }
+        .ai-toggle.loading::after { content: "⏳"; display: inline-block; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
         
-        .anno-box {{ display: none; margin-top: 10px; background: #f8f6ff; border-left: 4px solid #8e7cc3; padding: 12px 16px; border-radius: 0 6px 6px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.02); text-align: left; }}
-        .anno-view {{ font-size: 1.05rem; line-height: 1.6; color: #4a4a4a; min-height: 24px; }}
-        .anno-edit {{ width: 100%; min-height: 120px; padding: 10px; font-family: monospace; font-size: 1rem; border: 1px dashed #8e7cc3; border-radius: 6px; box-sizing: border-box; resize: vertical; display: none; background: #fff; color: #333; outline: none; }}
-        .anno-edit:focus {{ border: 1px solid #8e7cc3; box-shadow: 0 0 0 3px rgba(142,124,195,0.1); }}
+        .anno-box { display: none; margin-top: 10px; background: #f8f6ff; border-left: 4px solid #8e7cc3; padding: 12px 16px; border-radius: 0 6px 6px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.02); text-align: left; }
+        .anno-view { font-size: 1.05rem; line-height: 1.6; color: #4a4a4a; min-height: 24px; }
+        .anno-edit { width: 100%; min-height: 120px; padding: 10px; font-family: monospace; font-size: 1rem; border: 1px dashed #8e7cc3; border-radius: 6px; box-sizing: border-box; resize: vertical; display: none; background: #fff; color: #333; outline: none; }
+        .anno-edit:focus { border: 1px solid #8e7cc3; box-shadow: 0 0 0 3px rgba(142,124,195,0.1); }
         
-        .markdown-body p {{ margin-top: 0; margin-bottom: 8px; }}
-        .markdown-body p:last-child {{ margin-bottom: 0; }}
-        .markdown-body p:empty {{ display: none; }}
-        .markdown-body h1, .markdown-body h2, .markdown-body h3 {{ color: #8e7cc3; font-size: 1.15rem; margin: 10px 0 8px 0; border-bottom: 1px dashed #e0d8f0; padding-bottom: 4px; }}
-        .markdown-body ul, .markdown-body ol {{ margin: 0 0 8px 0; padding-left: 20px; }}
-        .markdown-body blockquote {{ margin: 0 0 10px 0; padding: 10px 15px; background: rgba(142,124,195,0.1); border-left: 4px solid #8e7cc3; color: #555; }}
+        .markdown-body p { margin-top: 0; margin-bottom: 8px; }
+        .markdown-body p:last-child { margin-bottom: 0; }
+        .markdown-body p:empty { display: none; }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 { color: #8e7cc3; font-size: 1.15rem; margin: 10px 0 8px 0; border-bottom: 1px dashed #e0d8f0; padding-bottom: 4px; }
+        .markdown-body ul, .markdown-body ol { margin: 0 0 8px 0; padding-left: 20px; }
+        .markdown-body blockquote { margin: 0 0 10px 0; padding: 10px 15px; background: rgba(142,124,195,0.1); border-left: 4px solid #8e7cc3; color: #555; }
 
-        .container {{ max-width: 600px; margin: 0 auto; padding: 20px 15px 50px 15px; }}
-        .tweet-card {{ background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 25px; }}
-        .header {{ display: flex; align-items: center; margin-bottom: 12px; }}
-        .names {{ display: flex; flex-direction: column; }}
-        .name {{ font-weight: 700; font-size: 1.1rem; color: var(--text); }}
-        .handle {{ color: var(--muted); font-size: 0.95rem; margin-top: 2px; }}
-        .content {{ font-size: 1.1rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }}
-        .media-container {{ margin-top: 10px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; background: #000; }}
-        .media-item {{ width: 100%; height: auto; display: block; max-height: 500px; object-fit: contain; }}
-        .stats {{ margin-top: 15px; color: var(--muted); font-size: 0.95rem; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px; font-weight: 500; margin-bottom: 15px; }}
-        .btn-link {{ display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }}
-        .btn-link:active {{ transform: scale(0.98); background: #1a8cd8; }}
-        .time-stamp {{ text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }}
+        .container { max-width: 600px; margin: 0 auto; padding: 20px 15px 50px 15px; }
+        .tweet-card { background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 25px; }
+        .header { display: flex; align-items: center; margin-bottom: 12px; }
+        .names { display: flex; flex-direction: column; }
+        .name { font-weight: 700; font-size: 1.1rem; color: var(--text); }
+        .handle { color: var(--muted); font-size: 0.95rem; margin-top: 2px; }
+        .content { font-size: 1.1rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
+        .media-container { margin-top: 10px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; background: #000; }
+        .media-item { width: 100%; height: auto; display: block; max-height: 500px; object-fit: contain; }
+        .stats { margin-top: 15px; color: var(--muted); font-size: 0.95rem; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px; font-weight: 500; margin-bottom: 15px; }
+        .btn-link { display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }
+        .btn-link:active { transform: scale(0.98); background: #1a8cd8; }
+        .time-stamp { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }
     </style>
 </head>
 <body>
@@ -166,8 +166,8 @@ def generate_page_wrapper(content_html, page_title, now_str):
         </div>
     </div>
     <div class="container">
-        <div class="time-stamp">归档时间: {now_str}</div>
-        {content_html}
+        <div class="time-stamp">归档时间: __NOW_STR__</div>
+        __CONTENT_HTML__
     </div>
     
     <script id="core-engine">
@@ -175,114 +175,106 @@ def generate_page_wrapper(content_html, page_title, now_str):
 
         const AI_PROMPT = "请分析以下英文段落，并严格按照以下 Markdown 格式输出（不要输出任何额外的废话）：\\n\\n### 📌 完整翻译\\n\\n[此处填写完整翻译]\\n\\n### 📌 Key Expressions\\n\\n- **[单词或短语]**\\n  = [中文释义]\\n  （[可选的补充说明，如倒装结构或语境等]）\\n\\n段落内容：\\n";
 
-        async function fetchGroq(text, apiKey, modelName) {{
-            const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {{
+        async function fetchGroq(text, apiKey, modelName) {
+            const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
                 method: 'POST',
-                headers: {{ 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' }},
-                body: JSON.stringify({{
+                headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
                     model: modelName,
                     messages: [
-                        {{ role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' }},
-                        {{ role: 'user', content: AI_PROMPT + '"' + text + '"' }}
+                        { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
+                        { role: 'user', content: AI_PROMPT + '"' + text + '"' }
                     ],
                     temperature: 0.3
-                }})
-            }});
+                })
+            });
             if (!res.ok) throw new Error('Groq API Error: ' + res.status);
             const json = await res.json();
             if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
             throw new Error('Groq返回数据异常');
-        }}
+        }
 
-        async function fetchGLM(text, apiKey, modelName) {{
-            const res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {{
+        async function fetchGLM(text, apiKey, modelName) {
+            const res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
                 method: 'POST',
-                headers: {{ 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' }},
-                body: JSON.stringify({{
+                headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
                     model: modelName,
                     messages: [
-                        {{ role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' }},
-                        {{ role: 'user', content: AI_PROMPT + '"' + text + '"' }}
+                        { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
+                        { role: 'user', content: AI_PROMPT + '"' + text + '"' }
                     ],
                     temperature: 0.3
-                }})
-            }});
+                })
+            });
             if (!res.ok) throw new Error('智谱GLM API Error: ' + res.status);
             const json = await res.json();
             if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
             throw new Error('智谱GLM返回数据异常');
-        }}
+        }
 
-        // Universal AI fetcher: 全球/国内主流 AI 超级适配器
-        async function fetchCustomAI(text, url, apiKey, modelName) {{
-            let headers = {{ 'Content-Type': 'application/json' }};
-            let bodyData = {{}};
+        async function fetchCustomAI(text, url, apiKey, modelName) {
+            let headers = { 'Content-Type': 'application/json' };
+            let bodyData = {};
 
-            // 特殊适配 1: Anthropic Claude 官方原生 API
-            if (url.includes('anthropic.com')) {{
+            if (url.includes('anthropic.com')) {
                 headers['x-api-key'] = apiKey;
                 headers['anthropic-version'] = '2023-06-01';
-                bodyData = {{
+                bodyData = {
                     model: modelName,
                     max_tokens: 2000,
-                    messages: [{{ role: 'user', content: AI_PROMPT + '"' + text + '"' }}]
-                }};
-            }}
-            // 特殊适配 2: Google Gemini 官方原生 API
-            else if (url.includes('generativelanguage.googleapis.com')) {{
+                    messages: [{ role: 'user', content: AI_PROMPT + '"' + text + '"' }]
+                };
+            } else if (url.includes('generativelanguage.googleapis.com')) {
                 let targetUrl = url;
-                if (!targetUrl.includes('key=')) {{
+                if (!targetUrl.includes('key=')) {
                     targetUrl += (targetUrl.includes('?') ? '&' : '?') + 'key=' + apiKey;
-                }}
-                const res = await fetch(targetUrl, {{
+                }
+                const res = await fetch(targetUrl, {
                     method: 'POST',
                     headers: headers,
-                    body: JSON.stringify({{
-                        contents: [{{ parts: [{{ text: AI_PROMPT + '"' + text + '"' }}] }}]
-                    }})
-                }});
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: AI_PROMPT + '"' + text + '"' }] }]
+                    })
+                });
                 if (!res.ok) throw new Error('Gemini API Error: ' + res.status);
                 const json = await res.json();
-                if (json.candidates && json.candidates[0]?.content?.parts[0]?.text) {{
+                if (json.candidates && json.candidates[0]?.content?.parts[0]?.text) {
                     return json.candidates[0].content.parts[0].text.trim();
-                }}
+                }
                 throw new Error('Gemini 返回数据异常');
-            }}
-            // 标准适配: 涵盖 OpenAI, DeepSeek, 通义千问, Kimi, 硅基流动, ChatAnywhere, OpenRouter 等 98% 国内外厂商
-            else {{
+            } else {
                 headers['Authorization'] = 'Bearer ' + apiKey;
-                bodyData = {{
+                bodyData = {
                     model: modelName,
                     messages: [
-                        {{ role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' }},
-                        {{ role: 'user', content: AI_PROMPT + '"' + text + '"' }}
+                        { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
+                        { role: 'user', content: AI_PROMPT + '"' + text + '"' }
                     ],
                     temperature: 0.3
-                }};
-            }}
+                };
+            }
 
-            const res = await fetch(url, {{
+            const res = await fetch(url, {
                 method: 'POST',
                 headers: headers,
                 body: JSON.stringify(bodyData)
-            }});
+            });
 
             if (!res.ok) throw new Error('自定义 AI 接口报错: ' + res.status);
             const json = await res.json();
 
-            // Claude 原生解析
-            if (json.content && Array.isArray(json.content) && json.content[0]?.text) {{
+            if (json.content && Array.isArray(json.content) && json.content[0]?.text) {
                 return json.content[0].text.trim();
-            }}
-            // OpenAI 标准解析
-            if (json.choices && json.choices.length > 0) {{
+            }
+            if (json.choices && json.choices.length > 0) {
                 return json.choices[0].message.content.trim();
-            }}
+            }
 
             throw new Error('自定义 AI 返回结构不符合预期');
-        }}
+        }
 
-        async function executeAIPipeline(text) {{
+        async function executeAIPipeline(text) {
             const pref = localStorage.getItem('PREFERRED_AI') || 'groq';
             const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
             const glmKey = localStorage.getItem('GLM_API_KEY') || '';
@@ -292,104 +284,104 @@ def generate_page_wrapper(content_html, page_title, now_str):
             const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
             const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
 
-            const runGroq = async () => {{
+            const runGroq = async () => {
                 if (!groqKey || !groqModel) throw new Error("Groq 配置不完整");
                 return await fetchGroq(text, groqKey, groqModel);
-            }};
-            const runGLM = async () => {{
+            };
+            const runGLM = async () => {
                 if (!glmKey || !glmModel) throw new Error("智谱GLM 配置不完整");
                 return await fetchGLM(text, glmKey, glmModel);
-            }};
-            const runCustom = async () => {{
+            };
+            const runCustom = async () => {
                 if (!customUrl || !customKey || !customModel) throw new Error("自定义 AI 配置不完整");
                 return await fetchCustomAI(text, customUrl, customKey, customModel);
-            }};
+            };
 
-            if (pref === 'custom') {{
-                try {{
+            if (pref === 'custom') {
+                try {
                     return await runCustom();
-                }} catch (err) {{
+                } catch (err) {
                     console.warn("自定义 AI 失败，尝试降级:", err);
-                    if (groqKey && groqModel) {{
+                    if (groqKey && groqModel) {
                         document.getElementById('sync-status').innerText = '⚠️ 自定义异常，降级Groq...';
-                        try {{ return await runGroq(); }} catch(e2) {{ if (glmKey && glmModel) return await runGLM(); throw e2; }}
-                    }} else if (glmKey && glmModel) {{
+                        try { return await runGroq(); } catch(e2) { if (glmKey && glmModel) return await runGLM(); throw e2; }
+                    } else if (glmKey && glmModel) {
                         document.getElementById('sync-status').innerText = '⚠️ 自定义异常，降级智谱...';
                         return await runGLM();
-                    }}
+                    }
                     throw err;
-                }}
-            }} else if (pref === 'groq') {{
-                try {{
+                }
+            } else if (pref === 'groq') {
+                try {
                     return await runGroq();
-                }} catch (err) {{
+                } catch (err) {
                     console.warn("Groq 失败，尝试降级:", err);
-                    if (glmKey && glmModel) {{
+                    if (glmKey && glmModel) {
                         document.getElementById('sync-status').innerText = '⚠️ Groq异常，降级智谱...';
                         return await runGLM();
-                    }}
+                    }
                     throw err;
-                }}
-            }} else {{
-                try {{
+                }
+            } else {
+                try {
                     return await runGLM();
-                }} catch (err) {{
+                } catch (err) {
                     console.warn("智谱 失败，尝试降级:", err);
-                    if (groqKey && groqModel) {{
+                    if (groqKey && groqModel) {
                         document.getElementById('sync-status').innerText = '⚠️ 智谱异常，降级Groq...';
                         return await runGroq();
-                    }}
+                    }
                     throw err;
-                }}
-            }}
-        }}
+                }
+            }
+        }
 
-        function getFallbackCleanHTML() {{
+        function getFallbackCleanHTML() {
             const clone = document.documentElement.cloneNode(true);
             const statusMsg = clone.querySelector('#sync-status');
-            if (statusMsg) {{ statusMsg.removeAttribute('style'); statusMsg.innerText = '📡 同步中...'; }}
+            if (statusMsg) { statusMsg.removeAttribute('style'); statusMsg.innerText = '📡 同步中...'; }
             const tBtn = clone.querySelector('#translate-btn');
-            if (tBtn) {{ tBtn.removeAttribute('style'); tBtn.removeAttribute('disabled'); tBtn.innerText = '🌐 一键翻译'; }}
+            if (tBtn) { tBtn.removeAttribute('style'); tBtn.removeAttribute('disabled'); tBtn.innerText = '🌐 一键翻译'; }
             
-            const removeRelingo = (root) => {{
+            const removeRelingo = (root) => {
                 const tags = root.querySelectorAll('relin-highlight, relin-hc, [class*="relingo"]');
-                tags.forEach(t => {{
+                tags.forEach(t => {
                     const frag = document.createDocumentFragment();
                     while(t.firstChild) frag.appendChild(t.firstChild);
                     t.parentNode.replaceChild(frag, t);
-                }});
-            }};
+                });
+            };
             removeRelingo(clone);
             removeRelingo(clone); 
             
-            clone.querySelectorAll('script').forEach(s => {{
+            clone.querySelectorAll('script').forEach(s => {
                 if (!s.src.includes('marked.min.js') && s.id !== 'core-engine') s.remove();
-            }});
-            clone.querySelectorAll('style').forEach(s => {{
+            });
+            clone.querySelectorAll('style').forEach(s => {
                 if (s.id !== 'core-style') s.remove();
-            }});
+            });
 
             clone.querySelectorAll('.ai-toggle').forEach(t => t.classList.remove('loading'));
             
             const liveTAs = document.querySelectorAll('.anno-edit');
-            clone.querySelectorAll('.anno-edit').forEach((ta, i) => {{ 
+            clone.querySelectorAll('.anno-edit').forEach((ta, i) => { 
                 if(liveTAs[i]) ta.textContent = liveTAs[i].value;
                 const box = ta.closest('.anno-box');
                 if (box) box.style.display = 'none';
                 const view = box ? box.querySelector('.anno-view') : null;
                 if (view) view.innerHTML = ''; 
-            }});
+            });
             
-            clone.querySelectorAll('.anno-toggle').forEach(t => {{
+            clone.querySelectorAll('.anno-toggle').forEach(t => {
                 t.classList.remove('has-anno');
                 const ta = t.closest('.content-wrap').querySelector('.anno-edit');
                 if (ta && ta.textContent.trim()) t.classList.add('has-anno');
-            }});
+            });
             
             return '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + clone.innerHTML + '\\n</html>';
-        }}
+        }
 
-        async function syncToCloud(isTranslation = false) {{
+        async function syncToCloud(isTranslation = false) {
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
             const ghRepo = localStorage.getItem('GH_REPO');
@@ -398,11 +390,11 @@ def generate_page_wrapper(content_html, page_title, now_str):
             const statusMsg = document.getElementById('sync-status');
             const transBtn = document.getElementById('translate-btn');
             
-            if (!isTranslation) {{
+            if (!isTranslation) {
                 statusMsg.style.display = 'inline-block';
                 statusMsg.style.backgroundColor = '#2ea44f';
                 statusMsg.innerText = '📡 同步中...';
-            }}
+            }
 
             const pathParts = window.location.pathname.split('/');
             const fileName = pathParts.pop();
@@ -410,15 +402,15 @@ def generate_page_wrapper(content_html, page_title, now_str):
             const year = pathParts.pop();
             const fileRelPath = year + '/' + month + '/' + fileName;
 
-            try {{
+            try {
                 let finalHTML = '';
                 let sha = '';
                 
-                const getRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), {{
-                    headers: {{ 'Authorization': 'Bearer ' + ghToken }}, cache: 'no-store'
-                }});
+                const getRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), {
+                    headers: { 'Authorization': 'Bearer ' + ghToken }, cache: 'no-store'
+                });
                 
-                if (getRes.ok) {{
+                if (getRes.ok) {
                     const fileData = await getRes.json();
                     sha = fileData.sha;
                     const cleanHTML = decodeURIComponent(escape(atob(fileData.content)));
@@ -427,76 +419,76 @@ def generate_page_wrapper(content_html, page_title, now_str):
 
                     const liveTAs = document.querySelectorAll('.anno-edit');
                     const cleanTAs = cleanDoc.querySelectorAll('.anno-edit');
-                    liveTAs.forEach((liveTa, i) => {{
-                        if (cleanTAs[i]) {{
+                    liveTAs.forEach((liveTa, i) => {
+                        if (cleanTAs[i]) {
                             cleanTAs[i].textContent = liveTa.value;
                             const box = cleanTAs[i].closest('.anno-box');
                             if (box) box.style.display = 'none';
                             const view = box ? box.querySelector('.anno-view') : null;
                             if (view) view.innerHTML = '';
-                        }}
-                    }});
+                        }
+                    });
 
                     const liveContents = document.querySelectorAll('.content');
                     const cleanContents = cleanDoc.querySelectorAll('.content');
-                    liveContents.forEach((liveC, i) => {{
-                        if (liveC.getAttribute('data-translated') === 'true' && cleanContents[i]) {{
+                    liveContents.forEach((liveC, i) => {
+                        if (liveC.getAttribute('data-translated') === 'true' && cleanContents[i]) {
                             cleanContents[i].setAttribute('data-translated', 'true');
                             const liveTrans = liveC.nextElementSibling;
-                            if (liveTrans && liveTrans.classList.contains('translated-content')) {{
+                            if (liveTrans && liveTrans.classList.contains('translated-content')) {
                                 const cleanTrans = cleanContents[i].nextElementSibling;
-                                if (!cleanTrans || !cleanTrans.classList.contains('translated-content')) {{
+                                if (!cleanTrans || !cleanTrans.classList.contains('translated-content')) {
                                     const newTrans = cleanDoc.createElement('div');
                                     newTrans.className = 'translated-content';
                                     newTrans.style.cssText = liveTrans.style.cssText;
                                     newTrans.innerHTML = liveTrans.innerHTML;
                                     cleanContents[i].parentNode.insertBefore(newTrans, cleanContents[i].nextSibling);
-                                }}
-                            }}
-                        }}
-                    }});
+                                }
+                            }
+                        }
+                    });
                     
-                    cleanDoc.querySelectorAll('.anno-toggle').forEach(t => {{
+                    cleanDoc.querySelectorAll('.anno-toggle').forEach(t => {
                         t.classList.remove('has-anno');
                         const ta = t.closest('.content-wrap').querySelector('.anno-edit');
                         if (ta && ta.textContent.trim()) t.classList.add('has-anno');
-                    }});
+                    });
 
                     finalHTML = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + cleanDoc.documentElement.innerHTML + '\\n</html>';
-                }} else {{
+                } else {
                     finalHTML = getFallbackCleanHTML();
-                }}
+                }
 
-                const putRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {{
+                const putRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {
                     method: 'PUT',
-                    headers: {{ 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' }},
-                    body: JSON.stringify({{ message: isTranslation ? 'Auto-solidify translation' : 'Auto-save annotation', content: btoa(unescape(encodeURIComponent(finalHTML))), sha: sha || undefined }})
-                }});
+                    headers: { 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: isTranslation ? 'Auto-solidify translation' : 'Auto-save annotation', content: btoa(unescape(encodeURIComponent(finalHTML))), sha: sha || undefined })
+                });
 
                 if(!putRes.ok) throw new Error('Put failed');
 
-                if (isTranslation) {{
+                if (isTranslation) {
                     transBtn.innerText = '🌐 已翻译并固化';
                     transBtn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
-                }} else {{
+                } else {
                     statusMsg.style.backgroundColor = '#2ea44f';
                     statusMsg.innerText = '✅ 云端已同步';
-                    setTimeout(() => {{ if (statusMsg.innerText === '✅ 云端已同步') statusMsg.style.display = 'none'; }}, 3000);
-                }}
-            }} catch(e) {{
+                    setTimeout(() => { if (statusMsg.innerText === '✅ 云端已同步') statusMsg.style.display = 'none'; }, 3000);
+                }
+            } catch(e) {
                 console.error(e);
-                if (isTranslation) {{
+                if (isTranslation) {
                     transBtn.innerText = '⚠️ 仅本地翻译';
-                }} else {{
+                } else {
                     statusMsg.style.backgroundColor = '#e74c3c';
                     statusMsg.innerText = '❌ 同步失败(点击重试)';
                     statusMsg.style.cursor = 'pointer';
-                    statusMsg.onclick = () => {{ statusMsg.onclick = null; statusMsg.style.cursor = 'default'; syncToCloud(false); };
-                }}
-            }}
-        }}
+                    statusMsg.onclick = () => { statusMsg.onclick = null; statusMsg.style.cursor = 'default'; syncToCloud(false); };
+                }
+            }
+        }
 
-        function scheduleSync() {{
+        function scheduleSync() {
             const statusMsg = document.getElementById('sync-status');
             statusMsg.style.display = 'inline-block';
             statusMsg.style.backgroundColor = '#f39c12';
@@ -504,11 +496,11 @@ def generate_page_wrapper(content_html, page_title, now_str):
             statusMsg.style.cursor = 'default';
             statusMsg.onclick = null;
             if (syncTimeout) clearTimeout(syncTimeout);
-            syncTimeout = setTimeout(() => {{ syncToCloud(false); }}, 3000);
-        }}
+            syncTimeout = setTimeout(() => { syncToCloud(false); }, 3000);
+        }
 
-        function initAnnotations() {{
-            document.querySelectorAll('.content-wrap').forEach(wrap => {{
+        function initAnnotations() {
+            document.querySelectorAll('.content-wrap').forEach(wrap => {
                 const view = wrap.querySelector('.anno-view');
                 const edit = wrap.querySelector('.anno-edit');
                 const toggle = wrap.querySelector('.anno-toggle');
@@ -518,18 +510,18 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 if (!view || !edit || !toggle || !box) return;
 
                 const rawText = edit.value.trim();
-                if (rawText) {{
+                if (rawText) {
                     toggle.classList.add('has-anno');
-                    try {{ view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; }} catch(e){{}}
-                }}
-
-                if (aiToggle) {{
-                    aiToggle.addEventListener('click', async (e) => {{
+                    try { view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; } catch(e){}
+                }
+                
+                if (aiToggle) {
+                    aiToggle.addEventListener('click', async (e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         if (aiToggle.classList.contains('loading')) return;
 
-                        const pref = localStorage.getItem('PREFERRED_AI') || 'groq';
+                        const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
                         const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
                         const glmKey = localStorage.getItem('GLM_API_KEY') || '';
                         const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
@@ -540,10 +532,10 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         if (pref === 'groq' && groqKey) isReady = true;
                         if (pref === 'glm' && glmKey) isReady = true;
                         
-                        if (!isReady && !groqKey && !glmKey && !customKey) {{
+                        if (!isReady && !groqKey && !glmKey && !customKey) {
                             alert('⚠️ 请先返回【日历大厅】右上角的 ⚙️配置中心 设置 AI 引擎的 URL 和密钥！');
                             return;
-                        }}
+                        }
 
                         const pClone = wrap.querySelector('.content').cloneNode(true);
                         pClone.querySelectorAll('.anno-toggle, .ai-toggle, .translated-content').forEach(el => el.remove());
@@ -558,7 +550,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         statusMsg.style.backgroundColor = '#0969da';
                         statusMsg.innerText = '🤖 AI 思考中...';
 
-                        try {{
+                        try {
                             const aiContent = await executeAIPipeline(pText);
                             
                             box.style.display = 'block';
@@ -571,82 +563,82 @@ def generate_page_wrapper(content_html, page_title, now_str):
                             
                             statusMsg.style.backgroundColor = '#2ea44f';
                             statusMsg.innerText = '✅ AI 解析成功';
-                            setTimeout(() => {{ if (statusMsg.innerText.includes('AI')) statusMsg.style.display = 'none'; }}, 2000);
-                        }} catch (err) {{
+                            setTimeout(() => { if (statusMsg.innerText.includes('AI')) statusMsg.style.display = 'none'; }, 2000);
+                        } catch (err) {
                             console.error(err);
                             alert('❌ AI 解析失败: ' + err.message);
                             statusMsg.style.display = 'none';
-                        }} finally {{
+                        } finally {
                             aiToggle.classList.remove('loading');
-                        }}
-                    }});
-                }}
+                        }
+                    });
+                }
 
-                toggle.onclick = (e) => {{
+                toggle.onclick = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    if (box.style.display === 'block') {{ 
+                    if (box.style.display === 'block') { 
                         box.style.display = 'none'; 
-                    }} else {{
+                    } else {
                         box.style.display = 'block';
-                        if (!edit.value.trim()) {{ 
+                        if (!edit.value.trim()) { 
                             view.style.display = 'none'; 
                             edit.style.display = 'block'; 
-                            setTimeout(() => {{ edit.focus(); }}, 150); 
-                        }} else {{ 
+                            setTimeout(() => { edit.focus(); }, 150); 
+                        } else { 
                             view.style.display = 'block'; 
                             edit.style.display = 'none'; 
-                        }}
-                    }}
-                }};
+                        }
+                    }
+                };
 
-                const triggerEdit = (e) => {{ 
-                    if(e) {{ e.preventDefault(); e.stopPropagation(); }}
+                const triggerEdit = (e) => { 
+                    if(e) { e.preventDefault(); e.stopPropagation(); }
                     view.style.display = 'none'; 
                     edit.style.display = 'block'; 
                     edit.value = edit.value; 
-                    setTimeout(() => {{ edit.focus(); }}, 150); 
-                }};
+                    setTimeout(() => { edit.focus(); }, 150); 
+                };
 
-                view.addEventListener('dblclick', (e) => {{
+                view.addEventListener('dblclick', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     box.style.display = 'none';
-                }});
+                });
 
                 let lastTap = 0;
-                view.addEventListener('touchstart', e => {{
-                    if (e.touches.length === 2) {{ triggerEdit(e); }} 
-                    else if (e.touches.length === 1) {{
+                view.addEventListener('touchstart', e => {
+                    if (e.touches.length === 2) { triggerEdit(e); } 
+                    else if (e.touches.length === 1) {
                         const currentTime = new Date().getTime();
-                        if (currentTime - lastTap < 500 && currentTime - lastTap > 0) {{ 
+                        if (currentTime - lastTap < 500 && currentTime - lastTap > 0) { 
                             e.preventDefault();
                             box.style.display = 'none'; 
-                        }}
+                        }
                         lastTap = currentTime;
-                    }}
-                }}, {{passive: false}});
+                    }
+                }, {passive: false});
 
-                edit.addEventListener('blur', () => {{
-                    setTimeout(() => {{
+                edit.addEventListener('blur', () => {
+                    setTimeout(() => {
                         const newVal = edit.value.trim();
-                        try {{ view.innerHTML = newVal ? ((typeof marked !== 'undefined') ? marked.parse(newVal) : newVal) : ''; }} catch(e){{}}
+                        try { view.innerHTML = newVal ? ((typeof marked !== 'undefined') ? marked.parse(newVal) : newVal) : ''; } catch(e){}
                         edit.style.display = 'none';
-                        if (newVal) {{ view.style.display = 'block'; toggle.classList.add('has-anno'); }} 
-                        else {{ view.style.display = 'none'; box.style.display = 'none'; toggle.classList.remove('has-anno'); }}
+                        if (newVal) { view.style.display = 'block'; toggle.classList.add('has-anno'); } 
+                        else { view.style.display = 'none'; box.style.display = 'none'; toggle.classList.remove('has-anno'); }
 
-                        if (edit.getAttribute('data-old-val') !== newVal) {{
+                        if (edit.getAttribute('data-old-val') !== newVal) {
                             edit.setAttribute('data-old-val', newVal);
                             scheduleSync(); 
-                        }}
-                    }}, 150);
-                }});
+                        }
+                    }, 150);
+                });
                 edit.setAttribute('data-old-val', rawText);
-            }});
-        }}
+            });
+        }
         window.addEventListener('load', initAnnotations);
 
-        async function translateAll() {{
+        async function translateAll() {
             const btn = document.getElementById('translate-btn');
             if(btn.hasAttribute('disabled')) return;
             btn.innerText = '⏳ 翻译中...';
@@ -654,7 +646,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
 
             let translatedCount = 0;
             const contents = document.querySelectorAll('.content');
-            for (let i = 0; i < contents.length; i++) {{
+            for (let i = 0; i < contents.length; i++) {
                 const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
                 
@@ -667,20 +659,20 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 
                 if (!checkText) continue;
 
-                try {{
-                    const res = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t', {{
+                try {
+                    const res = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t', {
                         method: 'POST',
-                        headers: {{ 'Content-Type': 'application/x-www-form-urlencoded' }},
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                         body: 'q=' + encodeURIComponent(textToTranslate)
-                    }});
+                    });
                     
                     const data = await res.json();
                     let translatedText = '';
-                    if (data && data[0]) {{
-                        data[0].forEach(item => {{ if (item[0]) translatedText += item[0]; }});
-                    }}
+                    if (data && data[0]) {
+                        data[0].forEach(item => { if (item[0]) translatedText += item[0]; });
+                    }
 
-                    if (translatedText) {{
+                    if (translatedText) {
                         const transDiv = document.createElement('div');
                         transDiv.className = 'translated-content';
                         transDiv.style.cssText = 'color: #0f1419; font-size: 1.05rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
@@ -689,24 +681,26 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         content.parentNode.insertBefore(transDiv, content.nextSibling);
                         content.setAttribute('data-translated', 'true');
                         translatedCount++;
-                    }}
-                }} catch (e) {{
+                    }
+                } catch (e) {
                     console.error('翻译失败:', e);
-                }}
-            }}
+                }
+            }
             
-            if (translatedCount === 0) {{
+            if (translatedCount === 0) {
                 btn.innerText = '✅ 已全部翻译';
                 return;
-            }}
+            }
 
             btn.innerText = '⏳ 固化至云端...';
             
             syncToCloud(true);
-        }}
+        }
     </script>
 </body>
 </html>"""
+    
+    return html_template.replace('__PAGE_TITLE__', page_title).replace('__NOW_STR__', now_str).replace('__CONTENT_HTML__', content_html)
 
 def save_single_tweet_local(tweet_id, now_obj):
     """处理并保存单条推文"""
@@ -969,7 +963,7 @@ def generate_index():
             <h3 class="modal-title">自定义组合归档 (最高 10 条)</h3>
             <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">贴入多个推文链接（支持直接粘贴整段文字），将自动识别并提取最多 10 条同步为单个文件。</p>
             <div class="form-group">
-                <textarea id="batchInputArea" class="batch-textarea" placeholder="在此粘贴多个推文链接...\\n\\n例如：\\nhttps://x.com/i/status/2078970469194092723\\nhttps://x.com/i/status/2079072889853321448"></textarea>
+                <textarea id="batchInputArea" class="batch-textarea" placeholder="在此粘贴多个推文链接...\n\n例如：\nhttps://x.com/i/status/2078970469194092723\nhttps://x.com/i/status/2079072889853321448"></textarea>
             </div>
             <div class="modal-actions">
                 <button class="btn btn-cancel" id="closeBatchBtn">取消</button>
@@ -1230,13 +1224,13 @@ def generate_index():
         }
 
         function generatePageWrapper(contentHtml, pageTitle, now_str) {
-            return `<!DOCTYPE html>
+            const html_template = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="referrer" content="no-referrer">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>${pageTitle}</title>
+    <title>__PAGE_TITLE__</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"><\\/script>
     <style id="core-style">
         :root { --bg: #f2f2f7; --card: #ffffff; --text: #0f1419; --muted: #536471; --border: #eff3f4; --x-blue: #1d9bf0; }
@@ -1293,8 +1287,8 @@ def generate_index():
         </div>
     </div>
     <div class="container">
-        <div class="time-stamp">归档时间: ${now_str}</div>
-        ${contentHtml}
+        <div class="time-stamp">归档时间: __NOW_STR__</div>
+        __CONTENT_HTML__
     </div>
     
     <script id="core-engine">
@@ -1828,9 +1822,11 @@ def generate_index():
         }
     <\\/script>
 </body>
-</html>`;
-        }
+</html>`
+    return html_template.replace('__PAGE_TITLE__', page_title).replace('__NOW_STR__', now_str).replace('__CONTENT_HTML__', content_html)
 
+// --- 这里修复结束，下方代码保持不变 ---
+        
         // === 处理前端自定义批量模板同步 ===
         document.getElementById('submitBatchBtn').addEventListener('click', async () => {
             const inputText = document.getElementById('batchInputArea').value;
