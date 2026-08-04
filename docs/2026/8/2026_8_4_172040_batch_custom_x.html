@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="referrer" content="no-referrer">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Custom Batch Tweets</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style id="core-style">
+        :root { --bg: #f2f2f7; --card: #ffffff; --text: #0f1419; --muted: #536471; --border: #eff3f4; --x-blue: #1d9bf0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+        .nav-back { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: var(--card); border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .nav-back a { text-decoration: none; color: white; background: #000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
+        .translate-btn { background: #f2f2f7; color: #0f1419; border: 1px solid #ccc; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: 0.2s; flex-shrink: 0; outline: none; }
+        .translate-btn:active { background: #e5e5ea; transform: scale(0.95); }
+        .translate-btn[disabled] { opacity: 0.8; cursor: not-allowed; }
+        
+        .sync-status { padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; display: none; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+        
+        .anno-toggle, .ai-toggle { display: inline-block; padding: 4px 8px; margin-left: 4px; cursor: pointer; opacity: 0.3; font-size: 0.9rem; vertical-align: middle; transition: all 0.2s; user-select: none; -webkit-tap-highlight-color: transparent; }
+        .anno-toggle:hover, .ai-toggle:hover { opacity: 0.9; transform: scale(1.1); }
+        .anno-toggle.has-anno { opacity: 1; }
+        .anno-toggle::after { content: "🔴"; }
+        .ai-toggle { opacity: 0.6; padding: 4px 4px; }
+        .ai-toggle::after { content: "🤖"; }
+        .ai-toggle.loading::after { content: "⏳"; display: inline-block; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        
+        .anno-box { display: none; margin-top: 10px; background: #f8f6ff; border-left: 4px solid #8e7cc3; padding: 12px 16px; border-radius: 0 6px 6px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.02); text-align: left; }
+        .anno-view { font-size: 1.05rem; line-height: 1.6; color: #4a4a4a; min-height: 24px; }
+        .anno-edit { width: 100%; min-height: 120px; padding: 10px; font-family: monospace; font-size: 1rem; border: 1px dashed #8e7cc3; border-radius: 6px; box-sizing: border-box; resize: vertical; display: none; background: #fff; color: #333; outline: none; }
+        .anno-edit:focus { border: 1px solid #8e7cc3; box-shadow: 0 0 0 3px rgba(142,124,195,0.1); }
+        .markdown-body p { margin-top: 0; margin-bottom: 8px; }
+        .markdown-body p:last-child { margin-bottom: 0; }
+        .markdown-body p:empty { display: none; }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 { color: #8e7cc3; font-size: 1.15rem; margin: 10px 0 8px 0; border-bottom: 1px dashed #e0d8f0; padding-bottom: 4px; }
+        .markdown-body ul, .markdown-body ol { margin: 0 0 8px 0; padding-left: 20px; }
+        .markdown-body blockquote { margin: 0 0 10px 0; padding: 10px 15px; background: rgba(142,124,195,0.1); border-left: 4px solid #8e7cc3; color: #555; }
+
+        .container { max-width: 600px; margin: 0 auto; padding: 20px 15px 50px 15px; }
+        .tweet-card { background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 25px; }
+        .header { display: flex; align-items: center; margin-bottom: 12px; }
+        .names { display: flex; flex-direction: column; }
+        .name { font-weight: 700; font-size: 1.1rem; color: var(--text); }
+        .handle { color: var(--muted); font-size: 0.95rem; margin-top: 2px; }
+        .content { font-size: 1.1rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
+        .media-container { margin-top: 10px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; background: #000; }
+        .media-item { width: 100%; height: auto; display: block; max-height: 500px; object-fit: contain; }
+        .stats { margin-top: 15px; color: var(--muted); font-size: 0.95rem; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px; font-weight: 500; margin-bottom: 15px; }
+        .btn-link { display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }
+        .btn-link:active { transform: scale(0.98); background: #1a8cd8; }
+        .time-stamp { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="nav-back">
+        <a href="../../index.html">🔙 返回</a>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <span class="sync-status" id="sync-status">📡 同步中...</span>
+            <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 一键翻译</button>
+        </div>
+    </div>
+    <div class="container">
+        <div class="time-stamp">归档时间: 17:20</div>
+        
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">Polymarket</span>
+                    <span class="handle">@Polymarket</span>
+                </div>
+            </div>
+            <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
+                <div class="content" style="margin-bottom:0;">JUST IN: Scientists propose gradually reducing the global population to 4 billion by 2200, arguing it would “ease pressure" on natural resources & improve quality of life.<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
+                <div class="anno-box" style="display:none;">
+                    <div class="anno-view markdown-body"></div>
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..."></textarea>
+                </div>
+            </div>
+            
+            <div class="stats">
+                <span>❤️ 6450 喜欢</span>
+                <span>🔁 677 转发</span>
+            </div>
+            <a href="https://x.com/Polymarket/status/2084411896875167802" target="_blank" class="btn-link">🔗 前往 X 查看原文及评论</a>
+        </div>
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">Sky News</span>
+                    <span class="handle">@SkyNews</span>
+                </div>
+            </div>
+            <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
+                <div class="content" style="margin-bottom:0;">BREAKING: Christopher Phillips has been sentenced to two years and four months in prison for keeping his mother’s body in a freezer for nearly three years while receiving more than £78,000 of her benefits<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
+                <div class="anno-box" style="display:none;">
+                    <div class="anno-view markdown-body"></div>
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..."></textarea>
+                </div>
+            </div>
+            <div class="media-container"><video controls src="https://video.twimg.com/amplify_video/2084242152125583360/vid/avc1/1280x720/iVCFSQ-IbWCf0xr1.mp4" poster="https://pbs.twimg.com/media/HOy3QKaWIAAPQPb.jpg" class="media-item" preload="metadata" playsinline></video></div>
+            <div class="stats">
+                <span>❤️ 3623 喜欢</span>
+                <span>🔁 926 转发</span>
+            </div>
+            <a href="https://x.com/SkyNews/status/2084242275467452482" target="_blank" class="btn-link">🔗 前往 X 查看原文及评论</a>
+        </div>
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">New York Post</span>
+                    <span class="handle">@nypost</span>
+                </div>
+            </div>
+            <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
+                <div class="content" style="margin-bottom:0;">Under-fire FIFA boss Gianni Infantino begs Trump White House to save his job, set for talks with Marco Rubio: sources https://trib.al/yVODZq7<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
+                <div class="anno-box" style="display:none;">
+                    <div class="anno-view markdown-body"></div>
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..."></textarea>
+                </div>
+            </div>
+            <div class="media-container"><img src="https://pbs.twimg.com/media/HOyr1b-XAAAoclA.jpg" class="media-item" loading="lazy"></div>
+            <div class="stats">
+                <span>❤️ 713 喜欢</span>
+                <span>🔁 173 转发</span>
+            </div>
+            <a href="https://x.com/nypost/status/2084229669574836461" target="_blank" class="btn-link">🔗 前往 X 查看原文及评论</a>
+        </div>
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">Disclose.tv</span>
+                    <span class="handle">@disclosetv</span>
+                </div>
+            </div>
+            <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
+                <div class="content" style="margin-bottom:0;">JUST IN - Apple removes Telegram from its App Store globally.<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
+                <div class="anno-box" style="display:none;">
+                    <div class="anno-view markdown-body"></div>
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..."></textarea>
+                </div>
+            </div>
+            <div class="media-container"><video controls src="https://video.twimg.com/amplify_video/2084452445585838080/vid/avc1/640x480/6oLl3AKsVurenEhK.mp4" poster="https://pbs.twimg.com/amplify_video_thumb/2084452445585838080/img/ZcilDGn_s2lkqPc0.jpg" class="media-item" preload="metadata" playsinline></video></div>
+            <div class="stats">
+                <span>❤️ 2526 喜欢</span>
+                <span>🔁 472 转发</span>
+            </div>
+            <a href="https://x.com/disclosetv/status/2084452701874901143" target="_blank" class="btn-link">🔗 前往 X 查看原文及评论</a>
+        </div>
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">Disclose.tv</span>
+                    <span class="handle">@disclosetv</span>
+                </div>
+            </div>
+            <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
+                <div class="content" style="margin-bottom:0;">UPDATE: Telegram restored: "Telegram has been restored on the App Store and should soon be available again for all users," says Telegram — Reuters<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
+                <div class="anno-box" style="display:none;">
+                    <div class="anno-view markdown-body"></div>
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..."></textarea>
+                </div>
+            </div>
+            
+            <div class="stats">
+                <span>❤️ 426 喜欢</span>
+                <span>🔁 64 转发</span>
+            </div>
+            <a href="https://x.com/disclosetv/status/2084464606005612974" target="_blank" class="btn-link">🔗 前往 X 查看原文及评论</a>
+        </div>
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">Telegram Messenger</span>
+                    <span class="handle">@telegram</span>
+                </div>
+            </div>
+            <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
+                <div class="content" style="margin-bottom:0;">reports of my demise are greatly exaggerated 🍎<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
+                <div class="anno-box" style="display:none;">
+                    <div class="anno-view markdown-body"></div>
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..."></textarea>
+                </div>
+            </div>
+            
+            <div class="stats">
+                <span>❤️ 28264 喜欢</span>
+                <span>🔁 2665 转发</span>
+            </div>
+            <a href="https://x.com/telegram/status/2084467357569970681" target="_blank" class="btn-link">🔗 前往 X 查看原文及评论</a>
+        </div>
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">AlphaFox</span>
+                    <span class="handle">@alphafox</span>
+                </div>
+            </div>
+            <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
+                <div class="content" style="margin-bottom:0;">China might be going a little too far in its robot division: 😳<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
+                <div class="anno-box" style="display:none;">
+                    <div class="anno-view markdown-body"></div>
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..."></textarea>
+                </div>
+            </div>
+            <div class="media-container"><video controls src="https://video.twimg.com/amplify_video/2084363094667513856/vid/avc1/720x1280/LEtUxTop4-TFXVbQ.mp4" poster="https://pbs.twimg.com/amplify_video_thumb/2084363094667513856/img/crVzK_-LbIWAHi03.jpg" class="media-item" preload="metadata" playsinline></video></div>
+            <div class="stats">
+                <span>❤️ 3293 喜欢</span>
+                <span>🔁 316 转发</span>
+            </div>
+            <a href="https://x.com/alphafox/status/2084429357234151587" target="_blank" class="btn-link">🔗 前往 X 查看原文及评论</a>
+        </div>
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">World of Statistics</span>
+                    <span class="handle">@stats_feed</span>
+                </div>
+            </div>
+            <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
+                <div class="content" style="margin-bottom:0;">Your bones are 5 times stronger than steel of the same density, yet lightweight and flexible thanks to their composite structure.<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
+                <div class="anno-box" style="display:none;">
+                    <div class="anno-view markdown-body"></div>
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..."></textarea>
+                </div>
+            </div>
+            
+            <div class="stats">
+                <span>❤️ 1696 喜欢</span>
+                <span>🔁 75 转发</span>
+            </div>
+            <a href="https://x.com/stats_feed/status/2084362121068908697" target="_blank" class="btn-link">🔗 前往 X 查看原文及评论</a>
+        </div>
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">internet hall of fame</span>
+                    <span class="handle">@InternetH0F</span>
+                </div>
+            </div>
+            <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
+                <div class="content" style="margin-bottom:0;">Apple briefly removed Telegram from their App Store after they found content that "violates our strict guidelines prohibiting child sexual abuse material"
+
+The app has since been restored after the removal of that content
+
+Telegram responded — "I'm sure this stance will be applied equally to all other apps in the store, in the future right?"<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
+                <div class="anno-box" style="display:none;">
+                    <div class="anno-view markdown-body"></div>
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..."></textarea>
+                </div>
+            </div>
+            <div class="media-container"><img src="https://pbs.twimg.com/media/HO2zuFVWoAAOtPG.jpg" class="media-item" loading="lazy"></div><div class="media-container"><img src="https://pbs.twimg.com/media/HO2zu0gWsAAW7x_.jpg" class="media-item" loading="lazy"></div>
+            <div class="stats">
+                <span>❤️ 100 喜欢</span>
+                <span>🔁 6 转发</span>
+            </div>
+            <a href="https://x.com/InternetH0F/status/2084557453627121820" target="_blank" class="btn-link">🔗 前往 X 查看原文及评论</a>
+        </div>
+        <div class="tweet-card">
+            <div class="header">
+                <div class="names">
+                    <span class="name">God</span>
+                    <span class="handle">@TheTweetOfGod</span>
+                </div>
+            </div>
+            <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
+                <div class="content" style="margin-bottom:0;">The majority of you are stupid.<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
+                <div class="anno-box" style="display:none;">
+                    <div class="anno-view markdown-body"></div>
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..."></textarea>
+                </div>
+            </div>
+            
+            <div class="stats">
+                <span>❤️ 29588 喜欢</span>
+                <span>🔁 4695 转发</span>
+            </div>
+            <a href="https://x.com/TheTweetOfGod/status/2084318871758991397" target="_blank" class="btn-link">🔗 前往 X 查看原文及评论</a>
+        </div>
+    </div>
+    
+    <script id="core-engine">
+        let syncTimeout = null;
+
+        const AI_PROMPT = "请分析以下英文段落，并严格按照以下 Markdown 格式输出（不要输出任何额外的废话）：\n\n### 📌 完整翻译\n\n[此处填写完整翻译]\n\n### 📌 Key Expressions\n\n- **[单词或短语]**\n  = [中文释义]\n  （[可选的补充说明，如倒装结构或语境等]）\n\n段落内容：\n";
+
+        async function fetchGroq(text, apiKey, modelName) {
+            const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: modelName,
+                    messages: [
+                        { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
+                        { role: 'user', content: AI_PROMPT + '"' + text + '"' }
+                    ],
+                    temperature: 0.3
+                })
+            });
+            if (!res.ok) throw new Error('Groq API Error: ' + res.status);
+            const json = await res.json();
+            if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
+            throw new Error('Groq返回数据异常');
+        }
+
+        async function fetchGLM(text, apiKey, modelName) {
+            const res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: modelName,
+                    messages: [
+                        { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
+                        { role: 'user', content: AI_PROMPT + '"' + text + '"' }
+                    ],
+                    temperature: 0.3
+                })
+            });
+            if (!res.ok) throw new Error('智谱GLM API Error: ' + res.status);
+            const json = await res.json();
+            if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
+            throw new Error('智谱GLM返回数据异常');
+        }
+
+        async function fetchCustomAI(text, url, apiKey, modelName) {
+            let headers = { 'Content-Type': 'application/json' };
+            let bodyData = {};
+
+            if (url.includes('anthropic.com')) {
+                headers['x-api-key'] = apiKey;
+                headers['anthropic-version'] = '2023-06-01';
+                headers['anthropic-dangerous-direct-browser-access'] = 'true';
+                bodyData = {
+                    model: modelName,
+                    max_tokens: 2000,
+                    messages: [{ role: 'user', content: AI_PROMPT + '"' + text + '"' }]
+                };
+            } else if (url.includes('generativelanguage.googleapis.com')) {
+                let targetUrl = url;
+                if (!targetUrl.includes('key=')) {
+                    targetUrl += (targetUrl.includes('?') ? '&' : '?') + 'key=' + apiKey;
+                }
+                const res = await fetch(targetUrl, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: AI_PROMPT + '"' + text + '"' }] }]
+                    })
+                });
+                if (!res.ok) throw new Error('Gemini API Error: ' + res.status);
+                const json = await res.json();
+                if (json.candidates && json.candidates[0]?.content?.parts[0]?.text) {
+                    return json.candidates[0].content.parts[0].text.trim();
+                }
+                throw new Error('Gemini 返回数据异常');
+            } else {
+                headers['Authorization'] = 'Bearer ' + apiKey;
+                bodyData = {
+                    model: modelName,
+                    messages: [
+                        { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
+                        { role: 'user', content: AI_PROMPT + '"' + text + '"' }
+                    ],
+                    temperature: 0.3
+                };
+            }
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(bodyData)
+            });
+
+            if (!res.ok) throw new Error('自定义 AI 接口报错: ' + res.status);
+            const json = await res.json();
+
+            if (json.content && Array.isArray(json.content) && json.content[0]?.text) {
+                return json.content[0].text.trim();
+            }
+            if (json.choices && json.choices.length > 0) {
+                return json.choices[0].message.content.trim();
+            }
+
+            throw new Error('自定义 AI 返回结构不符合预期');
+        }
+
+        async function executeAIPipeline(text) {
+            const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
+            const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
+            const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+            const groqModel = localStorage.getItem('GROQ_MODEL') || '';
+            const glmModel = localStorage.getItem('GLM_MODEL') || '';
+            const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
+            const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
+            const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
+
+            const runGroq = async () => {
+                if (!groqKey || !groqModel) throw new Error("Groq API Key 未配置");
+                return await fetchGroq(text, groqKey, groqModel);
+            };
+            const runGLM = async () => {
+                if (!glmKey || !glmModel) throw new Error("智谱GLM API Key 未配置");
+                return await fetchGLM(text, glmKey, glmModel);
+            };
+            const runCustom = async () => {
+                if (!customUrl || !customKey || !customModel) throw new Error("自定义 AI 配置不完整");
+                return await fetchCustomAI(text, customUrl, customKey, customModel);
+            };
+
+            if (pref === 'custom') {
+                try {
+                    return await runCustom();
+                } catch (err) {
+                    console.warn("自定义 AI 失败，尝试降级:", err);
+                    if (groqKey && groqModel) {
+                        document.getElementById('sync-status').innerText = '⚠️ 自定义异常，正降级为Groq...';
+                        try { return await runGroq(); } catch(e2) { if (glmKey && glmModel) return await runGLM(); throw e2; }
+                    } else if (glmKey && glmModel) {
+                        document.getElementById('sync-status').innerText = '⚠️ 自定义异常，正降级为智谱...';
+                        return await runGLM();
+                    }
+                    throw err;
+                }
+            } else if (pref === 'groq') {
+                try { return await runGroq(); } catch (err) {
+                    console.warn("首选 Groq 失败，尝试降级到智谱:", err);
+                    if (glmKey && glmModel) { document.getElementById('sync-status').innerText = '⚠️ Groq异常，正降级为智谱...'; return await runGLM(); }
+                    throw err;
+                }
+            } else {
+                try { return await runGLM(); } catch (err) {
+                    console.warn("首选 智谱 失败，尝试降级到Groq:", err);
+                    if (groqKey && groqModel) { document.getElementById('sync-status').innerText = '⚠️ 智谱异常，正降级为Groq...'; return await runGroq(); }
+                    throw err;
+                }
+            }
+        }
+
+        function getFallbackCleanHTML() {
+            const clone = document.documentElement.cloneNode(true);
+            const statusMsg = clone.querySelector('#sync-status');
+            if (statusMsg) { statusMsg.removeAttribute('style'); statusMsg.innerText = '📡 同步中...'; }
+            const tBtn = clone.querySelector('#translate-btn');
+            if (tBtn) { tBtn.removeAttribute('style'); tBtn.removeAttribute('disabled'); tBtn.innerText = '🌐 一键翻译'; }
+            
+            const removeRelingo = (root) => {
+                const tags = root.querySelectorAll('relin-highlight, relin-hc, [class*="relingo"]');
+                tags.forEach(t => {
+                    const frag = document.createDocumentFragment();
+                    while(t.firstChild) frag.appendChild(t.firstChild);
+                    t.parentNode.replaceChild(frag, t);
+                });
+            };
+            removeRelingo(clone);
+            removeRelingo(clone); 
+            
+            clone.querySelectorAll('script').forEach(s => {
+                if (!s.src.includes('marked.min.js') && s.id !== 'core-engine') s.remove();
+            });
+            clone.querySelectorAll('style').forEach(s => {
+                if (s.id !== 'core-style') s.remove();
+            });
+
+            clone.querySelectorAll('.ai-toggle').forEach(t => t.classList.remove('loading'));
+            
+            const liveTAs = document.querySelectorAll('.anno-edit');
+            clone.querySelectorAll('.anno-edit').forEach((ta, i) => { 
+                if(liveTAs[i]) ta.textContent = liveTAs[i].value;
+                const box = ta.closest('.anno-box');
+                if (box) box.style.display = 'none';
+                const view = box ? box.querySelector('.anno-view') : null;
+                if (view) view.innerHTML = ''; 
+            });
+            
+            clone.querySelectorAll('.anno-toggle').forEach(t => {
+                t.classList.remove('has-anno');
+                const ta = t.closest('.content-wrap').querySelector('.anno-edit');
+                if (ta && ta.textContent.trim()) t.classList.add('has-anno');
+            });
+            
+            return '<!DOCTYPE html>\n<html lang="zh-CN">\n' + clone.innerHTML + '\n</html>';
+        }
+
+        async function syncToCloud(isTranslation = false) {
+            const ghToken = localStorage.getItem('GH_TOKEN');
+            const ghOwner = localStorage.getItem('GH_OWNER');
+            const ghRepo = localStorage.getItem('GH_REPO');
+            if(!ghToken) return isTranslation ? null : alert('缺少 GitHub Token，无法同步！');
+            
+            const statusMsg = document.getElementById('sync-status');
+            const transBtn = document.getElementById('translate-btn');
+            
+            if (!isTranslation) {
+                statusMsg.style.display = 'inline-block';
+                statusMsg.style.backgroundColor = '#2ea44f';
+                statusMsg.innerText = '📡 同步中...';
+            }
+
+            const pathParts = window.location.pathname.split('/');
+            const fileName = pathParts.pop();
+            const month = pathParts.pop();
+            const year = pathParts.pop();
+            const fileRelPath = year + '/' + month + '/' + fileName;
+
+            try {
+                let finalHTML = '';
+                let sha = '';
+                
+                const getRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), {
+                    headers: { 'Authorization': 'Bearer ' + ghToken }, cache: 'no-store'
+                });
+                
+                if (getRes.ok) {
+                    const fileData = await getRes.json();
+                    sha = fileData.sha;
+                    const cleanHTML = decodeURIComponent(escape(atob(fileData.content)));
+                    const parser = new DOMParser();
+                    const cleanDoc = parser.parseFromString(cleanHTML, 'text/html');
+
+                    const liveTAs = document.querySelectorAll('.anno-edit');
+                    const cleanTAs = cleanDoc.querySelectorAll('.anno-edit');
+                    liveTAs.forEach((liveTa, i) => {
+                        if (cleanTAs[i]) {
+                            cleanTAs[i].textContent = liveTa.value;
+                            const box = cleanTAs[i].closest('.anno-box');
+                            if (box) box.style.display = 'none';
+                            const view = box ? box.querySelector('.anno-view') : null;
+                            if (view) view.innerHTML = '';
+                        }
+                    });
+
+                    const liveContents = document.querySelectorAll('.content');
+                    const cleanContents = cleanDoc.querySelectorAll('.content');
+                    liveContents.forEach((liveC, i) => {
+                        if (liveC.getAttribute('data-translated') === 'true' && cleanContents[i]) {
+                            cleanContents[i].setAttribute('data-translated', 'true');
+                            const liveTrans = liveC.nextElementSibling;
+                            if (liveTrans && liveTrans.classList.contains('translated-content')) {
+                                const cleanTrans = cleanContents[i].nextElementSibling;
+                                if (!cleanTrans || !cleanTrans.classList.contains('translated-content')) {
+                                    const newTrans = cleanDoc.createElement('div');
+                                    newTrans.className = 'translated-content';
+                                    newTrans.style.cssText = liveTrans.style.cssText;
+                                    newTrans.innerHTML = liveTrans.innerHTML;
+                                    cleanContents[i].parentNode.insertBefore(newTrans, cleanContents[i].nextSibling);
+                                }
+                            }
+                        }
+                    });
+                    
+                    cleanDoc.querySelectorAll('.anno-toggle').forEach(t => {
+                        t.classList.remove('has-anno');
+                        const ta = t.closest('.content-wrap').querySelector('.anno-edit');
+                        if (ta && ta.textContent.trim()) t.classList.add('has-anno');
+                    });
+
+                    finalHTML = '<!DOCTYPE html>\n<html lang="zh-CN">\n' + cleanDoc.documentElement.innerHTML + '\n</html>';
+                } else {
+                    finalHTML = getFallbackCleanHTML();
+                }
+
+                const putRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {
+                    method: 'PUT',
+                    headers: { 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: isTranslation ? 'Auto-solidify translation' : 'Auto-save annotation', content: btoa(unescape(encodeURIComponent(finalHTML))), sha: sha || undefined })
+                });
+
+                if(!putRes.ok) throw new Error('Put failed');
+
+                if (isTranslation) {
+                    transBtn.innerText = '🌐 已翻译并固化';
+                    transBtn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
+                } else {
+                    statusMsg.style.backgroundColor = '#2ea44f';
+                    statusMsg.innerText = '✅ 云端已同步';
+                    setTimeout(() => { if (statusMsg.innerText === '✅ 云端已同步') statusMsg.style.display = 'none'; }, 3000);
+                }
+            } catch(e) {
+                console.error(e);
+                if (isTranslation) {
+                    transBtn.innerText = '⚠️ 仅本地翻译';
+                } else {
+                    statusMsg.style.backgroundColor = '#e74c3c';
+                    statusMsg.innerText = '❌ 同步失败(点击重试)';
+                    statusMsg.style.cursor = 'pointer';
+                    statusMsg.onclick = () => { statusMsg.onclick = null; statusMsg.style.cursor = 'default'; syncToCloud(false); };
+                }
+            }
+        }
+
+        function scheduleSync() {
+            const statusMsg = document.getElementById('sync-status');
+            statusMsg.style.display = 'inline-block';
+            statusMsg.style.backgroundColor = '#f39c12';
+            statusMsg.innerText = '⏳ 自动同步中...';
+            statusMsg.style.cursor = 'default';
+            statusMsg.onclick = null;
+            if (syncTimeout) clearTimeout(syncTimeout);
+            syncTimeout = setTimeout(() => { syncToCloud(false); }, 3000);
+        }
+
+        function initAnnotations() {
+            document.querySelectorAll('.content-wrap').forEach(wrap => {
+                const view = wrap.querySelector('.anno-view');
+                const edit = wrap.querySelector('.anno-edit');
+                const toggle = wrap.querySelector('.anno-toggle');
+                const aiToggle = wrap.querySelector('.ai-toggle');
+                const box = wrap.querySelector('.anno-box');
+
+                if (!view || !edit || !toggle || !box) return;
+
+                const rawText = edit.value.trim();
+                if (rawText) {
+                    toggle.classList.add('has-anno');
+                    try { view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; } catch(e){}
+                }
+                
+                // --- AI 按钮逻辑 ---
+                if (aiToggle) {
+                    aiToggle.addEventListener('click', async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (aiToggle.classList.contains('loading')) return;
+
+                        const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
+                        const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
+                        const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+                        const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
+                        const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
+                        
+                        let isReady = false;
+                        if (pref === 'custom' && customUrl && customKey) isReady = true;
+                        if (pref === 'groq' && groqKey) isReady = true;
+                        if (pref === 'glm' && glmKey) isReady = true;
+
+                        if (!isReady && !groqKey && !glmKey && !customKey) {
+                            alert('⚠️ 请先返回【日历大厅】右上角的 ⚙️配置中心 设置 AI 接口 URL 和密钥！');
+                            return;
+                        }
+
+                        const pClone = wrap.querySelector('.content').cloneNode(true);
+                        pClone.querySelectorAll('.anno-toggle, .ai-toggle, .translated-content').forEach(el => el.remove());
+                        let pText = pClone.textContent.trim();
+                        
+                        // 【核心功能】：正则彻底剥离推文内的 http/https 链接
+                        pText = pText.replace(/https?:\/\/\S+/g, '').trim();
+
+                        if (!pText) return;
+
+                        aiToggle.classList.add('loading');
+                        const statusMsg = document.getElementById('sync-status');
+                        statusMsg.style.display = 'inline-block';
+                        statusMsg.style.backgroundColor = '#0969da';
+                        statusMsg.innerText = '🤖 AI 思考中...';
+
+                        try {
+                            const aiContent = await executeAIPipeline(pText);
+                            
+                            box.style.display = 'block';
+                            view.style.display = 'none';
+                            edit.style.display = 'block';
+                            edit.value = aiContent;
+                            
+                            // 触发失焦，联动 Marked.js 渲染与 GitHub 自动保存
+                            edit.focus();
+                            edit.blur();
+                            
+                            statusMsg.style.backgroundColor = '#2ea44f';
+                            statusMsg.innerText = '✅ AI 解析成功';
+                            setTimeout(() => { if (statusMsg.innerText.includes('AI')) statusMsg.style.display = 'none'; }, 2000);
+                        } catch (err) {
+                            console.error(err);
+                            alert('❌ AI 解析失败: ' + err.message);
+                            statusMsg.style.display = 'none';
+                        } finally {
+                            aiToggle.classList.remove('loading');
+                        }
+                    });
+                }
+
+                toggle.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (box.style.display === 'block') { 
+                        box.style.display = 'none'; 
+                    } else {
+                        box.style.display = 'block';
+                        if (!edit.value.trim()) { 
+                            view.style.display = 'none'; 
+                            edit.style.display = 'block'; 
+                            setTimeout(() => { edit.focus(); }, 150); 
+                        } else { 
+                            view.style.display = 'block'; 
+                            edit.style.display = 'none'; 
+                        }
+                    }
+                };
+
+                const triggerEdit = (e) => { 
+                    if(e) { e.preventDefault(); e.stopPropagation(); }
+                    view.style.display = 'none'; 
+                    edit.style.display = 'block'; 
+                    edit.value = edit.value; 
+                    setTimeout(() => { edit.focus(); }, 150); 
+                };
+
+                view.addEventListener('dblclick', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    box.style.display = 'none';
+                });
+
+                let lastTap = 0;
+                view.addEventListener('touchstart', e => {
+                    if (e.touches.length === 2) { triggerEdit(e); } 
+                    else if (e.touches.length === 1) {
+                        const currentTime = new Date().getTime();
+                        if (currentTime - lastTap < 500 && currentTime - lastTap > 0) { 
+                            e.preventDefault();
+                            box.style.display = 'none'; 
+                        }
+                        lastTap = currentTime;
+                    }
+                }, {passive: false});
+
+                edit.addEventListener('blur', () => {
+                    setTimeout(() => {
+                        const newVal = edit.value.trim();
+                        try { view.innerHTML = newVal ? ((typeof marked !== 'undefined') ? marked.parse(newVal) : newVal) : ''; } catch(e){}
+                        edit.style.display = 'none';
+                        if (newVal) { view.style.display = 'block'; toggle.classList.add('has-anno'); } 
+                        else { view.style.display = 'none'; box.style.display = 'none'; toggle.classList.remove('has-anno'); }
+
+                        if (edit.getAttribute('data-old-val') !== newVal) {
+                            edit.setAttribute('data-old-val', newVal);
+                            scheduleSync(); 
+                        }
+                    }, 150);
+                });
+                edit.setAttribute('data-old-val', rawText);
+            });
+        }
+        window.addEventListener('load', initAnnotations);
+
+        async function translateAll() {
+            const btn = document.getElementById('translate-btn');
+            if(btn.hasAttribute('disabled')) return;
+            btn.innerText = '⏳ 翻译中...';
+            btn.setAttribute('disabled', 'true');
+
+            let translatedCount = 0;
+            const contents = document.querySelectorAll('.content');
+            for (let i = 0; i < contents.length; i++) {
+                const content = contents[i];
+                if (content.getAttribute('data-translated') === 'true') continue;
+                
+                // 【修复翻译被高亮插件干扰】：在送去翻译前，扒掉 Relingo 和按钮代码
+                const cloneText = content.cloneNode(true);
+                cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle, .ai-toggle').forEach(el => el.remove());
+                let textToTranslate = cloneText.innerText;
+                
+                // 【核心过滤】：正则彻底剥离翻译模块的 http/https 链接
+                textToTranslate = textToTranslate.replace(/https?:\/\/\S+/g, '').trim();
+                let checkText = textToTranslate.replace(/\p{Extended_Pictographic}/gu, '').trim();
+                
+                if (!checkText) continue;
+
+                try {
+                    const res = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'q=' + encodeURIComponent(textToTranslate)
+                    });
+                    
+                    const data = await res.json();
+                    let translatedText = '';
+                    if (data && data[0]) {
+                        data[0].forEach(item => { if (item[0]) translatedText += item[0]; });
+                    }
+
+                    if (translatedText) {
+                        const transDiv = document.createElement('div');
+                        transDiv.className = 'translated-content';
+                        transDiv.style.cssText = 'color: #0f1419; font-size: 1.05rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
+                        transDiv.innerHTML = translatedText;
+                        
+                        content.parentNode.insertBefore(transDiv, content.nextSibling);
+                        content.setAttribute('data-translated', 'true');
+                        translatedCount++;
+                    }
+                } catch (e) {
+                    console.error('翻译失败:', e);
+                }
+            }
+            
+            if (translatedCount === 0) {
+                btn.innerText = '✅ 已全部翻译';
+                return;
+            }
+
+            btn.innerText = '⏳ 固化至云端...';
+            
+            syncToCloud(true);
+        }
+    </script>
+</body>
+</html>
