@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head>
+<head></head><body><relingo-app id="relingo-toast-container" style="z-index: 2147483647; position: fixed; left: 0px; right: 0px; visibility: visible;"><div data-rht-toaster="" style="position: fixed; z-index: 9999; inset: 16px; pointer-events: none; background-color: transparent;"></div></relingo-app>
     <meta charset="UTF-8">
     <meta name="referrer" content="no-referrer">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -51,9 +51,14 @@
         .btn-link:active { transform: scale(0.98); background: #1a8cd8; }
         .time-stamp { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }
     </style>
-</head>
-<body>
-    <div class="nav-back">
+
+
+    <div class="fancy-copy-btn">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z"></path>
+        </svg>
+        <span>复制带链接</span>
+    </div><div class="nav-back">
         <a href="../../index.html">🔙 返回</a>
         <div style="display:flex; align-items:center; gap:10px;">
             <span class="sync-status" id="sync-status">📡 同步中...</span>
@@ -74,7 +79,80 @@
                 <div class="content" style="margin-bottom:0;">Arizona man didn't want his dogs paws to burn on the hot pavement so he pulled him in a cooler instead.<span class="anno-toggle has-anno"></span><span class="ai-toggle" title="AI智能解析"></span></div>
                 <div class="anno-box" style="display:none;">
                     <div class="anno-view markdown-body"></div>
-                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析...">### 📌 完整翻译
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..." data-old-val="### 📌 完整翻译
+
+亚利桑那州一名男子担心自己的狗爪子被滚烫的路面烫伤，于是把狗放进一个冷藏箱里拉着走。
+
+
+### 📌 Key Expressions
+
+- **Arizona man**
+  = 亚利桑那州男子
+
+- **didn't want... to...**
+  = 不想让……做……；不希望……发生……
+
+- **his dog's paws**
+  = 他的狗的爪子
+
+- **paw**
+  = （动物的）爪子
+
+- **burn**
+  = 烧伤；烫伤
+
+- **hot pavement**
+  = 炙热的路面
+
+- **pavement**
+  = 路面；人行道  
+  （英式英语也常指铺装道路）
+
+- **pull someone/something in...**
+  = 用……拉着某人/某物移动
+
+- **a cooler**
+  = 冷藏箱；保冷箱  
+  （美式英语中 cooler 通常指装冰饮、食物的便携箱）
+
+- **pull him in a cooler**
+  = 把它放在冷藏箱里拉着走
+
+
+### 📌 句子结构
+
+**didn't want his dog's paws to burn**
+
+结构：
+
+**want + 宾语 + to do**
+
+= 希望某人/某物做某事
+
+否定：
+
+**didn't want + 宾语 + to do**
+
+= 不希望……
+
+例如：
+
+- **I don't want my phone to break.**
+  = 我不想让我的手机坏掉。
+
+
+**so he pulled him in a cooler instead**
+
+= 所以他改用冷藏箱拉着它。
+
+其中：
+
+**instead**
+= 代替；反而；改用另一种方式
+
+这里表示：
+
+“不让狗直接走在热路面上，而选择用冷藏箱。”">### 📌 完整翻译
 
 亚利桑那州一名男子担心自己的狗爪子被滚烫的路面烫伤，于是把狗放进一个冷藏箱里拉着走。
 
@@ -165,10 +243,46 @@
                 </div>
             </div>
             <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
-                <div class="content" style="margin-bottom:0;">A woman was rude to me on the train today, so I googled the book she was reading and told her who the murderer is.<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
-                <div class="anno-box" style="display:none;">
-                    <div class="anno-view markdown-body"></div>
-                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..."></textarea>
+                <div class="content" style="margin-bottom:0;">A woman was rude to me on the train today, so I googled the book she was reading and told her who the murderer is.<span class="anno-toggle has-anno"></span><span class="ai-toggle" title="AI智能解析"></span></div>
+                <div class="anno-box" style="display: none;">
+                    <div class="anno-view markdown-body" style="display: block;"></div>
+                    <textarea class="anno-edit" style="display: none;" placeholder="在此写下笔记或使用 AI 解析..." data-old-val="### 📌 完整翻译
+
+今天在火车上有位女士对我很无礼，于是我在谷歌上搜索了她正在看的那本书，并告诉她凶手是谁。
+
+### 📌 Key Expressions
+
+- **rude to**
+  = 对…无礼
+  （常用于描述言行不礼貌的对象）
+
+- **googled**
+  = 用谷歌搜索
+  （动词“google”的过去式，表示在网络上查找信息）
+
+- **told her who the murderer is**
+  = 告诉她凶手是谁
+  （完整的宾语从句结构）">### 📌 完整翻译
+
+今天在火车上有位女士对我很无礼，于是我在谷歌上搜索了她正在阅读的那本书，并告诉她凶手是谁。
+
+### 📌 Key Expressions
+
+- **rude to**
+  = 对…无礼
+  （常用于描述对人的不礼貌行为）
+
+- **googled**
+  = 用谷歌搜索
+  （口语化的过去式动词）
+
+- **the book she was reading**
+  = 她正在阅读的那本书
+  （使用过去进行时表示当时的动作）
+
+- **told her who the murderer is**
+  = 告诉她凶手是谁
+  （直接引述信息）</textarea>
                 </div>
             </div>
             
@@ -186,30 +300,10 @@
                 </div>
             </div>
             <div class="content-wrap" style="position: relative; margin-bottom: 15px;">
-                <div class="content" style="margin-bottom:0;">When a baby is born at the hospital, they are either a boy or a girl. There are no trans kids. Stop pushing that bullshit on this generation. It's only groomer parents.<span class="anno-toggle has-anno"></span><span class="ai-toggle" title="AI智能解析"></span></div>
+                <div class="content" style="margin-bottom:0;">When a baby is born at the hospital, they are either a boy or a girl. There are no trans kids. Stop pushing that bullshit on this generation. It's only groomer parents.<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
                 <div class="anno-box" style="display:none;">
                     <div class="anno-view markdown-body"></div>
-                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析...">### 📌 完整翻译
-
-当婴儿在医院出生时，他们要么是男孩要么是女孩。没有跨性别儿童。别再把这种胡说八道强加给这一代人了。这只是“诱导者”父母的所作所为。
-
-### 📌 Key Expressions
-
-- **when a baby is born**
-  = 当婴儿出生时
-  （常用于描述出生的情境）
-
-- **trans kids**
-  = 跨性别儿童
-  （指性别认同与出生时指定性别不一致的孩子）
-
-- **stop pushing that bullshit**
-  = 别再强加那套胡说八道
-  （口语中“bullshit”表示胡说、废话，语气粗俗）
-
-- **groomer parents**
-  = “诱导者”父母
-  （在此语境中指被指控在孩子身上进行性别意识“诱导”的父母）</textarea>
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..." data-old-val=""></textarea>
                 </div>
             </div>
             
@@ -230,7 +324,7 @@
                 <div class="content" style="margin-bottom:0;">At least 33 deaths have been linked to AI chatbots since 2023, with a majority taking place 2025-2026<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
                 <div class="anno-box" style="display:none;">
                     <div class="anno-view markdown-body"></div>
-                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..."></textarea>
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..." data-old-val=""></textarea>
                 </div>
             </div>
             <div class="media-container"><img src="https://pbs.twimg.com/media/HO2hQbHXcAAP6yn.jpg" class="media-item" loading="lazy"></div><div class="media-container"><img src="https://pbs.twimg.com/media/HO2hQbJXgAAgd0E.jpg" class="media-item" loading="lazy"></div>
@@ -251,7 +345,7 @@
                 <div class="content" style="margin-bottom:0;">JUST IN: Japan warns closer military ties among China, Russia, &amp; North Korea pose a “serious concern” for its national security.<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
                 <div class="anno-box" style="display:none;">
                     <div class="anno-view markdown-body"></div>
-                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..."></textarea>
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..." data-old-val=""></textarea>
                 </div>
             </div>
             
@@ -272,7 +366,7 @@
                 <div class="content" style="margin-bottom:0;">Repeat offender allegedly kills man over parking space hours after after jail release https://trib.al/chx4CHu<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
                 <div class="anno-box" style="display:none;">
                     <div class="anno-view markdown-body"></div>
-                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..."></textarea>
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..." data-old-val=""></textarea>
                 </div>
             </div>
             <div class="media-container"><img src="https://pbs.twimg.com/media/HO0AzZJWAAAj2fQ.jpg" class="media-item" loading="lazy"></div>
@@ -293,7 +387,7 @@
                 <div class="content" style="margin-bottom:0;">JUST IN: Spain reveals roughly 70,000 of the 72,000 migrants who entered Ceuta from Morocco have now left.<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
                 <div class="anno-box" style="display:none;">
                     <div class="anno-view markdown-body"></div>
-                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..."></textarea>
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..." data-old-val=""></textarea>
                 </div>
             </div>
             
@@ -318,10 +412,10 @@ Russia says at least eight people were killed when a Ukrainian drone hit the hol
 https://trib.al/nEnVVi6<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
                 <div class="anno-box" style="display:none;">
                     <div class="anno-view markdown-body"></div>
-                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..."></textarea>
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..." data-old-val=""></textarea>
                 </div>
             </div>
-            <div class="media-container"><video controls="" src="https://video.twimg.com/amplify_video/2084562000177250304/vid/avc1/720x1280/_twxyTihcRQnGaek.mp4" poster="https://pbs.twimg.com/media/HO3aK7qXgAAtjBj.png" class="media-item" preload="metadata" playsinline=""></video></div>
+            <div class="media-container TouchGestureForbidScroll"><video controls="" src="https://video.twimg.com/amplify_video/2084562000177250304/vid/avc1/720x1280/_twxyTihcRQnGaek.mp4" poster="https://pbs.twimg.com/media/HO3aK7qXgAAtjBj.png" class="media-item TouchGestureForbidScroll" preload="metadata" playsinline="" touchgesture_video="true" style="filter: brightness(1);"></video><div class="TouchGesture_Btn TouchGestureForbidScroll" style="display: none; position: absolute; font-size: 31.3125px; width: 62.625px; height: 62.625px; line-height: 62.625px; left: 450.708px; top: 219.188px; border-radius: 31.3125px;">⚙</div><div class="TouchGesture_Toast TouchGestureForbidScroll" style="display: none;"><span class="TouchGesture_ToastText TouchGestureForbidScroll"></span></div><div class="TouchGesture_Btn TouchGestureForbidScroll" style="display: none; position: fixed; font-size: 88px; width: 176px; height: 176px; line-height: 176px; left: 352px; top: 850.667px; border-radius: 88px;">🔒</div></div>
             <div class="stats">
                 <span>❤️ 134 喜欢</span>
                 <span>🔁 34 转发</span>
@@ -339,7 +433,7 @@ https://trib.al/nEnVVi6<span class="anno-toggle"></span><span class="ai-toggle" 
                 <div class="content" style="margin-bottom:0;">JUST IN: EU proposes increased “technical and financial support” for Morocco to prevent another mass migrant surge into Ceuta.<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
                 <div class="anno-box" style="display:none;">
                     <div class="anno-view markdown-body"></div>
-                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..."></textarea>
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..." data-old-val=""></textarea>
                 </div>
             </div>
             
@@ -360,7 +454,7 @@ https://trib.al/nEnVVi6<span class="anno-toggle"></span><span class="ai-toggle" 
                 <div class="content" style="margin-bottom:0;">Some bodybuilders buy breast milk on the internet as they believe it helps them bulk up. There's no proof it does.<span class="anno-toggle"></span><span class="ai-toggle" title="AI智能解析"></span></div>
                 <div class="anno-box" style="display:none;">
                     <div class="anno-view markdown-body"></div>
-                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..."></textarea>
+                    <textarea class="anno-edit" style="display:none;" placeholder="在此写下笔记或使用 AI 解析..." data-old-val=""></textarea>
                 </div>
             </div>
             
@@ -896,6 +990,16 @@ https://trib.al/nEnVVi6<span class="anno-toggle"></span><span class="ai-toggle" 
             syncToCloud(true);
         }
     </script>
+
+
+
+<relingo-app id="relingo-drawer" style="visibility: visible;"></relingo-app>
+
+
+
+
+
+
 
 
 
