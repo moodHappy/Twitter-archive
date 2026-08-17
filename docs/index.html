@@ -825,6 +825,12 @@ https://x.com/i/status/2079072889853321448"></textarea>
                         e.stopPropagation();
                         if (aiToggle.classList.contains('loading')) return;
 
+                        if (edit.value.trim() !== '') {
+                            if (!confirm('⚠️ 批注框已有内容，使用 AI 解析将覆盖原有内容。确定要继续吗？')) {
+                                return;
+                            }
+                        }
+
                         const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
                         const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
                         const glmKey = localStorage.getItem('GLM_API_KEY') || '';
