@@ -520,6 +520,13 @@ const AI_PROMPT = "请分析以下英文段落，并严格按照以下 Markdown 
                         e.stopPropagation();
                         if (aiToggle.classList.contains('loading')) return;
 
+                        // 【新增】：防误触检测
+                        if (edit.value.trim() !== '') {{
+                            if (!confirm('⚠️ 当前已有笔记内容，继续执行 AI 解析将会覆盖现有内容。确认继续吗？')) {{
+                                return;
+                            }}
+                        }}
+
                         const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
                         const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
                         const glmKey = localStorage.getItem('GLM_API_KEY') || '';
@@ -1632,6 +1639,13 @@ def generate_index():
                         e.preventDefault();
                         e.stopPropagation();
                         if (aiToggle.classList.contains('loading')) return;
+
+                        // 【新增】：防误触检测
+                        if (edit.value.trim() !== '') {
+                            if (!confirm('⚠️ 当前已有笔记内容，继续执行 AI 解析将会覆盖现有内容。确认继续吗？')) {
+                                return;
+                            }
+                        }
 
                         const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
                         const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
