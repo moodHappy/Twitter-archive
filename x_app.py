@@ -11,6 +11,36 @@ tz_utc_8 = timezone(timedelta(hours=8))
 AUTO_PUSH_GITHUB = True  # 开启 Python 端自动 Push 到 GitHub 的功能
 # ==========================================
 
+def patch_legacy_html_files():
+    """自动热更新所有历史静态 HTML 文件中的核心 JS 引擎"""
+    dummy_page = generate_page_wrapper("", "", "")
+    match = re.search(r'(<script id="core-engine">.*?</script>)', dummy_page, flags=re.DOTALL)
+    if not match:
+        return
+    new_script = match.group(1)
+    
+    patched_count = 0
+    if os.path.exists(BASE_DIR):
+        for root, _, files in os.walk(BASE_DIR):
+            for file in files:
+                if file.endswith('_x.html'):
+                    filepath = os.path.join(root, file)
+                    try:
+                        with open(filepath, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                        
+                        old_match = re.search(r'<script id="core-engine">.*?</script>', content, flags=re.DOTALL)
+                        if old_match and old_match.group(0) != new_script:
+                            new_content = content.replace(old_match.group(0), new_script)
+                            with open(filepath, 'w', encoding='utf-8') as f:
+                                f.write(new_content)
+                            patched_count += 1
+                    except Exception:
+                        pass
+                        
+    if patched_count > 0:
+        print(f"🔄 自动热更新补丁：成功将 {patched_count} 个历史页面的旧版 AI 代码升级至最新！")
+
 def get_user_tweet_ids(username, limit=10):
     """通过公开 Syndication API 或备用 RSS 获取用户最新原创推文 ID"""
     print(f"⏳ 正在解析 @{username} 的时间线...")
@@ -538,7 +568,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         if (pref === 'glm' && glmKey && glmModel) isReady = true;
 
                         if (!isReady) {{
-                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\\n(需填入 URL 及 模型名称)');
+                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\\n(请确保至少填入了 URL 和 模型名称)');
                             return;
                         }}
 
@@ -900,6 +930,7 @@ def generate_index():
         <button class="settings-btn" id="openSettingsBtn">⚙️</button>
     </div>
 
+    <!-- 全新卡片化设置 Modal -->
     <div class="modal-overlay" id="settingsModal">
         <div class="modal-content">
             <h3 class="modal-title">核心配置中心</h3>
@@ -988,6 +1019,7 @@ def generate_index():
         </div>
     </div>
 
+    <!-- 自定义批量归档 Modal -->
     <div class="modal-overlay" id="batchModal">
         <div class="modal-content">
             <h3 class="modal-title">自定义组合归档</h3>
@@ -1685,7 +1717,7 @@ def generate_index():
                         if (pref === 'glm' && glmKey && glmModel) isReady = true;
 
                         if (!isReady) {
-                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\\n(请确保填入了 URL 和 模型名称)');
+                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\\n(请确保至少填入了 URL 和 模型名称)');
                             return;
                         }
 
@@ -2200,6 +2232,10 @@ def git_push_to_github(msg="Auto-archive"):
 
 def main():
     os.makedirs(BASE_DIR, exist_ok=True)
+    
+    # 核心：每次运行前，自动升级以前生成的静态文件里的旧版代码！
+    patch_legacy_html_files()
+    
     generate_index()
 
     print("\n=======================================")
