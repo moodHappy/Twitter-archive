@@ -592,7 +592,7 @@ Tourists throw over €1 million into Italy's Trevi Fountain each year.<span cla
                 headers['anthropic-version'] = '2023-06-01';
                 headers['anthropic-dangerous-direct-browser-access'] = 'true';
                 bodyData = {
-                    model: modelName,
+                    model: modelName || "claude-3-haiku-20240307",
                     max_tokens: 2000,
                     messages: [{ role: 'user', content: AI_PROMPT + '"' + text + '"' }]
                 };
@@ -619,7 +619,7 @@ Tourists throw over €1 million into Italy's Trevi Fountain each year.<span cla
             else {
                 if(apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
                 bodyData = {
-                    model: modelName,
+                    model: modelName || "gpt-3.5-turbo",
                     messages: [
                         { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
                         { role: 'user', content: AI_PROMPT + '"' + text + '"' }
@@ -667,7 +667,7 @@ Tourists throw over €1 million into Italy's Trevi Fountain each year.<span cla
                 return await fetchGLM(text, glmKey, glmModel);
             };
             const runCustom = async () => {
-                if (!customUrl || !customModel) throw new Error("自定义 AI 配置不完整(需指定URL和模型)");
+                if (!customUrl) throw new Error("自定义 AI 配置不完整(至少需要填写URL)");
                 return await fetchCustomAI(text, customUrl, customKey, customModel);
             };
 
@@ -902,12 +902,12 @@ Tourists throw over €1 million into Italy's Trevi Fountain each year.<span cla
                         const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
                         
                         let isReady = false;
-                        if (pref === 'custom' && customUrl && customModel) isReady = true;
+                        if (pref === 'custom' && customUrl) isReady = true;  // 彻底放宽：自定义只要有URL就能跑
                         if (pref === 'groq' && groqKey && groqModel) isReady = true;
                         if (pref === 'glm' && glmKey && glmModel) isReady = true;
 
                         if (!isReady) {
-                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\n(请确保至少填入了 URL 和 模型名称)');
+                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\n(提示：自定义AI至少需要填写 API Endpoint)');
                             return;
                         }
 
@@ -1012,7 +1012,6 @@ Tourists throw over €1 million into Italy's Trevi Fountain each year.<span cla
             });
         }
         
-        // 【核心修复】：放弃 load 等待，DOM 渲染完成立即激活按钮，防止被加载慢的图片彻底卡死阻塞！
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initAnnotations);
         } else {

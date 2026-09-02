@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- 强制禁用缓存，防止再次读取旧版本生成器 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>X 语料日历枢纽</title>
     <style>
         :root { --bg: #f5f5f7; --text: #333; --muted: #888; --primary: #1d9bf0; --border: #e0e0e0; --card: #fff; }
@@ -36,7 +40,7 @@
         select.form-control { cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: calc(100% - 12px) center; }
         
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; position: sticky; bottom: 0; background: var(--card); padding-top: 12px; border-top: 1px solid #eee; }
-        .btn { padding: 10px 20px; border-radius: 10px; border: none; font-size: 14px; font-weight: 600; cursor: transition: 0.2s; }
+        .btn { padding: 10px 20px; border-radius: 10px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
         .btn-cancel { background: #f1f3f5; color: #333; }
         .btn-cancel:active { background: #e9ecef; }
         .btn-save { background: var(--primary); color: #fff; }
@@ -206,7 +210,7 @@
     </div>
 
     <script>
-        const archiveData = /*DATA_START*/{"2026":{"7":{"19":[{"time":"19:46","path":"2026/7/2026_7_19_194603_batch_custom_x.html","title":"🐦 19:46 自定义组合推文"},{"time":"18:27","path":"2026/7/2026_7_19_182731_batch_BBCWorld_x.html","title":"🐦 18:27 推文集：@BBCWorld"},{"time":"17:27","path":"2026/7/2026_7_19_172706_batch_custom_x.html","title":"🐦 17:27 自定义组合推文"}],"20":[{"time":"23:15","path":"2026/7/2026_7_20_231557_batch_custom_x.html","title":"🐦 23:15 自定义组合推文"},{"time":"23:07","path":"2026/7/2026_7_20_230719_batch_custom_x.html","title":"🐦 23:07 自定义组合推文"}],"22":[{"time":"01:18","path":"2026/7/2026_7_22_011835_batch_custom_x.html","title":"🐦 01:18 自定义组合推文"},{"time":"00:36","path":"2026/7/2026_7_22_003632_batch_custom_x.html","title":"🐦 00:36 自定义组合推文"}],"24":[{"time":"10:41","path":"2026/7/2026_7_24_104150_batch_custom_x.html","title":"🐦 10:41 自定义组合推文"}],"25":[{"time":"19:59","path":"2026/7/2026_7_25_195921_batch_custom_x.html","title":"🐦 19:59 自定义组合推文"},{"time":"17:42","path":"2026/7/2026_7_25_174207_batch_Reuters_x.html","title":"🐦 17:42 推文集：@Reuters"},{"time":"09:40","path":"2026/7/2026_7_25_094029_batch_custom_x.html","title":"🐦 09:40 自定义组合推文"}],"27":[{"time":"17:21","path":"2026/7/2026_7_27_172107_batch_custom_x.html","title":"🐦 17:21 自定义组合推文"},{"time":"02:45","path":"2026/7/2026_7_27_024520_study_x.html","title":"🐦 02:45 灵感推文"},{"time":"02:34","path":"2026/7/2026_7_27_023447_study_x.html","title":"🐦 02:34 灵感推文"},{"time":"00:41","path":"2026/7/2026_7_27_004154_batch_custom_x.html","title":"🐦 00:41 自定义组合推文"}],"28":[{"time":"21:49","path":"2026/7/2026_7_28_214909_batch_custom_x.html","title":"🐦 21:49 自定义组合推文"},{"time":"00:07","path":"2026/7/2026_7_28_000718_batch_custom_x.html","title":"🐦 00:07 自定义组合推文"}],"29":[{"time":"18:46","path":"2026/7/2026_7_29_184631_batch_custom_x.html","title":"🐦 18:46 自定义组合推文"},{"time":"08:18","path":"2026/7/2026_7_29_081853_batch_custom_x.html","title":"🐦 08:18 自定义组合推文"}],"30":[{"time":"19:44","path":"2026/7/2026_7_30_194437_batch_custom_x.html","title":"🐦 19:44 自定义组合推文"},{"time":"18:20","path":"2026/7/2026_7_30_182019_study_x.html","title":"🐦 18:20 灵感推文"},{"time":"17:03","path":"2026/7/2026_7_30_170340_study_x.html","title":"🐦 17:03 灵感推文"}],"31":[{"time":"16:35","path":"2026/7/2026_7_31_163526_study_x.html","title":"🐦 16:35 灵感推文"},{"time":"15:24","path":"2026/7/2026_7_31_152415_study_x.html","title":"🐦 15:24 灵感推文"},{"time":"14:42","path":"2026/7/2026_7_31_144221_study_x.html","title":"🐦 14:42 灵感推文"},{"time":"11:22","path":"2026/7/2026_7_31_112203_batch_custom_x.html","title":"🐦 11:22 自定义组合推文"},{"time":"02:21","path":"2026/7/2026_7_31_022154_study_x.html","title":"🐦 02:21 灵感推文"},{"time":"01:47","path":"2026/7/2026_7_31_014742_batch_custom_x.html","title":"🐦 01:47 自定义组合推文"}]},"8":{"1":[{"time":"23:08","path":"2026/8/2026_8_1_230818_batch_custom_x.html","title":"🐦 23:08 自定义组合推文"},{"time":"08:08","path":"2026/8/2026_8_1_080825_batch_custom_x.html","title":"🐦 08:08 自定义组合推文"},{"time":"08:04","path":"2026/8/2026_8_1_080408_study_x.html","title":"🐦 08:04 灵感推文"}],"2":[{"time":"11:37","path":"2026/8/2026_8_2_113712_study_x.html","title":"🐦 11:37 灵感推文"}],"4":[{"time":"19:50","path":"2026/8/2026_8_4_195008_batch_custom_x.html","title":"🐦 19:50 自定义组合推文"},{"time":"17:20","path":"2026/8/2026_8_4_172040_batch_custom_x.html","title":"🐦 17:20 自定义组合推文"}],"5":[{"time":"12:53","path":"2026/8/2026_8_5_125312_batch_custom_x.html","title":"🐦 12:53 自定义组合推文"},{"time":"00:26","path":"2026/8/2026_8_5_002619_batch_custom_x.html","title":"🐦 00:26 自定义组合推文"}],"17":[{"time":"02:48","path":"2026/8/2026_8_17_024818_batch_custom_x.html","title":"🐦 02:48 自定义组合推文"}],"18":[{"time":"02:58","path":"2026/8/2026_8_18_025807_study_x.html","title":"🐦 02:58 灵感推文"},{"time":"01:56","path":"2026/8/2026_8_18_015624_batch_custom_x.html","title":"🐦 01:56 自定义组合推文"}],"26":[{"time":"22:48","path":"2026/8/2026_8_26_224841_batch_custom_x.html","title":"🐦 22:48 自定义组合推文"},{"time":"22:40","path":"2026/8/2026_8_26_224033_study_x.html","title":"🐦 22:40 灵感推文"}],"28":[{"time":"14:17","path":"2026/8/2026_8_28_141732_study_x.html","title":"🐦 14:17 灵感推文"}]},"9":{"2":[{"time":"21:13","path":"2026/9/2026_9_2_211302_batch_custom_x.html","title":"🐦 21:13 自定义组合推文"},{"time":"19:29","path":"2026/9/2026_9_2_192925_study_x.html","title":"🐦 19:29 灵感推文"}]}}}/*DATA_END*/;
+        const archiveData = /*DATA_START*/{"2026": {"9": {"2": [{"time": "21:32", "path": "2026/9/2026_9_2_213247_study_x.html", "title": "\ud83d\udc26 21:32 \u7075\u611f\u63a8\u6587"}, {"time": "21:13", "path": "2026/9/2026_9_2_211302_batch_custom_x.html", "title": "\ud83d\udc26 21:13 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "19:29", "path": "2026/9/2026_9_2_192925_study_x.html", "title": "\ud83d\udc26 19:29 \u7075\u611f\u63a8\u6587"}]}, "7": {"31": [{"time": "16:35", "path": "2026/7/2026_7_31_163526_study_x.html", "title": "\ud83d\udc26 16:35 \u7075\u611f\u63a8\u6587"}, {"time": "15:24", "path": "2026/7/2026_7_31_152415_study_x.html", "title": "\ud83d\udc26 15:24 \u7075\u611f\u63a8\u6587"}, {"time": "14:42", "path": "2026/7/2026_7_31_144221_study_x.html", "title": "\ud83d\udc26 14:42 \u7075\u611f\u63a8\u6587"}, {"time": "11:22", "path": "2026/7/2026_7_31_112203_batch_custom_x.html", "title": "\ud83d\udc26 11:22 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "02:21", "path": "2026/7/2026_7_31_022154_study_x.html", "title": "\ud83d\udc26 02:21 \u7075\u611f\u63a8\u6587"}, {"time": "01:47", "path": "2026/7/2026_7_31_014742_batch_custom_x.html", "title": "\ud83d\udc26 01:47 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "30": [{"time": "19:44", "path": "2026/7/2026_7_30_194437_batch_custom_x.html", "title": "\ud83d\udc26 19:44 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "18:20", "path": "2026/7/2026_7_30_182019_study_x.html", "title": "\ud83d\udc26 18:20 \u7075\u611f\u63a8\u6587"}, {"time": "17:03", "path": "2026/7/2026_7_30_170340_study_x.html", "title": "\ud83d\udc26 17:03 \u7075\u611f\u63a8\u6587"}], "29": [{"time": "18:46", "path": "2026/7/2026_7_29_184631_batch_custom_x.html", "title": "\ud83d\udc26 18:46 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "08:18", "path": "2026/7/2026_7_29_081853_batch_custom_x.html", "title": "\ud83d\udc26 08:18 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "28": [{"time": "21:49", "path": "2026/7/2026_7_28_214909_batch_custom_x.html", "title": "\ud83d\udc26 21:49 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "00:07", "path": "2026/7/2026_7_28_000718_batch_custom_x.html", "title": "\ud83d\udc26 00:07 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "27": [{"time": "17:21", "path": "2026/7/2026_7_27_172107_batch_custom_x.html", "title": "\ud83d\udc26 17:21 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "02:45", "path": "2026/7/2026_7_27_024520_study_x.html", "title": "\ud83d\udc26 02:45 \u7075\u611f\u63a8\u6587"}, {"time": "02:34", "path": "2026/7/2026_7_27_023447_study_x.html", "title": "\ud83d\udc26 02:34 \u7075\u611f\u63a8\u6587"}, {"time": "00:41", "path": "2026/7/2026_7_27_004154_batch_custom_x.html", "title": "\ud83d\udc26 00:41 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "25": [{"time": "19:59", "path": "2026/7/2026_7_25_195921_batch_custom_x.html", "title": "\ud83d\udc26 19:59 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "17:42", "path": "2026/7/2026_7_25_174207_batch_Reuters_x.html", "title": "\ud83d\udc26 17:42 \u63a8\u6587\u96c6\uff1a@Reuters"}, {"time": "09:40", "path": "2026/7/2026_7_25_094029_batch_custom_x.html", "title": "\ud83d\udc26 09:40 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "24": [{"time": "10:41", "path": "2026/7/2026_7_24_104150_batch_custom_x.html", "title": "\ud83d\udc26 10:41 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "22": [{"time": "01:18", "path": "2026/7/2026_7_22_011835_batch_custom_x.html", "title": "\ud83d\udc26 01:18 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "00:36", "path": "2026/7/2026_7_22_003632_batch_custom_x.html", "title": "\ud83d\udc26 00:36 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "20": [{"time": "23:15", "path": "2026/7/2026_7_20_231557_batch_custom_x.html", "title": "\ud83d\udc26 23:15 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "23:07", "path": "2026/7/2026_7_20_230719_batch_custom_x.html", "title": "\ud83d\udc26 23:07 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "19": [{"time": "19:46", "path": "2026/7/2026_7_19_194603_batch_custom_x.html", "title": "\ud83d\udc26 19:46 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "18:27", "path": "2026/7/2026_7_19_182731_batch_BBCWorld_x.html", "title": "\ud83d\udc26 18:27 \u63a8\u6587\u96c6\uff1a@BBCWorld"}, {"time": "17:27", "path": "2026/7/2026_7_19_172706_batch_custom_x.html", "title": "\ud83d\udc26 17:27 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}]}, "8": {"5": [{"time": "12:53", "path": "2026/8/2026_8_5_125312_batch_custom_x.html", "title": "\ud83d\udc26 12:53 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "00:26", "path": "2026/8/2026_8_5_002619_batch_custom_x.html", "title": "\ud83d\udc26 00:26 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "4": [{"time": "19:50", "path": "2026/8/2026_8_4_195008_batch_custom_x.html", "title": "\ud83d\udc26 19:50 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "17:20", "path": "2026/8/2026_8_4_172040_batch_custom_x.html", "title": "\ud83d\udc26 17:20 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "2": [{"time": "11:37", "path": "2026/8/2026_8_2_113712_study_x.html", "title": "\ud83d\udc26 11:37 \u7075\u611f\u63a8\u6587"}], "28": [{"time": "14:17", "path": "2026/8/2026_8_28_141732_study_x.html", "title": "\ud83d\udc26 14:17 \u7075\u611f\u63a8\u6587"}], "26": [{"time": "22:48", "path": "2026/8/2026_8_26_224841_batch_custom_x.html", "title": "\ud83d\udc26 22:48 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "22:40", "path": "2026/8/2026_8_26_224033_study_x.html", "title": "\ud83d\udc26 22:40 \u7075\u611f\u63a8\u6587"}], "1": [{"time": "23:08", "path": "2026/8/2026_8_1_230818_batch_custom_x.html", "title": "\ud83d\udc26 23:08 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "08:08", "path": "2026/8/2026_8_1_080825_batch_custom_x.html", "title": "\ud83d\udc26 08:08 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "08:04", "path": "2026/8/2026_8_1_080408_study_x.html", "title": "\ud83d\udc26 08:04 \u7075\u611f\u63a8\u6587"}], "18": [{"time": "02:58", "path": "2026/8/2026_8_18_025807_study_x.html", "title": "\ud83d\udc26 02:58 \u7075\u611f\u63a8\u6587"}, {"time": "01:56", "path": "2026/8/2026_8_18_015624_batch_custom_x.html", "title": "\ud83d\udc26 01:56 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "17": [{"time": "02:48", "path": "2026/8/2026_8_17_024818_batch_custom_x.html", "title": "\ud83d\udc26 02:48 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}]}}}/*DATA_END*/;
         const today = new Date();
         
         const AppState = {
@@ -442,6 +446,10 @@
     <meta charset="UTF-8">
     <meta name="referrer" content="no-referrer">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- 强制子页面也不走缓存 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>${pageTitle}</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"><\/script>
     <style id="core-style">
@@ -555,7 +563,7 @@
                 headers['anthropic-version'] = '2023-06-01';
                 headers['anthropic-dangerous-direct-browser-access'] = 'true';
                 bodyData = {
-                    model: modelName,
+                    model: modelName || "claude-3-haiku-20240307",
                     max_tokens: 2000,
                     messages: [{ role: 'user', content: AI_PROMPT + '"' + text + '"' }]
                 };
@@ -580,7 +588,7 @@
             } else {
                 if(apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
                 bodyData = {
-                    model: modelName,
+                    model: modelName || "gpt-3.5-turbo",
                     messages: [
                         { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
                         { role: 'user', content: AI_PROMPT + '"' + text + '"' }
@@ -628,7 +636,7 @@
                 return await fetchGLM(text, glmKey, glmModel);
             };
             const runCustom = async () => {
-                if (!customUrl || !customModel) throw new Error("自定义 AI 配置不完整(需指定URL和模型)");
+                if (!customUrl) throw new Error("自定义 AI 配置不完整(至少需要填写URL)");
                 return await fetchCustomAI(text, customUrl, customKey, customModel);
             };
 
@@ -863,12 +871,12 @@
                         const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
                         
                         let isReady = false;
-                        if (pref === 'custom' && customUrl && customModel) isReady = true;
+                        if (pref === 'custom' && customUrl) isReady = true; // 彻底放宽
                         if (pref === 'groq' && groqKey && groqModel) isReady = true;
                         if (pref === 'glm' && glmKey && glmModel) isReady = true;
 
                         if (!isReady) {
-                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\n(请确保至少填入了 URL 和 模型名称)');
+                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\n(提示：自定义AI至少需要填写 API Endpoint)');
                             return;
                         }
 
@@ -973,7 +981,6 @@
             });
         }
         
-        // 【核心修复】：放弃 load 等待，DOM 骨架渲染完成立即挂载按钮，彻底根治 10 条模式下的图片阻塞问题
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initAnnotations);
         } else {
