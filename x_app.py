@@ -11,42 +11,36 @@ tz_utc_8 = timezone(timedelta(hours=8))
 AUTO_PUSH_GITHUB = True  # 开启 Python 端自动 Push 到 GitHub 的功能
 # ==========================================
 
-def get_user_tweet_ids(username, limit=10):
-    """通过公开 Syndication API 或备用 RSS 获取用户最新原创推文 ID"""
-    print(f"⏳ 正在解析 @{username} 的时间线...")
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+def patch_legacy_html_files():
+    """自动热更新所有历史静态 HTML 文件中的核心 JS 引擎"""
+    dummy_page = generate_page_wrapper("", "", "")
+    match = re.search(r'(<script id="core-engine">.*?</script>)', dummy_page, flags=re.DOTALL)
+    if not match:
+        return
+    new_script = match.group(1)
+    
+    patched_count = 0
+    if os.path.exists(BASE_DIR):
+        for root, _, files in os.walk(BASE_DIR):
+            for file in files:
+                if file.endswith('_x.html'):
+                    filepath = os.path.join(root, file)
+                    try:
+                        with open(filepath, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                        
+                        old_match = re.search(r'<script id="core-engine">.*?</script>', content, flags=re.DOTALL)
+                        if old_match and old_match.group(0) != new_script:
+                            new_content = content.replace(old_match.group(0), new_script)
+                            with open(filepath, 'w', encoding='utf-8') as f:
+                                f.write(new_content)
+                            patched_count += 1
+                    except Exception:
+                        pass
+                        
+    if patched_count > 0:
+        print(f"🔄 自动热更新补丁：成功将 {patched_count} 个历史页面的旧版 AI 代码及按钮逻辑升级至最新！")
 
-    try:
-        url = f"https://syndication.twitter.com/srv/timeline-profile/screen-name/{username}"
-        res = requests.get(url, headers=headers, timeout=10)
-        match = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', res.text)
-        if match:
-            data = json.loads(match.group(1))
-            entries = data.get('props', {}).get('pageProps', {}).get('timeline', {}).get('entries', [])
-            tweet_ids = []
-            for entry in entries:
-                tweet = entry.get('content', {}).get('tweet', {})
-                tweet_id = tweet.get('id_str')
-                screen_name = tweet.get('user', {}).get('screen_name', '')
-                if tweet_id and screen_name.lower() == username.lower() and tweet_id not in tweet_ids:
-                    tweet_ids.append(tweet_id)
-            if tweet_ids:
-                return tweet_ids[:limit]
-    except Exception as e:
-        print(f"⚠️ 解析主节点失败: {e}")
-
-    print("⏳ 尝试使用备用 RSS 节点解析...")
-    try:
-        rss_url = f"https://rsshub.rssforever.com/twitter/user/{username}/exclude_rts_replies"
-        res = requests.get(rss_url, headers=headers, timeout=10)
-        ids = re.findall(r'status/(\d+)', res.text)
-        seen = set()
-        tweet_ids = [x for x in ids if not (x in seen or seen.add(x))]
-        return tweet_ids[:limit]
-    except Exception as e:
-        print(f"❌ 备用节点解析失败: {e}")
-
-    return []
 
 def generate_tweet_card(tweet_data, tweet_id):
     """生成单个推文卡片的 HTML 结构"""
@@ -99,6 +93,7 @@ def generate_tweet_card(tweet_data, tweet_id):
             </div>
             <a href="{original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及评论</a>
         </div>"""
+
 
 def generate_page_wrapper(content_html, page_title, now_str):
     """生成完整 HTML 页面外壳 (Python 本地后端生成版)"""
@@ -509,7 +504,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
                     try {{ view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; }} catch(e){{}}
                 }}
 
-                // --- AI 按钮逻辑 ---
                 if (aiToggle) {{
                     aiToggle.addEventListener('click', async (e) => {{
                         e.preventDefault();
@@ -538,7 +532,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         if (pref === 'glm' && glmKey && glmModel) isReady = true;
 
                         if (!isReady) {{
-                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\\n(需填入 URL 及 模型名称)');
+                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\\n(请确保至少填入了 URL 和 模型名称)');
                             return;
                         }}
 
@@ -642,7 +636,13 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 edit.setAttribute('data-old-val', rawText);
             }});
         }}
-        window.addEventListener('load', initAnnotations);
+        
+        // 【核心修复】：放弃 load 等待，DOM 渲染完成立即激活按钮，防止被加载慢的图片彻底卡死阻塞！
+        if (document.readyState === 'loading') {{
+            document.addEventListener('DOMContentLoaded', initAnnotations);
+        }} else {{
+            initAnnotations();
+        }}
 
         async function translateAll() {{
             const btn = document.getElementById('translate-btn');
@@ -706,6 +706,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
 </body>
 </html>"""
 
+
 def save_single_tweet_local(tweet_id, now_obj):
     """处理并保存单条推文"""
     api_url = f"https://api.vxtwitter.com/Twitter/status/{tweet_id}"
@@ -735,45 +736,9 @@ def save_single_tweet_local(tweet_id, now_obj):
         print(f"❌ 网络异常: {e}")
         return False
 
-def save_batch_tweets_local(username, tweet_ids, now_obj):
-    """处理并保存账号推文瀑布流"""
-    year_str, month_str = str(now_obj.year), str(now_obj.month)
-    target_dir = os.path.join(BASE_DIR, year_str, month_str)
-    os.makedirs(target_dir, exist_ok=True)
-
-    time_hms = now_obj.strftime('%H%M%S')
-    filename = f"{now_obj.year}_{now_obj.month}_{now_obj.day}_{time_hms}_batch_{username}_x.html"
-    html_path = os.path.join(target_dir, filename)
-    now_str = now_obj.strftime("%Y-%m-%d %H:%M")
-
-    cards_html = ""
-    success_count = 0
-
-    print(f"⏳ 正在生成 @{username} 的原创推文瀑布流卡片...")
-    for tid in tweet_ids:
-        api_url = f"https://api.vxtwitter.com/Twitter/status/{tid}"
-        try:
-            res = requests.get(api_url, timeout=10).json()
-            if 'error' not in res:
-                cards_html += generate_tweet_card(res, tid)
-                success_count += 1
-        except Exception:
-            pass
-
-    if success_count == 0:
-        print("❌ 无法获取任何推文详情，放弃生成。")
-        return False
-
-    page_html = generate_page_wrapper(cards_html, f"Tweets by @{username}", now_str)
-
-    with open(html_path, "w", encoding="utf-8") as f:
-        f.write(page_html)
-    print(f"✅ 瀑布流集锦已生成 (包含 {success_count} 条): {html_path}")
-    return True
-
 
 def generate_index():
-    """日历枢纽生成器 + 前端 JS (现代化设置界面升级版)"""
+    """日历枢纽生成器 + 前端 JS"""
     archive_data = {}
     if os.path.exists(BASE_DIR):
         years = [d for d in os.listdir(BASE_DIR) if d.isdigit()]
@@ -830,7 +795,6 @@ def generate_index():
         .fetch-input:focus { border-color: var(--primary); background: #fff; }
         .settings-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 5px; }
         
-        /* 现代化 Modal UI 开始 */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 100; justify-content: center; align-items: center; padding: 16px; backdrop-filter: blur(4px); }
         .modal-content { background: var(--card); border-radius: 20px; padding: 24px; width: 100%; max-width: 500px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); max-height: 85vh; overflow-y: auto; position: relative; box-sizing: border-box; }
         .modal-title { margin: 0 0 8px 0; font-size: 20px; font-weight: 700; color: #111; }
@@ -853,7 +817,7 @@ def generate_index():
         select.form-control { cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: calc(100% - 12px) center; }
         
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; position: sticky; bottom: 0; background: var(--card); padding-top: 12px; border-top: 1px solid #eee; }
-        .btn { padding: 10px 20px; border-radius: 10px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn { padding: 10px 20px; border-radius: 10px; border: none; font-size: 14px; font-weight: 600; cursor: transition: 0.2s; }
         .btn-cancel { background: #f1f3f5; color: #333; }
         .btn-cancel:active { background: #e9ecef; }
         .btn-save { background: var(--primary); color: #fff; }
@@ -863,7 +827,6 @@ def generate_index():
             .form-row { flex-direction: column; gap: 12px; }
             .modal-content { padding: 20px; }
         }
-        /* 现代化 Modal UI 结束 */
 
         .controls { background: var(--bg); padding: 15px 20px; display: flex; justify-content: center; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); }
         .control-btn { background: var(--primary); color: #fff; border: none; border-radius: 6px; padding: 8px 12px; font-size: 14px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
@@ -896,7 +859,7 @@ def generate_index():
 <body>
     <div id="loadingBar"></div>
     <div class="manual-fetch-bar">
-        <input type="text" id="xUrlInput" class="fetch-input" placeholder="粘贴推文或账号链接，回车归档..." autocomplete="off">
+        <input type="text" id="xUrlInput" class="fetch-input" placeholder="粘贴单条推文链接，回车归档..." autocomplete="off">
         <button class="settings-btn" id="openSettingsBtn">⚙️</button>
     </div>
 
@@ -988,6 +951,7 @@ def generate_index():
         </div>
     </div>
 
+    <!-- 自定义批量归档 Modal -->
     <div class="modal-overlay" id="batchModal">
         <div class="modal-content">
             <h3 class="modal-title">自定义组合归档</h3>
@@ -1198,7 +1162,7 @@ def generate_index():
             } catch(e) { console.error(e); alert('删除同步失败: ' + e.message); document.getElementById('loadingBar').style.width = '0%'; }
         }
 
-        // --- HTML 模板组装 (JS 动态生成版，更新了 AI 校验逻辑) ---
+        // --- HTML 模板组装 (JS 动态生成版) ---
         function generateTweetCard(tweet, tweetId) {
             const author = tweet.user_name || 'Unknown';
             const handle = tweet.user_screen_name || 'unknown';
@@ -1685,7 +1649,7 @@ def generate_index():
                         if (pref === 'glm' && glmKey && glmModel) isReady = true;
 
                         if (!isReady) {
-                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\\n(请确保填入了 URL 和 模型名称)');
+                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\\n(请确保至少填入了 URL 和 模型名称)');
                             return;
                         }
 
@@ -1789,7 +1753,13 @@ def generate_index():
                 edit.setAttribute('data-old-val', rawText);
             });
         }
-        window.addEventListener('load', initAnnotations);
+        
+        // 【核心修复】：放弃 load 等待，DOM 骨架渲染完成立即挂载按钮，彻底根治 10 条模式下的图片阻塞问题
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initAnnotations);
+        } else {
+            initAnnotations();
+        }
 
         async function translateAll() {
             const btn = document.getElementById('translate-btn');
@@ -1855,7 +1825,7 @@ def generate_index():
         }
         // ------------------------------------
 
-        // === 核心：处理前端自定义批量模板同步 ===
+        // === 处理前端自定义组合批量模板同步 ===
         document.getElementById('submitBatchBtn').addEventListener('click', async () => {
             const inputText = document.getElementById('batchInputArea').value;
             let tweetIdsToProcess = [];
@@ -1968,7 +1938,7 @@ def generate_index():
             }
         });
 
-        // X 推文前端抓取逻辑
+        // X 推文前端单条抓取逻辑（已剔除账号批量功能）
         document.getElementById('xUrlInput').addEventListener('keypress', async function (e) {
             if (e.key === 'Enter') {
                 const url = this.value.trim();
@@ -1980,20 +1950,11 @@ def generate_index():
                 }
                 
                 const statusMatch = url.match(/status\\/(\\d+)/);
-                const userMatch = url.match(/(?:x|twitter)\\.com\\/([A-Za-z0-9_]+)\\/?$/);
-                
-                let tweetIdsToProcess = [];
-                let isBatch = false;
-                let username = "";
-
-                if (statusMatch) {
-                    tweetIdsToProcess.push(statusMatch[1]);
-                } else if (userMatch && !['i', 'home', 'explore', 'notifications'].includes(userMatch[1].toLowerCase())) {
-                    isBatch = true;
-                    username = userMatch[1];
-                } else {
-                    return alert('❌ 无法识别的 X (Twitter) 链接或格式不正确');
+                if (!statusMatch) {
+                    return alert('❌ 无法识别链接格式，目前仅支持抓取包含 status 的单条推文链接！\\n(如需批量多条归档，请使用旁边的⚙️配置中心和组合归档功能)');
                 }
+                
+                let tweetIdsToProcess = [statusMatch[1]];
 
                 const ghToken = localStorage.getItem('GH_TOKEN');
                 const ghOwner = localStorage.getItem('GH_OWNER');
@@ -2009,60 +1970,14 @@ def generate_index():
                 this.disabled = true;
 
                 try {
-                    if (isBatch) {
-                        loadingBar.style.width = '15%';
-                        try {
-                            const rssUrl = `https://rsshub.rssforever.com/twitter/user/${username}/exclude_rts_replies`;
-                            const rssRes = await fetch(rssUrl);
-                            if (rssRes.ok) {
-                                const rssText = await rssRes.text();
-                                const matches = [...rssText.matchAll(/status\\/(\\d+)/g)];
-                                matches.forEach(m => {
-                                    if (!tweetIdsToProcess.includes(m[1])) tweetIdsToProcess.push(m[1]);
-                                });
-                            }
-                        } catch(err) { console.warn("RSSHub fetch failed"); }
-
-                        loadingBar.style.width = '25%';
-
-                        if (tweetIdsToProcess.length === 0) {
-                            const synUrl = encodeURIComponent(`https://syndication.twitter.com/srv/timeline-profile/screen-name/${username}`);
-                            const proxies = [
-                                `https://api.allorigins.win/raw?url=${synUrl}`,
-                                `https://corsproxy.io/?url=${synUrl}`,
-                                `https://api.codetabs.com/v1/proxy?quest=${decodeURIComponent(synUrl)}`
-                            ];
-
-                            for (let proxy of proxies) {
-                                try {
-                                    const res = await fetch(proxy);
-                                    if (!res.ok) continue;
-                                    const text = await res.text();
-                                    const match = text.match(/<script id="__NEXT_DATA__" type="application\\/json">(.*?)<\\/script>/);
-                                    if (match) {
-                                        const parsed = JSON.parse(match[1]);
-                                        const timelineEntries = parsed.props?.pageProps?.timeline?.entries || [];
-                                        timelineEntries.forEach(entry => {
-                                            const tweet = entry.content?.tweet;
-                                            const tid = tweet?.id_str;
-                                            const screenName = tweet?.user?.screen_name;
-                                            
-                                            if (tid && screenName && screenName.toLowerCase() === username.toLowerCase() && !tweetIdsToProcess.includes(tid)) {
-                                                tweetIdsToProcess.push(tid);
-                                            }
-                                        });
-                                        if (tweetIdsToProcess.length > 0) break;
-                                    }
-                                } catch(err) { console.warn(`Proxy failed:`, proxy); }
-                            }
-                        }
-
-                        tweetIdsToProcess = tweetIdsToProcess.slice(0, 10);
-                        if (tweetIdsToProcess.length === 0) {
-                            throw new Error("前端代理节点全数遭浏览器拦截，请关闭广告拦截器/防追踪护盾，或更换网络后重试。");
-                        }
-                    }
-
+                    loadingBar.style.width = '60%';
+                    const tweetId = tweetIdsToProcess[0];
+                    const vRes = await fetch(`https://api.vxtwitter.com/Twitter/status/${tweetId}`);
+                    const tweet = await vRes.json();
+                    if (tweet.error) throw new Error(tweet.error);
+                    
+                    const singleCardHtml = generateTweetCard(tweet, tweetId);
+                    
                     const now = new Date();
                     const yearStr = AppState.year.toString();
                     const monthStr = AppState.month.toString();
@@ -2070,52 +1985,16 @@ def generate_index():
                     const hhmmStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
                     const hhmmssFile = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0') + String(now.getSeconds()).padStart(2, '0');
                     
-                    let filename = "";
-                    let fileRelPath = "";
-                    let finalHtmlOutput = "";
-                    let indexTitle = "";
-                    
-                    if (isBatch) {
-                        let combinedCardsHtml = "";
-                        let validCount = 0;
-                        
-                        for (let i = 0; i < tweetIdsToProcess.length; i++) {
-                            loadingBar.style.width = `${30 + (50 / tweetIdsToProcess.length) * i}%`;
-                            const tweetId = tweetIdsToProcess[i];
-                            const vRes = await fetch(`https://api.vxtwitter.com/Twitter/status/${tweetId}`);
-                            const tweet = await vRes.json();
-                            if (tweet.error) continue;
-                            
-                            combinedCardsHtml += generateTweetCard(tweet, tweetId);
-                            validCount++;
-                        }
-                        
-                        if (validCount === 0) throw new Error("所有推文数据抓取失败");
-                        
-                        finalHtmlOutput = generatePageWrapper(combinedCardsHtml, `Tweets by @${username}`, hhmmStr);
-                        filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_batch_${username}_x.html`;
-                        fileRelPath = `${yearStr}/${monthStr}/${filename}`;
-                        indexTitle = `🐦 ${hhmmStr} 推文集：@${username}`;
-                        
-                    } else {
-                        loadingBar.style.width = '60%';
-                        const tweetId = tweetIdsToProcess[0];
-                        const vRes = await fetch(`https://api.vxtwitter.com/Twitter/status/${tweetId}`);
-                        const tweet = await vRes.json();
-                        if (tweet.error) throw new Error(tweet.error);
-                        
-                        const singleCardHtml = generateTweetCard(tweet, tweetId);
-                        finalHtmlOutput = generatePageWrapper(singleCardHtml, `Tweet by ${tweet.user_name}`, hhmmStr);
-                        filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_${tweetId}_x.html`;
-                        fileRelPath = `${yearStr}/${monthStr}/${filename}`;
-                        indexTitle = `🐦 ${hhmmStr} 灵感推文`;
-                    }
+                    const finalHtmlOutput = generatePageWrapper(singleCardHtml, `Tweet by ${tweet.user_name}`, hhmmStr);
+                    const filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_${tweetId}_x.html`;
+                    const fileRelPath = `${yearStr}/${monthStr}/${filename}`;
+                    const indexTitle = `🐦 ${hhmmStr} 灵感推文`;
 
                     loadingBar.style.width = '85%';
                     const putHtmlRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/${fileRelPath}`, {
                         method: 'PUT',
                         headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: `Add ${isBatch ? 'batch' : 'single'} tweet HTML`, content: btoa(unescape(encodeURIComponent(finalHtmlOutput))) })
+                        body: JSON.stringify({ message: `Add single tweet HTML`, content: btoa(unescape(encodeURIComponent(finalHtmlOutput))) })
                     });
                     
                     if (!putHtmlRes.ok) throw new Error("HTML 文件上传 GitHub 失败");
@@ -2141,7 +2020,7 @@ def generate_index():
                     const putIdxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
                         method: 'PUT',
                         headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: `Update index.html with new ${isBatch ? 'batch' : 'single'} entry`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
+                        body: JSON.stringify({ message: `Update index.html with new single entry`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
                     });
                     
                     if (!putIdxRes.ok) throw new Error("更新 index.html 失败！");
@@ -2153,7 +2032,7 @@ def generate_index():
 
                     forceRender(); 
                     loadingBar.style.width = '100%';
-                    alert(`🎉 成功！已为您归档最新的原创 ${isBatch ? '账号瀑布流' : '单条推文'}。`);
+                    alert(`🎉 成功！已为您归档最新的原创单条推文。`);
                     this.value = '';
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
 
@@ -2173,7 +2052,8 @@ def generate_index():
 
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首页日历 WebApp 已生成更新！(支持多行文本批量组合及现代化UI升级)")
+    print("🚀 首页日历 WebApp 已生成更新！(移除了账号解析模式，修复了组合模式下按钮失灵 Bug)")
+
 
 def git_push_to_github(msg="Auto-archive"):
     """自动调用本地系统的 Git 指令将更新推送到 GitHub"""
@@ -2198,26 +2078,28 @@ def git_push_to_github(msg="Auto-archive"):
     except FileNotFoundError:
         print("❌ 系统找不到 Git，请确认您已安装 Git 并将其加入环境变量中。")
 
+
 def main():
     os.makedirs(BASE_DIR, exist_ok=True)
+    
+    # 核心：每次运行前，自动升级以前生成的静态文件里的旧版代码！
+    patch_legacy_html_files()
+    
     generate_index()
 
     print("\n=======================================")
     print("🐦 X (Twitter) 语料日历 - 后台录入")
-    print("提示1：粘贴 [单推文链接] 即可抓取单条推文")
-    print("提示2：粘贴 [账号首页链接] 将为您生成该账号最新 10 条原创推文的瀑布流网页！")
+    print("提示：粘贴 [单推文链接] 即可抓取单条推文 (批量请走前端 WebApp)")
     print("=======================================")
 
     while True:
-        url = input("\n👉 粘贴 X 推文或账号链接 (输入 q 退出): ").strip()
+        url = input("\n👉 粘贴 X 推文 (输入 q 退出): ").strip()
         if url.lower() == 'q':
             break
         if not url:
             continue
 
         status_match = re.search(r'status/(\d+)', url)
-        user_match = re.search(r'(?:x|twitter)\.com/([A-Za-z0-9_]+)', url)
-
         now = datetime.now(tz_utc_8)
 
         if status_match:
@@ -2225,23 +2107,9 @@ def main():
             if save_single_tweet_local(tweet_id, now):
                 generate_index()
                 git_push_to_github(f"Archive single tweet {tweet_id}")
-
-        elif user_match:
-            username = user_match.group(1)
-            if username.lower() in ['i', 'home', 'explore', 'notifications', 'messages']:
-                print("❌ 链接无效，请输入真实的账号首页")
-                continue
-
-            tweet_ids = get_user_tweet_ids(username, limit=10)
-            if not tweet_ids:
-                print("❌ 找不到该账号的原创推文或解析时间线失败。")
-                continue
-
-            if save_batch_tweets_local(username, tweet_ids, now):
-                generate_index()
-                git_push_to_github(f"Batch archive {len(tweet_ids)} tweets from {username}")
         else:
-            print("❌ 无法识别的链接格式。")
+            print("❌ 无法识别的推文链接，仅支持单条推文状态链接 (如: x.com/user/status/123)。")
+
 
 if __name__ == "__main__":
     main()
