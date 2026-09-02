@@ -12,7 +12,7 @@ AUTO_PUSH_GITHUB = True  # 开启 Python 端自动 Push 到 GitHub 的功能
 # ==========================================
 
 def patch_legacy_html_files():
-    """自动热更新所有历史静态 HTML 文件中的核心 JS 引擎"""
+    """自动热更新所有历史静态 HTML 文件中的核心 JS 引擎，彻底替换掉带有死逻辑的旧版代码"""
     dummy_page = generate_page_wrapper("", "", "")
     match = re.search(r'(<script id="core-engine">.*?</script>)', dummy_page, flags=re.DOTALL)
     if not match:
@@ -39,7 +39,7 @@ def patch_legacy_html_files():
                         pass
                         
     if patched_count > 0:
-        print(f"🔄 自动热更新补丁：成功将 {patched_count} 个历史页面的旧版 AI 代码及按钮逻辑升级至最新！")
+        print(f"🔄 全局热更新完毕：已强行给 {patched_count} 个历史页面换上了最新的无 Bug 引擎！")
 
 
 def generate_tweet_card(tweet_data, tweet_id):
@@ -103,6 +103,11 @@ def generate_page_wrapper(content_html, page_title, now_str):
     <meta charset="UTF-8">
     <meta name="referrer" content="no-referrer">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- 防缓存机制：防止浏览器读取带有旧引擎的缓存文件 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
     <title>{page_title}</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style id="core-style">
@@ -217,7 +222,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 headers['anthropic-version'] = '2023-06-01';
                 headers['anthropic-dangerous-direct-browser-access'] = 'true';
                 bodyData = {{
-                    model: modelName,
+                    model: modelName || "claude-3-haiku-20240307",
                     max_tokens: 2000,
                     messages: [{{ role: 'user', content: AI_PROMPT + '"' + text + '"' }}]
                 }};
@@ -244,7 +249,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
             else {{
                 if(apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
                 bodyData = {{
-                    model: modelName,
+                    model: modelName || "gpt-3.5-turbo",
                     messages: [
                         {{ role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' }},
                         {{ role: 'user', content: AI_PROMPT + '"' + text + '"' }}
@@ -292,7 +297,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 return await fetchGLM(text, glmKey, glmModel);
             }};
             const runCustom = async () => {{
-                if (!customUrl || !customModel) throw new Error("自定义 AI 配置不完整(需指定URL和模型)");
+                if (!customUrl) throw new Error("自定义 AI 配置不完整(至少需要填写URL)");
                 return await fetchCustomAI(text, customUrl, customKey, customModel);
             }};
 
@@ -527,12 +532,12 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
                         
                         let isReady = false;
-                        if (pref === 'custom' && customUrl && customModel) isReady = true;
+                        if (pref === 'custom' && customUrl) isReady = true;  // 彻底放宽：自定义只要有URL就能跑
                         if (pref === 'groq' && groqKey && groqModel) isReady = true;
                         if (pref === 'glm' && glmKey && glmModel) isReady = true;
 
                         if (!isReady) {{
-                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\\n(请确保至少填入了 URL 和 模型名称)');
+                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\\n(提示：自定义AI至少需要填写 API Endpoint)');
                             return;
                         }}
 
@@ -637,7 +642,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
             }});
         }}
         
-        // 【核心修复】：放弃 load 等待，DOM 渲染完成立即激活按钮，防止被加载慢的图片彻底卡死阻塞！
         if (document.readyState === 'loading') {{
             document.addEventListener('DOMContentLoaded', initAnnotations);
         }} else {{
@@ -784,6 +788,10 @@ def generate_index():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- 强制禁用缓存，防止再次读取旧版本生成器 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>X 语料日历枢纽</title>
     <style>
         :root { --bg: #f5f5f7; --text: #333; --muted: #888; --primary: #1d9bf0; --border: #e0e0e0; --card: #fff; }
@@ -817,7 +825,7 @@ def generate_index():
         select.form-control { cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: calc(100% - 12px) center; }
         
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; position: sticky; bottom: 0; background: var(--card); padding-top: 12px; border-top: 1px solid #eee; }
-        .btn { padding: 10px 20px; border-radius: 10px; border: none; font-size: 14px; font-weight: 600; cursor: transition: 0.2s; }
+        .btn { padding: 10px 20px; border-radius: 10px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
         .btn-cancel { background: #f1f3f5; color: #333; }
         .btn-cancel:active { background: #e9ecef; }
         .btn-save { background: var(--primary); color: #fff; }
@@ -1223,6 +1231,10 @@ def generate_index():
     <meta charset="UTF-8">
     <meta name="referrer" content="no-referrer">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- 强制子页面也不走缓存 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>${pageTitle}</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"><\\/script>
     <style id="core-style">
@@ -1336,7 +1348,7 @@ def generate_index():
                 headers['anthropic-version'] = '2023-06-01';
                 headers['anthropic-dangerous-direct-browser-access'] = 'true';
                 bodyData = {
-                    model: modelName,
+                    model: modelName || "claude-3-haiku-20240307",
                     max_tokens: 2000,
                     messages: [{ role: 'user', content: AI_PROMPT + '"' + text + '"' }]
                 };
@@ -1361,7 +1373,7 @@ def generate_index():
             } else {
                 if(apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
                 bodyData = {
-                    model: modelName,
+                    model: modelName || "gpt-3.5-turbo",
                     messages: [
                         { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
                         { role: 'user', content: AI_PROMPT + '"' + text + '"' }
@@ -1409,7 +1421,7 @@ def generate_index():
                 return await fetchGLM(text, glmKey, glmModel);
             };
             const runCustom = async () => {
-                if (!customUrl || !customModel) throw new Error("自定义 AI 配置不完整(需指定URL和模型)");
+                if (!customUrl) throw new Error("自定义 AI 配置不完整(至少需要填写URL)");
                 return await fetchCustomAI(text, customUrl, customKey, customModel);
             };
 
@@ -1644,12 +1656,12 @@ def generate_index():
                         const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
                         
                         let isReady = false;
-                        if (pref === 'custom' && customUrl && customModel) isReady = true;
+                        if (pref === 'custom' && customUrl) isReady = true; // 彻底放宽
                         if (pref === 'groq' && groqKey && groqModel) isReady = true;
                         if (pref === 'glm' && glmKey && glmModel) isReady = true;
 
                         if (!isReady) {
-                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\\n(请确保至少填入了 URL 和 模型名称)');
+                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\\n(提示：自定义AI至少需要填写 API Endpoint)');
                             return;
                         }
 
@@ -1754,7 +1766,6 @@ def generate_index():
             });
         }
         
-        // 【核心修复】：放弃 load 等待，DOM 骨架渲染完成立即挂载按钮，彻底根治 10 条模式下的图片阻塞问题
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initAnnotations);
         } else {
@@ -2052,7 +2063,7 @@ def generate_index():
 
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首页日历 WebApp 已生成更新！(移除了账号解析模式，修复了组合模式下按钮失灵 Bug)")
+    print("🚀 首页日历 WebApp 已生成更新！(已添加强力防缓存机制，彻底解决旧版代码残留问题)")
 
 
 def git_push_to_github(msg="Auto-archive"):
@@ -2082,7 +2093,7 @@ def git_push_to_github(msg="Auto-archive"):
 def main():
     os.makedirs(BASE_DIR, exist_ok=True)
     
-    # 核心：每次运行前，自动升级以前生成的静态文件里的旧版代码！
+    # 核心：每次运行前，自动全盘扫描，强行把以前生成的静态文件里的旧版代码替换成最新无 Bug 引擎！
     patch_legacy_html_files()
     
     generate_index()
