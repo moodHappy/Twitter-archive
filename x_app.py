@@ -11,36 +11,42 @@ tz_utc_8 = timezone(timedelta(hours=8))
 AUTO_PUSH_GITHUB = True  # 开启 Python 端自动 Push 到 GitHub 的功能
 # ==========================================
 
-def patch_legacy_html_files():
-    """自动热更新所有历史静态 HTML 文件中的核心 JS 引擎，彻底替换掉带有死逻辑的旧版代码"""
-    dummy_page = generate_page_wrapper("", "", "")
-    match = re.search(r'(<script id="core-engine">.*?</script>)', dummy_page, flags=re.DOTALL)
-    if not match:
-        return
-    new_script = match.group(1)
-    
-    patched_count = 0
-    if os.path.exists(BASE_DIR):
-        for root, _, files in os.walk(BASE_DIR):
-            for file in files:
-                if file.endswith('_x.html'):
-                    filepath = os.path.join(root, file)
-                    try:
-                        with open(filepath, 'r', encoding='utf-8') as f:
-                            content = f.read()
-                        
-                        old_match = re.search(r'<script id="core-engine">.*?</script>', content, flags=re.DOTALL)
-                        if old_match and old_match.group(0) != new_script:
-                            new_content = content.replace(old_match.group(0), new_script)
-                            with open(filepath, 'w', encoding='utf-8') as f:
-                                f.write(new_content)
-                            patched_count += 1
-                    except Exception:
-                        pass
-                        
-    if patched_count > 0:
-        print(f"🔄 全局热更新完毕：已强行给 {patched_count} 个历史页面换上了最新的无 Bug 引擎！")
+def get_user_tweet_ids(username, limit=10):
+    """通过公开 Syndication API 或备用 RSS 获取用户最新原创推文 ID"""
+    print(f"⏳ 正在解析 @{username} 的时间线...")
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
+    try:
+        url = f"https://syndication.twitter.com/srv/timeline-profile/screen-name/{username}"
+        res = requests.get(url, headers=headers, timeout=10)
+        match = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', res.text)
+        if match:
+            data = json.loads(match.group(1))
+            entries = data.get('props', {}).get('pageProps', {}).get('timeline', {}).get('entries', [])
+            tweet_ids = []
+            for entry in entries:
+                tweet = entry.get('content', {}).get('tweet', {})
+                tweet_id = tweet.get('id_str')
+                screen_name = tweet.get('user', {}).get('screen_name', '')
+                if tweet_id and screen_name.lower() == username.lower() and tweet_id not in tweet_ids:
+                    tweet_ids.append(tweet_id)
+            if tweet_ids:
+                return tweet_ids[:limit]
+    except Exception as e:
+        print(f"⚠️ 解析主节点失败: {e}")
+
+    print("⏳ 尝试使用备用 RSS 节点解析...")
+    try:
+        rss_url = f"https://rsshub.rssforever.com/twitter/user/{username}/exclude_rts_replies"
+        res = requests.get(rss_url, headers=headers, timeout=10)
+        ids = re.findall(r'status/(\d+)', res.text)
+        seen = set()
+        tweet_ids = [x for x in ids if not (x in seen or seen.add(x))]
+        return tweet_ids[:limit]
+    except Exception as e:
+        print(f"❌ 备用节点解析失败: {e}")
+
+    return []
 
 def generate_tweet_card(tweet_data, tweet_id):
     """生成单个推文卡片的 HTML 结构"""
@@ -94,7 +100,6 @@ def generate_tweet_card(tweet_data, tweet_id):
             <a href="{original_url}" target="_blank" class="btn-link">🔗 前往 X 查看原文及评论</a>
         </div>"""
 
-
 def generate_page_wrapper(content_html, page_title, now_str):
     """生成完整 HTML 页面外壳 (Python 本地后端生成版)"""
     return f"""<!DOCTYPE html>
@@ -103,11 +108,9 @@ def generate_page_wrapper(content_html, page_title, now_str):
     <meta charset="UTF-8">
     <meta name="referrer" content="no-referrer">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- 防缓存机制：防止浏览器读取带有旧引擎的缓存文件 -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    
     <title>{page_title}</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style id="core-style">
@@ -284,8 +287,8 @@ def generate_page_wrapper(content_html, page_title, now_str):
             const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
             const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
             
-            const groqModel = localStorage.getItem('GROQ_MODEL') || '';
-            const glmModel = localStorage.getItem('GLM_MODEL') || '';
+            const groqModel = localStorage.getItem('GROQ_MODEL') || 'llama-3.3-70b-versatile';
+            const glmModel = localStorage.getItem('GLM_MODEL') || 'glm-4-flash';
             const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
 
             const runGroq = async () => {{
@@ -515,12 +518,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         e.stopPropagation();
                         if (aiToggle.classList.contains('loading')) return;
 
-                        if (edit.value.trim() !== '') {{
-                            if (!confirm('⚠️ 批注框已有内容，使用 AI 解析将覆盖原有内容。确定要继续吗？')) {{
-                                return;
-                            }}
-                        }}
-
                         const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
                         const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
                         const glmKey = localStorage.getItem('GLM_API_KEY') || '';
@@ -532,13 +529,19 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
                         
                         let isReady = false;
-                        if (pref === 'custom' && customUrl) isReady = true;  // 彻底放宽：自定义只要有URL就能跑
+                        if (pref === 'custom' && customUrl) isReady = true;
                         if (pref === 'groq' && groqKey && groqModel) isReady = true;
                         if (pref === 'glm' && glmKey && glmModel) isReady = true;
 
                         if (!isReady) {{
                             alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\\n(提示：自定义AI至少需要填写 API Endpoint)');
                             return;
+                        }}
+
+                        const currentAnnoText = edit.value.trim();
+                        if (currentAnnoText) {{
+                            const isConfirm = confirm('检测到当前已有批注内容，是否使用 AI 重新解析并覆盖？\\n\\n（点击“确定”覆盖，“取消”保留原内容）');
+                            if (!isConfirm) return;
                         }}
 
                         const pClone = wrap.querySelector('.content').cloneNode(true);
@@ -710,7 +713,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
 </body>
 </html>"""
 
-
 def save_single_tweet_local(tweet_id, now_obj):
     """处理并保存单条推文"""
     api_url = f"https://api.vxtwitter.com/Twitter/status/{tweet_id}"
@@ -739,6 +741,42 @@ def save_single_tweet_local(tweet_id, now_obj):
     except Exception as e:
         print(f"❌ 网络异常: {e}")
         return False
+
+def save_batch_tweets_local(username, tweet_ids, now_obj):
+    """处理并保存账号推文瀑布流"""
+    year_str, month_str = str(now_obj.year), str(now_obj.month)
+    target_dir = os.path.join(BASE_DIR, year_str, month_str)
+    os.makedirs(target_dir, exist_ok=True)
+
+    time_hms = now_obj.strftime('%H%M%S')
+    filename = f"{now_obj.year}_{now_obj.month}_{now_obj.day}_{time_hms}_batch_{username}_x.html"
+    html_path = os.path.join(target_dir, filename)
+    now_str = now_obj.strftime("%Y-%m-%d %H:%M")
+
+    cards_html = ""
+    success_count = 0
+
+    print(f"⏳ 正在生成 @{username} 的原创推文瀑布流卡片...")
+    for tid in tweet_ids:
+        api_url = f"https://api.vxtwitter.com/Twitter/status/{tid}"
+        try:
+            res = requests.get(api_url, timeout=10).json()
+            if 'error' not in res:
+                cards_html += generate_tweet_card(res, tid)
+                success_count += 1
+        except Exception:
+            pass
+
+    if success_count == 0:
+        print("❌ 无法获取任何推文详情，放弃生成。")
+        return False
+
+    page_html = generate_page_wrapper(cards_html, f"Tweets by @{username}", now_str)
+
+    with open(html_path, "w", encoding="utf-8") as f:
+        f.write(page_html)
+    print(f"✅ 瀑布流集锦已生成 (包含 {success_count} 条): {html_path}")
+    return True
 
 
 def generate_index():
@@ -1408,8 +1446,8 @@ def generate_index():
             const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
             const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
             
-            const groqModel = localStorage.getItem('GROQ_MODEL') || '';
-            const glmModel = localStorage.getItem('GLM_MODEL') || '';
+            const groqModel = localStorage.getItem('GROQ_MODEL') || 'llama-3.3-70b-versatile';
+            const glmModel = localStorage.getItem('GLM_MODEL') || 'glm-4-flash';
             const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
 
             const runGroq = async () => {
@@ -1639,30 +1677,30 @@ def generate_index():
                         e.stopPropagation();
                         if (aiToggle.classList.contains('loading')) return;
 
-                        if (edit.value.trim() !== '') {
-                            if (!confirm('⚠️ 批注框已有内容，使用 AI 解析将覆盖原有内容。确定要继续吗？')) {
-                                return;
-                            }
-                        }
-
                         const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
                         const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
                         const glmKey = localStorage.getItem('GLM_API_KEY') || '';
                         const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
                         const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
                         
-                        const groqModel = localStorage.getItem('GROQ_MODEL') || '';
-                        const glmModel = localStorage.getItem('GLM_MODEL') || '';
+                        const groqModel = localStorage.getItem('GROQ_MODEL') || 'llama-3.3-70b-versatile';
+                        const glmModel = localStorage.getItem('GLM_MODEL') || 'glm-4-flash';
                         const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
                         
                         let isReady = false;
-                        if (pref === 'custom' && customUrl) isReady = true; // 彻底放宽
+                        if (pref === 'custom' && customUrl) isReady = true;
                         if (pref === 'groq' && groqKey && groqModel) isReady = true;
                         if (pref === 'glm' && glmKey && glmModel) isReady = true;
 
                         if (!isReady) {
                             alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\\n(提示：自定义AI至少需要填写 API Endpoint)');
                             return;
+                        }
+
+                        const currentAnnoText = edit.value.trim();
+                        if (currentAnnoText) {
+                            const isConfirm = confirm('检测到当前已有批注内容，是否使用 AI 重新解析并覆盖？\\n\\n（点击“确定”覆盖，“取消”保留原内容）');
+                            if (!isConfirm) return;
                         }
 
                         const pClone = wrap.querySelector('.content').cloneNode(true);
@@ -2063,7 +2101,7 @@ def generate_index():
 
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首页日历 WebApp 已生成更新！(已添加强力防缓存机制，彻底解决旧版代码残留问题)")
+    print("🚀 首页日历 WebApp 已生成更新！")
 
 
 def git_push_to_github(msg="Auto-archive"):
@@ -2092,9 +2130,6 @@ def git_push_to_github(msg="Auto-archive"):
 
 def main():
     os.makedirs(BASE_DIR, exist_ok=True)
-    
-    # 核心：每次运行前，自动全盘扫描，强行把以前生成的静态文件里的旧版代码替换成最新无 Bug 引擎！
-    patch_legacy_html_files()
     
     generate_index()
 
