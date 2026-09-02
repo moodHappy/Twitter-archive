@@ -84,6 +84,7 @@
         <button class="settings-btn" id="openSettingsBtn">⚙️</button>
     </div>
 
+    <!-- 全新卡片化设置 Modal -->
     <div class="modal-overlay" id="settingsModal">
         <div class="modal-content">
             <h3 class="modal-title">核心配置中心</h3>
@@ -172,6 +173,7 @@
         </div>
     </div>
 
+    <!-- 自定义批量归档 Modal -->
     <div class="modal-overlay" id="batchModal">
         <div class="modal-content">
             <h3 class="modal-title">自定义组合归档</h3>
@@ -869,7 +871,7 @@
                         if (pref === 'glm' && glmKey && glmModel) isReady = true;
 
                         if (!isReady) {
-                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\n(请确保填入了 URL 和 模型名称)');
+                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\n(请确保至少填入了 URL 和 模型名称)');
                             return;
                         }
 

@@ -518,7 +518,6 @@ Read more: https://abcnews.link/qN1ZD3k<span class="anno-toggle has-anno"></span
     <script id="core-engine">
         let syncTimeout = null;
 
-        // 【AI 解析核心逻辑 - 加入了 ### 触发 Markdown 三级标题和 CSS 虚线样式】
         const AI_PROMPT = "请分析以下英文段落，并严格按照以下 Markdown 格式输出（不要输出任何额外的废话）：\n\n### 📌 完整翻译\n\n[此处填写完整翻译]\n\n### 📌 Key Expressions\n\n- **[单词或短语]**\n  = [中文释义]\n  （[可选的补充说明，如倒装结构或语境等]）\n\n段落内容：\n";
 
         async function fetchGroq(text, apiKey, modelName) {
@@ -559,62 +558,130 @@ Read more: https://abcnews.link/qN1ZD3k<span class="anno-toggle has-anno"></span
             throw new Error('智谱GLM返回数据异常');
         }
 
+        async function fetchCustomAI(text, url, apiKey, modelName) {
+            let headers = { 'Content-Type': 'application/json' };
+            let bodyData = {};
+
+            if (url.includes('anthropic.com')) {
+                if(apiKey) headers['x-api-key'] = apiKey;
+                headers['anthropic-version'] = '2023-06-01';
+                headers['anthropic-dangerous-direct-browser-access'] = 'true';
+                bodyData = {
+                    model: modelName,
+                    max_tokens: 2000,
+                    messages: [{ role: 'user', content: AI_PROMPT + '"' + text + '"' }]
+                };
+            }
+            else if (url.includes('generativelanguage.googleapis.com')) {
+                let targetUrl = url;
+                if (apiKey && !targetUrl.includes('key=')) {
+                    targetUrl += (targetUrl.includes('?') ? '&' : '?') + 'key=' + apiKey;
+                }
+                const res = await fetch(targetUrl, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: AI_PROMPT + '"' + text + '"' }] }]
+                    })
+                });
+                if (!res.ok) throw new Error('Gemini API Error: ' + res.status);
+                const json = await res.json();
+                if (json.candidates && json.candidates[0]?.content?.parts[0]?.text) {
+                    return json.candidates[0].content.parts[0].text.trim();
+                }
+                throw new Error('Gemini 返回数据异常');
+            }
+            else {
+                if(apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
+                bodyData = {
+                    model: modelName,
+                    messages: [
+                        { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
+                        { role: 'user', content: AI_PROMPT + '"' + text + '"' }
+                    ],
+                    temperature: 0.3
+                };
+            }
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(bodyData)
+            });
+
+            if (!res.ok) throw new Error('自定义 AI 接口报错: ' + res.status);
+            const json = await res.json();
+
+            if (json.content && Array.isArray(json.content) && json.content[0]?.text) {
+                return json.content[0].text.trim();
+            }
+            if (json.choices && json.choices.length > 0) {
+                return json.choices[0].message.content.trim();
+            }
+
+            throw new Error('自定义 AI 返回结构不符合预期');
+        }
+
         async function executeAIPipeline(text) {
-            const pref = localStorage.getItem('PREFERRED_AI') || 'groq';
+            const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
             const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
             const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+            const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
+            const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
+            
             const groqModel = localStorage.getItem('GROQ_MODEL') || '';
             const glmModel = localStorage.getItem('GLM_MODEL') || '';
-
-            if ((!groqKey && !glmKey) || (!groqModel && !glmModel)) throw new Error('MISSING_KEYS_OR_MODELS');
+            const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
 
             const runGroq = async () => {
-                if (!groqKey) throw new Error("Groq API Key 未配置");
-                if (!groqModel) throw new Error("Groq 模型未配置");
+                if (!groqKey || !groqModel) throw new Error("Groq 配置不完整");
                 return await fetchGroq(text, groqKey, groqModel);
             };
             const runGLM = async () => {
-                if (!glmKey) throw new Error("智谱GLM API Key 未配置");
-                if (!glmModel) throw new Error("智谱GLM 模型未配置");
+                if (!glmKey || !glmModel) throw new Error("智谱GLM 配置不完整");
                 return await fetchGLM(text, glmKey, glmModel);
             };
+            const runCustom = async () => {
+                if (!customUrl || !customModel) throw new Error("自定义 AI 配置不完整(需指定URL和模型)");
+                return await fetchCustomAI(text, customUrl, customKey, customModel);
+            };
 
-            if (pref === 'groq') {
+            if (pref === 'custom') {
                 try {
-                    return await runGroq();
+                    return await runCustom();
                 } catch (err) {
-                    console.warn("首选 Groq 失败，尝试降级到智谱:", err);
-                    if (glmKey && glmModel) {
-                        document.getElementById('sync-status').innerText = '⚠️ Groq异常，正降级为智谱...';
+                    console.warn("自定义 AI 失败，尝试降级:", err);
+                    if (groqKey && groqModel) {
+                        document.getElementById('sync-status').innerText = '⚠️ 自定义异常，正降级为Groq...';
+                        try { return await runGroq(); } catch(e2) { if (glmKey && glmModel) return await runGLM(); throw e2; }
+                    } else if (glmKey && glmModel) {
+                        document.getElementById('sync-status').innerText = '⚠️ 自定义异常，正降级为智谱...';
                         return await runGLM();
                     }
                     throw err;
                 }
+            } else if (pref === 'groq') {
+                try { return await runGroq(); } catch (err) {
+                    console.warn("首选 Groq 失败，尝试降级到智谱:", err);
+                    if (glmKey && glmModel) { document.getElementById('sync-status').innerText = '⚠️ Groq异常，正降级为智谱...'; return await runGLM(); }
+                    throw err;
+                }
             } else {
-                try {
-                    return await runGLM();
-                } catch (err) {
+                try { return await runGLM(); } catch (err) {
                     console.warn("首选 智谱 失败，尝试降级到Groq:", err);
-                    if (groqKey && groqModel) {
-                        document.getElementById('sync-status').innerText = '⚠️ 智谱异常，正降级为Groq...';
-                        return await runGroq();
-                    }
+                    if (groqKey && groqModel) { document.getElementById('sync-status').innerText = '⚠️ 智谱异常，正降级为Groq...'; return await runGroq(); }
                     throw err;
                 }
             }
         }
 
-        // 【终极隔离方案】纯净 DOM 快照：专治 GitHub 404 及脱机环境备用
         function getFallbackCleanHTML() {
             const clone = document.documentElement.cloneNode(true);
-            
-            // 强制重置按钮状态，根治被锁死 "同步中" 的 Bug
             const statusMsg = clone.querySelector('#sync-status');
             if (statusMsg) { statusMsg.removeAttribute('style'); statusMsg.innerText = '📡 同步中...'; }
             const tBtn = clone.querySelector('#translate-btn');
             if (tBtn) { tBtn.removeAttribute('style'); tBtn.removeAttribute('disabled'); tBtn.innerText = '🌐 一键翻译'; }
             
-            // 暴力剥离 Relingo 高亮标签等外部插件污染
             const removeRelingo = (root) => {
                 const tags = root.querySelectorAll('relin-highlight, relin-hc, [class*="relingo"]');
                 tags.forEach(t => {
@@ -624,7 +691,7 @@ Read more: https://abcnews.link/qN1ZD3k<span class="anno-toggle has-anno"></span
                 });
             };
             removeRelingo(clone);
-            removeRelingo(clone); // 处理嵌套
+            removeRelingo(clone); 
             
             clone.querySelectorAll('script').forEach(s => {
                 if (!s.src.includes('marked.min.js') && s.id !== 'core-engine') s.remove();
@@ -633,12 +700,8 @@ Read more: https://abcnews.link/qN1ZD3k<span class="anno-toggle has-anno"></span
                 if (s.id !== 'core-style') s.remove();
             });
 
-            // 清理 AI loading 状态
-            clone.querySelectorAll('.ai-toggle').forEach(t => {
-                t.classList.remove('loading');
-            });
+            clone.querySelectorAll('.ai-toggle').forEach(t => t.classList.remove('loading'));
             
-            // 同步最新的 textarea 文本
             const liveTAs = document.querySelectorAll('.anno-edit');
             clone.querySelectorAll('.anno-edit').forEach((ta, i) => { 
                 if(liveTAs[i]) ta.textContent = liveTAs[i].value;
@@ -657,7 +720,6 @@ Read more: https://abcnews.link/qN1ZD3k<span class="anno-toggle has-anno"></span
             return '<!DOCTYPE html>\n<html lang="zh-CN">\n' + clone.innerHTML + '\n</html>';
         }
 
-        // 【完全隔离插件】云端同步引擎核心
         async function syncToCloud(isTranslation = false) {
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
@@ -683,7 +745,6 @@ Read more: https://abcnews.link/qN1ZD3k<span class="anno-toggle has-anno"></span
                 let finalHTML = '';
                 let sha = '';
                 
-                // 【核心策略】先拉取 Github 上的纯净版文件，只把自己的 Textarea/翻译 塞进去，完全阻断本地插件污染！
                 const getRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), {
                     headers: { 'Authorization': 'Bearer ' + ghToken }, cache: 'no-store'
                 });
@@ -695,7 +756,6 @@ Read more: https://abcnews.link/qN1ZD3k<span class="anno-toggle has-anno"></span
                     const parser = new DOMParser();
                     const cleanDoc = parser.parseFromString(cleanHTML, 'text/html');
 
-                    // 1. 注入批注文本
                     const liveTAs = document.querySelectorAll('.anno-edit');
                     const cleanTAs = cleanDoc.querySelectorAll('.anno-edit');
                     liveTAs.forEach((liveTa, i) => {
@@ -708,7 +768,6 @@ Read more: https://abcnews.link/qN1ZD3k<span class="anno-toggle has-anno"></span
                         }
                     });
 
-                    // 2. 注入翻译模块
                     const liveContents = document.querySelectorAll('.content');
                     const cleanContents = cleanDoc.querySelectorAll('.content');
                     liveContents.forEach((liveC, i) => {
@@ -728,7 +787,6 @@ Read more: https://abcnews.link/qN1ZD3k<span class="anno-toggle has-anno"></span
                         }
                     });
                     
-                    // 3. 恢复红点状态
                     cleanDoc.querySelectorAll('.anno-toggle').forEach(t => {
                         t.classList.remove('has-anno');
                         const ta = t.closest('.content-wrap').querySelector('.anno-edit');
@@ -737,7 +795,6 @@ Read more: https://abcnews.link/qN1ZD3k<span class="anno-toggle has-anno"></span
 
                     finalHTML = '<!DOCTYPE html>\n<html lang="zh-CN">\n' + cleanDoc.documentElement.innerHTML + '\n</html>';
                 } else {
-                    // 如果网络失败或 Github 本身还没这个文件（比如刚创建），启动备用降级防御方案
                     finalHTML = getFallbackCleanHTML();
                 }
 
@@ -796,7 +853,7 @@ Read more: https://abcnews.link/qN1ZD3k<span class="anno-toggle has-anno"></span
                     toggle.classList.add('has-anno');
                     try { view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; } catch(e){}
                 }
-                
+
                 // --- AI 按钮逻辑 ---
                 if (aiToggle) {
                     aiToggle.addEventListener('click', async (e) => {
@@ -804,22 +861,36 @@ Read more: https://abcnews.link/qN1ZD3k<span class="anno-toggle has-anno"></span
                         e.stopPropagation();
                         if (aiToggle.classList.contains('loading')) return;
 
+                        if (edit.value.trim() !== '') {
+                            if (!confirm('⚠️ 批注框已有内容，使用 AI 解析将覆盖原有内容。确定要继续吗？')) {
+                                return;
+                            }
+                        }
+
+                        const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
                         const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
                         const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+                        const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
+                        const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
+                        
                         const groqModel = localStorage.getItem('GROQ_MODEL') || '';
                         const glmModel = localStorage.getItem('GLM_MODEL') || '';
+                        const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
+                        
+                        let isReady = false;
+                        if (pref === 'custom' && customUrl && customModel) isReady = true;
+                        if (pref === 'groq' && groqKey && groqModel) isReady = true;
+                        if (pref === 'glm' && glmKey && glmModel) isReady = true;
 
-                        if ((!groqKey && !glmKey) || (!groqModel && !glmModel)) {
-                            alert('⚠️ 请先返回【日历大厅】右上角的 ⚙️配置中心 设置 API Key 和模型！');
+                        if (!isReady) {
+                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\n(请确保至少填入了 URL 和 模型名称)');
                             return;
                         }
 
-                        // 提取纯文本，避开红点和机器人图标
                         const pClone = wrap.querySelector('.content').cloneNode(true);
                         pClone.querySelectorAll('.anno-toggle, .ai-toggle, .translated-content').forEach(el => el.remove());
                         let pText = pClone.textContent.trim();
                         
-                        // 【核心过滤】：正则彻底剥离推文内的 http/https 链接，防止干扰 AI 或翻译
                         pText = pText.replace(/https?:\/\/\S+/g, '').trim();
 
                         if (!pText) return;
@@ -838,7 +909,6 @@ Read more: https://abcnews.link/qN1ZD3k<span class="anno-toggle has-anno"></span
                             edit.style.display = 'block';
                             edit.value = aiContent;
                             
-                            // 触发失焦，联动 Marked.js 渲染与 GitHub 自动保存
                             edit.focus();
                             edit.blur();
                             
@@ -847,11 +917,7 @@ Read more: https://abcnews.link/qN1ZD3k<span class="anno-toggle has-anno"></span
                             setTimeout(() => { if (statusMsg.innerText.includes('AI')) statusMsg.style.display = 'none'; }, 2000);
                         } catch (err) {
                             console.error(err);
-                            if (err.message === 'MISSING_KEYS_OR_MODELS') {
-                                alert('⚠️ 请返回日历大厅配置 AI 密钥和模型！');
-                            } else {
-                                alert('❌ AI 解析失败: ' + err.message);
-                            }
+                            alert('❌ AI 解析失败: ' + err.message);
                             statusMsg.style.display = 'none';
                         } finally {
                             aiToggle.classList.remove('loading');
@@ -935,12 +1001,10 @@ Read more: https://abcnews.link/qN1ZD3k<span class="anno-toggle has-anno"></span
                 const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
                 
-                // 【修复翻译被高亮插件干扰】：在送去翻译前，扒掉 Relingo 和按钮代码
                 const cloneText = content.cloneNode(true);
                 cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle, .ai-toggle').forEach(el => el.remove());
                 let textToTranslate = cloneText.innerText;
                 
-                // 【核心过滤】：正则彻底剥离翻译模块的 http/https 链接
                 textToTranslate = textToTranslate.replace(/https?:\/\/\S+/g, '').trim();
                 let checkText = textToTranslate.replace(/\p{Extended_Pictographic}/gu, '').trim();
                 

@@ -530,17 +530,170 @@
     <script id="core-engine">
         let syncTimeout = null;
 
-        // 【終極隔離方案】純淨 DOM 快照：專治 GitHub 404 及脫機環境備用
+        const AI_PROMPT = "请分析以下英文段落，并严格按照以下 Markdown 格式输出（不要输出任何额外的废话）：\n\n### 📌 完整翻译\n\n[此处填写完整翻译]\n\n### 📌 Key Expressions\n\n- **[单词或短语]**\n  = [中文释义]\n  （[可选的补充说明，如倒装结构或语境等]）\n\n段落内容：\n";
+
+        async function fetchGroq(text, apiKey, modelName) {
+            const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: modelName,
+                    messages: [
+                        { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
+                        { role: 'user', content: AI_PROMPT + '"' + text + '"' }
+                    ],
+                    temperature: 0.3
+                })
+            });
+            if (!res.ok) throw new Error('Groq API Error: ' + res.status);
+            const json = await res.json();
+            if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
+            throw new Error('Groq返回数据异常');
+        }
+
+        async function fetchGLM(text, apiKey, modelName) {
+            const res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: modelName,
+                    messages: [
+                        { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
+                        { role: 'user', content: AI_PROMPT + '"' + text + '"' }
+                    ],
+                    temperature: 0.3
+                })
+            });
+            if (!res.ok) throw new Error('智谱GLM API Error: ' + res.status);
+            const json = await res.json();
+            if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
+            throw new Error('智谱GLM返回数据异常');
+        }
+
+        async function fetchCustomAI(text, url, apiKey, modelName) {
+            let headers = { 'Content-Type': 'application/json' };
+            let bodyData = {};
+
+            if (url.includes('anthropic.com')) {
+                if(apiKey) headers['x-api-key'] = apiKey;
+                headers['anthropic-version'] = '2023-06-01';
+                headers['anthropic-dangerous-direct-browser-access'] = 'true';
+                bodyData = {
+                    model: modelName,
+                    max_tokens: 2000,
+                    messages: [{ role: 'user', content: AI_PROMPT + '"' + text + '"' }]
+                };
+            }
+            else if (url.includes('generativelanguage.googleapis.com')) {
+                let targetUrl = url;
+                if (apiKey && !targetUrl.includes('key=')) {
+                    targetUrl += (targetUrl.includes('?') ? '&' : '?') + 'key=' + apiKey;
+                }
+                const res = await fetch(targetUrl, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: AI_PROMPT + '"' + text + '"' }] }]
+                    })
+                });
+                if (!res.ok) throw new Error('Gemini API Error: ' + res.status);
+                const json = await res.json();
+                if (json.candidates && json.candidates[0]?.content?.parts[0]?.text) {
+                    return json.candidates[0].content.parts[0].text.trim();
+                }
+                throw new Error('Gemini 返回数据异常');
+            }
+            else {
+                if(apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
+                bodyData = {
+                    model: modelName,
+                    messages: [
+                        { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
+                        { role: 'user', content: AI_PROMPT + '"' + text + '"' }
+                    ],
+                    temperature: 0.3
+                };
+            }
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(bodyData)
+            });
+
+            if (!res.ok) throw new Error('自定义 AI 接口报错: ' + res.status);
+            const json = await res.json();
+
+            if (json.content && Array.isArray(json.content) && json.content[0]?.text) {
+                return json.content[0].text.trim();
+            }
+            if (json.choices && json.choices.length > 0) {
+                return json.choices[0].message.content.trim();
+            }
+
+            throw new Error('自定义 AI 返回结构不符合预期');
+        }
+
+        async function executeAIPipeline(text) {
+            const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
+            const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
+            const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+            const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
+            const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
+            
+            const groqModel = localStorage.getItem('GROQ_MODEL') || '';
+            const glmModel = localStorage.getItem('GLM_MODEL') || '';
+            const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
+
+            const runGroq = async () => {
+                if (!groqKey || !groqModel) throw new Error("Groq 配置不完整");
+                return await fetchGroq(text, groqKey, groqModel);
+            };
+            const runGLM = async () => {
+                if (!glmKey || !glmModel) throw new Error("智谱GLM 配置不完整");
+                return await fetchGLM(text, glmKey, glmModel);
+            };
+            const runCustom = async () => {
+                if (!customUrl || !customModel) throw new Error("自定义 AI 配置不完整(需指定URL和模型)");
+                return await fetchCustomAI(text, customUrl, customKey, customModel);
+            };
+
+            if (pref === 'custom') {
+                try {
+                    return await runCustom();
+                } catch (err) {
+                    console.warn("自定义 AI 失败，尝试降级:", err);
+                    if (groqKey && groqModel) {
+                        document.getElementById('sync-status').innerText = '⚠️ 自定义异常，正降级为Groq...';
+                        try { return await runGroq(); } catch(e2) { if (glmKey && glmModel) return await runGLM(); throw e2; }
+                    } else if (glmKey && glmModel) {
+                        document.getElementById('sync-status').innerText = '⚠️ 自定义异常，正降级为智谱...';
+                        return await runGLM();
+                    }
+                    throw err;
+                }
+            } else if (pref === 'groq') {
+                try { return await runGroq(); } catch (err) {
+                    console.warn("首选 Groq 失败，尝试降级到智谱:", err);
+                    if (glmKey && glmModel) { document.getElementById('sync-status').innerText = '⚠️ Groq异常，正降级为智谱...'; return await runGLM(); }
+                    throw err;
+                }
+            } else {
+                try { return await runGLM(); } catch (err) {
+                    console.warn("首选 智谱 失败，尝试降级到Groq:", err);
+                    if (groqKey && groqModel) { document.getElementById('sync-status').innerText = '⚠️ 智谱异常，正降级为Groq...'; return await runGroq(); }
+                    throw err;
+                }
+            }
+        }
+
         function getFallbackCleanHTML() {
             const clone = document.documentElement.cloneNode(true);
-            
-            // 強制重置按鈕狀態，根治被鎖死 "同步中" 的 Bug
             const statusMsg = clone.querySelector('#sync-status');
             if (statusMsg) { statusMsg.removeAttribute('style'); statusMsg.innerText = '📡 同步中...'; }
             const tBtn = clone.querySelector('#translate-btn');
-            if (tBtn) { tBtn.removeAttribute('style'); tBtn.removeAttribute('disabled'); tBtn.innerText = '🌐 一鍵翻譯'; }
+            if (tBtn) { tBtn.removeAttribute('style'); tBtn.removeAttribute('disabled'); tBtn.innerText = '🌐 一键翻译'; }
             
-            // 暴力剝離 Relingo 高亮標籤等外部插件污染
             const removeRelingo = (root) => {
                 const tags = root.querySelectorAll('relin-highlight, relin-hc, [class*="relingo"]');
                 tags.forEach(t => {
@@ -550,7 +703,7 @@
                 });
             };
             removeRelingo(clone);
-            removeRelingo(clone); // 處理嵌套
+            removeRelingo(clone); 
             
             clone.querySelectorAll('script').forEach(s => {
                 if (!s.src.includes('marked.min.js') && s.id !== 'core-engine') s.remove();
@@ -558,8 +711,9 @@
             clone.querySelectorAll('style').forEach(s => {
                 if (s.id !== 'core-style') s.remove();
             });
+
+            clone.querySelectorAll('.ai-toggle').forEach(t => t.classList.remove('loading'));
             
-            // 同步最新的 textarea 文本
             const liveTAs = document.querySelectorAll('.anno-edit');
             clone.querySelectorAll('.anno-edit').forEach((ta, i) => { 
                 if(liveTAs[i]) ta.textContent = liveTAs[i].value;
@@ -578,12 +732,11 @@
             return '<!DOCTYPE html>\n<html lang="zh-CN">\n' + clone.innerHTML + '\n</html>';
         }
 
-        // 【完全隔離插件】雲端同步引擎核心
         async function syncToCloud(isTranslation = false) {
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
             const ghRepo = localStorage.getItem('GH_REPO');
-            if(!ghToken) return isTranslation ? null : alert('缺少 GitHub Token，無法同步！');
+            if(!ghToken) return isTranslation ? null : alert('缺少 GitHub Token，无法同步！');
             
             const statusMsg = document.getElementById('sync-status');
             const transBtn = document.getElementById('translate-btn');
@@ -604,7 +757,6 @@
                 let finalHTML = '';
                 let sha = '';
                 
-                // 【核心策略】先拉取 Github 上的純淨版文件，只把自己的 Textarea/翻譯 塞進去，完全阻断本地插件污染！
                 const getRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), {
                     headers: { 'Authorization': 'Bearer ' + ghToken }, cache: 'no-store'
                 });
@@ -616,7 +768,6 @@
                     const parser = new DOMParser();
                     const cleanDoc = parser.parseFromString(cleanHTML, 'text/html');
 
-                    // 1. 注入批注文本
                     const liveTAs = document.querySelectorAll('.anno-edit');
                     const cleanTAs = cleanDoc.querySelectorAll('.anno-edit');
                     liveTAs.forEach((liveTa, i) => {
@@ -629,7 +780,6 @@
                         }
                     });
 
-                    // 2. 注入翻譯模塊
                     const liveContents = document.querySelectorAll('.content');
                     const cleanContents = cleanDoc.querySelectorAll('.content');
                     liveContents.forEach((liveC, i) => {
@@ -649,7 +799,6 @@
                         }
                     });
                     
-                    // 3. 恢復紅點狀態
                     cleanDoc.querySelectorAll('.anno-toggle').forEach(t => {
                         t.classList.remove('has-anno');
                         const ta = t.closest('.content-wrap').querySelector('.anno-edit');
@@ -658,7 +807,6 @@
 
                     finalHTML = '<!DOCTYPE html>\n<html lang="zh-CN">\n' + cleanDoc.documentElement.innerHTML + '\n</html>';
                 } else {
-                    // 如果網絡失敗或 Github 本身還沒這個文件（比如剛創建），啟動備用降級防禦方案
                     finalHTML = getFallbackCleanHTML();
                 }
 
@@ -671,20 +819,20 @@
                 if(!putRes.ok) throw new Error('Put failed');
 
                 if (isTranslation) {
-                    transBtn.innerText = '🌐 已翻譯並固化';
+                    transBtn.innerText = '🌐 已翻译并固化';
                     transBtn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
                 } else {
                     statusMsg.style.backgroundColor = '#2ea44f';
-                    statusMsg.innerText = '✅ 雲端已同步';
-                    setTimeout(() => { if (statusMsg.innerText === '✅ 雲端已同步') statusMsg.style.display = 'none'; }, 3000);
+                    statusMsg.innerText = '✅ 云端已同步';
+                    setTimeout(() => { if (statusMsg.innerText === '✅ 云端已同步') statusMsg.style.display = 'none'; }, 3000);
                 }
             } catch(e) {
                 console.error(e);
                 if (isTranslation) {
-                    transBtn.innerText = '⚠️ 僅本地翻譯';
+                    transBtn.innerText = '⚠️ 仅本地翻译';
                 } else {
                     statusMsg.style.backgroundColor = '#e74c3c';
-                    statusMsg.innerText = '❌ 同步失敗(點擊重試)';
+                    statusMsg.innerText = '❌ 同步失败(点击重试)';
                     statusMsg.style.cursor = 'pointer';
                     statusMsg.onclick = () => { statusMsg.onclick = null; statusMsg.style.cursor = 'default'; syncToCloud(false); };
                 }
@@ -695,7 +843,7 @@
             const statusMsg = document.getElementById('sync-status');
             statusMsg.style.display = 'inline-block';
             statusMsg.style.backgroundColor = '#f39c12';
-            statusMsg.innerText = '⏳ 自動同步中...';
+            statusMsg.innerText = '⏳ 自动同步中...';
             statusMsg.style.cursor = 'default';
             statusMsg.onclick = null;
             if (syncTimeout) clearTimeout(syncTimeout);
@@ -707,6 +855,7 @@
                 const view = wrap.querySelector('.anno-view');
                 const edit = wrap.querySelector('.anno-edit');
                 const toggle = wrap.querySelector('.anno-toggle');
+                const aiToggle = wrap.querySelector('.ai-toggle');
                 const box = wrap.querySelector('.anno-box');
 
                 if (!view || !edit || !toggle || !box) return;
@@ -715,6 +864,77 @@
                 if (rawText) {
                     toggle.classList.add('has-anno');
                     try { view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; } catch(e){}
+                }
+
+                // --- AI 按钮逻辑 ---
+                if (aiToggle) {
+                    aiToggle.addEventListener('click', async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (aiToggle.classList.contains('loading')) return;
+
+                        if (edit.value.trim() !== '') {
+                            if (!confirm('⚠️ 批注框已有内容，使用 AI 解析将覆盖原有内容。确定要继续吗？')) {
+                                return;
+                            }
+                        }
+
+                        const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
+                        const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
+                        const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+                        const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
+                        const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
+                        
+                        const groqModel = localStorage.getItem('GROQ_MODEL') || '';
+                        const glmModel = localStorage.getItem('GLM_MODEL') || '';
+                        const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
+                        
+                        let isReady = false;
+                        if (pref === 'custom' && customUrl && customModel) isReady = true;
+                        if (pref === 'groq' && groqKey && groqModel) isReady = true;
+                        if (pref === 'glm' && glmKey && glmModel) isReady = true;
+
+                        if (!isReady) {
+                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\n(请确保至少填入了 URL 和 模型名称)');
+                            return;
+                        }
+
+                        const pClone = wrap.querySelector('.content').cloneNode(true);
+                        pClone.querySelectorAll('.anno-toggle, .ai-toggle, .translated-content').forEach(el => el.remove());
+                        let pText = pClone.textContent.trim();
+                        
+                        pText = pText.replace(/https?:\/\/\S+/g, '').trim();
+
+                        if (!pText) return;
+
+                        aiToggle.classList.add('loading');
+                        const statusMsg = document.getElementById('sync-status');
+                        statusMsg.style.display = 'inline-block';
+                        statusMsg.style.backgroundColor = '#0969da';
+                        statusMsg.innerText = '🤖 AI 思考中...';
+
+                        try {
+                            const aiContent = await executeAIPipeline(pText);
+                            
+                            box.style.display = 'block';
+                            view.style.display = 'none';
+                            edit.style.display = 'block';
+                            edit.value = aiContent;
+                            
+                            edit.focus();
+                            edit.blur();
+                            
+                            statusMsg.style.backgroundColor = '#2ea44f';
+                            statusMsg.innerText = '✅ AI 解析成功';
+                            setTimeout(() => { if (statusMsg.innerText.includes('AI')) statusMsg.style.display = 'none'; }, 2000);
+                        } catch (err) {
+                            console.error(err);
+                            alert('❌ AI 解析失败: ' + err.message);
+                            statusMsg.style.display = 'none';
+                        } finally {
+                            aiToggle.classList.remove('loading');
+                        }
+                    });
                 }
 
                 toggle.onclick = (e) => {
@@ -784,7 +1004,7 @@
         async function translateAll() {
             const btn = document.getElementById('translate-btn');
             if(btn.hasAttribute('disabled')) return;
-            btn.innerText = '⏳ 翻譯中...';
+            btn.innerText = '⏳ 翻译中...';
             btn.setAttribute('disabled', 'true');
 
             let translatedCount = 0;
@@ -793,12 +1013,11 @@
                 const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
                 
-                // 【修復翻譯被高亮插件干擾】：在送去翻譯前，扒掉 Relingo 和按鈕代碼
                 const cloneText = content.cloneNode(true);
-                cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle').forEach(el => el.remove());
-                const text = cloneText.innerText;
+                cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle, .ai-toggle').forEach(el => el.remove());
+                let textToTranslate = cloneText.innerText;
                 
-                let textToTranslate = text.replace(/https?:\/\/[^\s]+/g, '').trim();
+                textToTranslate = textToTranslate.replace(/https?:\/\/\S+/g, '').trim();
                 let checkText = textToTranslate.replace(/\p{Extended_Pictographic}/gu, '').trim();
                 
                 if (!checkText) continue;
@@ -826,11 +1045,17 @@
                         content.setAttribute('data-translated', 'true');
                         translatedCount++;
                     }
-                } catch (e) { console.error('翻譯失敗:', e); }
+                } catch (e) {
+                    console.error('翻译失败:', e);
+                }
             }
             
-            if (translatedCount === 0) { btn.innerText = '✅ 已全部翻譯'; return; }
-            btn.innerText = '⏳ 固化至雲端...';
+            if (translatedCount === 0) {
+                btn.innerText = '✅ 已全部翻译';
+                return;
+            }
+
+            btn.innerText = '⏳ 固化至云端...';
             
             syncToCloud(true);
         }

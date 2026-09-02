@@ -718,7 +718,7 @@ Save yourself an agonizing 86 minutes of this movie and just watch the highlight
             let bodyData = {};
 
             if (url.includes('anthropic.com')) {
-                headers['x-api-key'] = apiKey;
+                if(apiKey) headers['x-api-key'] = apiKey;
                 headers['anthropic-version'] = '2023-06-01';
                 headers['anthropic-dangerous-direct-browser-access'] = 'true';
                 bodyData = {
@@ -726,9 +726,10 @@ Save yourself an agonizing 86 minutes of this movie and just watch the highlight
                     max_tokens: 2000,
                     messages: [{ role: 'user', content: AI_PROMPT + '"' + text + '"' }]
                 };
-            } else if (url.includes('generativelanguage.googleapis.com')) {
+            }
+            else if (url.includes('generativelanguage.googleapis.com')) {
                 let targetUrl = url;
-                if (!targetUrl.includes('key=')) {
+                if (apiKey && !targetUrl.includes('key=')) {
                     targetUrl += (targetUrl.includes('?') ? '&' : '?') + 'key=' + apiKey;
                 }
                 const res = await fetch(targetUrl, {
@@ -744,8 +745,9 @@ Save yourself an agonizing 86 minutes of this movie and just watch the highlight
                     return json.candidates[0].content.parts[0].text.trim();
                 }
                 throw new Error('Gemini 返回数据异常');
-            } else {
-                headers['Authorization'] = 'Bearer ' + apiKey;
+            }
+            else {
+                if(apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
                 bodyData = {
                     model: modelName,
                     messages: [
@@ -779,22 +781,23 @@ Save yourself an agonizing 86 minutes of this movie and just watch the highlight
             const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
             const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
             const glmKey = localStorage.getItem('GLM_API_KEY') || '';
-            const groqModel = localStorage.getItem('GROQ_MODEL') || '';
-            const glmModel = localStorage.getItem('GLM_MODEL') || '';
             const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
             const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
+            
+            const groqModel = localStorage.getItem('GROQ_MODEL') || '';
+            const glmModel = localStorage.getItem('GLM_MODEL') || '';
             const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
 
             const runGroq = async () => {
-                if (!groqKey || !groqModel) throw new Error("Groq API Key 未配置");
+                if (!groqKey || !groqModel) throw new Error("Groq 配置不完整");
                 return await fetchGroq(text, groqKey, groqModel);
             };
             const runGLM = async () => {
-                if (!glmKey || !glmModel) throw new Error("智谱GLM API Key 未配置");
+                if (!glmKey || !glmModel) throw new Error("智谱GLM 配置不完整");
                 return await fetchGLM(text, glmKey, glmModel);
             };
             const runCustom = async () => {
-                if (!customUrl || !customKey || !customModel) throw new Error("自定义 AI 配置不完整");
+                if (!customUrl || !customModel) throw new Error("自定义 AI 配置不完整(需指定URL和模型)");
                 return await fetchCustomAI(text, customUrl, customKey, customModel);
             };
 
@@ -1005,7 +1008,7 @@ Save yourself an agonizing 86 minutes of this movie and just watch the highlight
                     toggle.classList.add('has-anno');
                     try { view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; } catch(e){}
                 }
-                
+
                 // --- AI 按钮逻辑 ---
                 if (aiToggle) {
                     aiToggle.addEventListener('click', async (e) => {
@@ -1013,19 +1016,29 @@ Save yourself an agonizing 86 minutes of this movie and just watch the highlight
                         e.stopPropagation();
                         if (aiToggle.classList.contains('loading')) return;
 
+                        if (edit.value.trim() !== '') {
+                            if (!confirm('⚠️ 批注框已有内容，使用 AI 解析将覆盖原有内容。确定要继续吗？')) {
+                                return;
+                            }
+                        }
+
                         const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
                         const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
                         const glmKey = localStorage.getItem('GLM_API_KEY') || '';
                         const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
                         const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
                         
+                        const groqModel = localStorage.getItem('GROQ_MODEL') || '';
+                        const glmModel = localStorage.getItem('GLM_MODEL') || '';
+                        const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
+                        
                         let isReady = false;
-                        if (pref === 'custom' && customUrl && customKey) isReady = true;
-                        if (pref === 'groq' && groqKey) isReady = true;
-                        if (pref === 'glm' && glmKey) isReady = true;
+                        if (pref === 'custom' && customUrl && customModel) isReady = true;
+                        if (pref === 'groq' && groqKey && groqModel) isReady = true;
+                        if (pref === 'glm' && glmKey && glmModel) isReady = true;
 
-                        if (!isReady && !groqKey && !glmKey && !customKey) {
-                            alert('⚠️ 请先返回【日历大厅】右上角的 ⚙️配置中心 设置 AI 接口 URL 和密钥！');
+                        if (!isReady) {
+                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\n(请确保至少填入了 URL 和 模型名称)');
                             return;
                         }
 
@@ -1033,7 +1046,6 @@ Save yourself an agonizing 86 minutes of this movie and just watch the highlight
                         pClone.querySelectorAll('.anno-toggle, .ai-toggle, .translated-content').forEach(el => el.remove());
                         let pText = pClone.textContent.trim();
                         
-                        // 【核心功能】：正则彻底剥离推文内的 http/https 链接
                         pText = pText.replace(/https?:\/\/\S+/g, '').trim();
 
                         if (!pText) return;
@@ -1052,7 +1064,6 @@ Save yourself an agonizing 86 minutes of this movie and just watch the highlight
                             edit.style.display = 'block';
                             edit.value = aiContent;
                             
-                            // 触发失焦，联动 Marked.js 渲染与 GitHub 自动保存
                             edit.focus();
                             edit.blur();
                             
@@ -1145,12 +1156,10 @@ Save yourself an agonizing 86 minutes of this movie and just watch the highlight
                 const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
                 
-                // 【修复翻译被高亮插件干扰】：在送去翻译前，扒掉 Relingo 和按钮代码
                 const cloneText = content.cloneNode(true);
                 cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle, .ai-toggle').forEach(el => el.remove());
                 let textToTranslate = cloneText.innerText;
                 
-                // 【核心过滤】：正则彻底剥离翻译模块的 http/https 链接
                 textToTranslate = textToTranslate.replace(/https?:\/\/\S+/g, '').trim();
                 let checkText = textToTranslate.replace(/\p{Extended_Pictographic}/gu, '').trim();
                 
