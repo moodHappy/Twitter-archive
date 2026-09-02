@@ -15,7 +15,6 @@ def get_user_tweet_ids(username, limit=10):
     """通过公开 Syndication API 或备用 RSS 获取用户最新原创推文 ID"""
     print(f"⏳ 正在解析 @{username} 的时间线...")
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-
     try:
         url = f"https://syndication.twitter.com/srv/timeline-profile/screen-name/{username}"
         res = requests.get(url, headers=headers, timeout=10)
@@ -45,7 +44,6 @@ def get_user_tweet_ids(username, limit=10):
         return tweet_ids[:limit]
     except Exception as e:
         print(f"❌ 备用节点解析失败: {e}")
-
     return []
 
 def generate_tweet_card(tweet_data, tweet_id):
@@ -55,7 +53,6 @@ def generate_tweet_card(tweet_data, tweet_id):
     text = tweet_data.get('text', '')
     likes = tweet_data.get('likes', 0)
     retweets = tweet_data.get('retweets', 0)
-
     media_extended = tweet_data.get('media_extended', [])
     media_urls = tweet_data.get('mediaURLs', [])
     original_url = f"https://x.com/{handle}/status/{tweet_id}"
@@ -108,56 +105,192 @@ def generate_page_wrapper(content_html, page_title, now_str):
     <meta charset="UTF-8">
     <meta name="referrer" content="no-referrer">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
     <title>{page_title}</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style id="core-style">
-        :root {{ --bg: #f2f2f7; --card: #ffffff; --text: #0f1419; --muted: #536471; --border: #eff3f4; --x-blue: #1d9bf0; }}
-        body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }}
-        .nav-back {{ display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: var(--card); border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }}
-        .nav-back a {{ text-decoration: none; color: white; background: #000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }}
-        .translate-btn {{ background: #f2f2f7; color: #0f1419; border: 1px solid #ccc; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: 0.2s; flex-shrink: 0; outline: none; }}
-        .translate-btn:active {{ background: #e5e5ea; transform: scale(0.95); }}
-        .translate-btn[disabled] {{ opacity: 0.8; cursor: not-allowed; }}
+        :root {{
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #0f172a;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --x-blue: #1d9bf0;
+            --primary: #0284c7;
+        }}
+        * {{ box-sizing: border-box; }}
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+        }}
+        .nav-back {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 18px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }}
+        .nav-back a {{
+            text-decoration: none;
+            color: white;
+            background: #0f172a;
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.88rem;
+            transition: all 0.2s;
+        }}
+        .nav-back a:active {{ transform: scale(0.96); opacity: 0.9; }}
+        .translate-btn {{
+            background: #ffffff;
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        }}
+        .translate-btn:active {{ transform: scale(0.96); background: #f1f5f9; }}
+        .translate-btn[disabled] {{ opacity: 0.6; cursor: not-allowed; }}
         
-        .sync-status {{ padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; display: none; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }}
+        .sync-status {{
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: none;
+            color: #fff;
+        }}
         
-        .anno-toggle, .ai-toggle {{ display: inline-block; padding: 4px 8px; margin-left: 4px; cursor: pointer; opacity: 0.3; font-size: 0.9rem; vertical-align: middle; transition: all 0.2s; user-select: none; -webkit-tap-highlight-color: transparent; }}
-        .anno-toggle:hover, .ai-toggle:hover {{ opacity: 0.9; transform: scale(1.1); }}
+        .anno-toggle, .ai-toggle {{
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px 6px;
+            margin-left: 6px;
+            cursor: pointer;
+            opacity: 0.35;
+            font-size: 0.95rem;
+            vertical-align: middle;
+            transition: all 0.2s;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }}
+        .anno-toggle:hover, .ai-toggle:hover {{ opacity: 1; transform: scale(1.15); }}
         .anno-toggle.has-anno {{ opacity: 1; }}
-        .anno-toggle::after {{ content: "🔴"; }}
-        .ai-toggle {{ opacity: 0.6; padding: 4px 4px; }}
+        .anno-toggle::after {{ content: "🔴"; font-size: 0.8rem; }}
+        .ai-toggle {{ opacity: 0.7; }}
         .ai-toggle::after {{ content: "🤖"; }}
         .ai-toggle.loading::after {{ content: "⏳"; display: inline-block; animation: spin 1s linear infinite; }}
         @keyframes spin {{ 100% {{ transform: rotate(360deg); }} }}
         
-        .anno-box {{ display: none; margin-top: 10px; background: #f8f6ff; border-left: 4px solid #8e7cc3; padding: 12px 16px; border-radius: 0 6px 6px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.02); text-align: left; }}
-        .anno-view {{ font-size: 1.05rem; line-height: 1.6; color: #4a4a4a; min-height: 24px; }}
-        .anno-edit {{ width: 100%; min-height: 120px; padding: 10px; font-family: monospace; font-size: 1rem; border: 1px dashed #8e7cc3; border-radius: 6px; box-sizing: border-box; resize: vertical; display: none; background: #fff; color: #333; outline: none; }}
-        .anno-edit:focus {{ border: 1px solid #8e7cc3; box-shadow: 0 0 0 3px rgba(142,124,195,0.1); }}
+        .anno-box {{
+            display: none;
+            margin-top: 14px;
+            background: #f8fafc;
+            border-left: 4px solid #8b5cf6;
+            padding: 14px 16px;
+            border-radius: 0 12px 12px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            text-align: left;
+        }}
+        .anno-view {{ font-size: 0.95rem; line-height: 1.6; color: #334155; min-height: 24px; }}
+        .anno-edit {{
+            width: 100%;
+            min-height: 120px;
+            padding: 12px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            border: 1px dashed #cbd5e1;
+            border-radius: 8px;
+            box-sizing: border-box;
+            resize: vertical;
+            display: none;
+            background: #fff;
+            color: #1e293b;
+            outline: none;
+        }}
+        .anno-edit:focus {{ border-color: #8b5cf6; box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15); }}
         
         .markdown-body p {{ margin-top: 0; margin-bottom: 8px; }}
         .markdown-body p:last-child {{ margin-bottom: 0; }}
         .markdown-body p:empty {{ display: none; }}
-        .markdown-body h1, .markdown-body h2, .markdown-body h3 {{ color: #8e7cc3; font-size: 1.15rem; margin: 10px 0 8px 0; border-bottom: 1px dashed #e0d8f0; padding-bottom: 4px; }}
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 {{
+            color: #7c3aed;
+            font-size: 1.05rem;
+            margin: 12px 0 8px 0;
+            border-bottom: 1px dashed #e2e8f0;
+            padding-bottom: 4px;
+        }}
         .markdown-body ul, .markdown-body ol {{ margin: 0 0 8px 0; padding-left: 20px; }}
-        .markdown-body blockquote {{ margin: 0 0 10px 0; padding: 10px 15px; background: rgba(142,124,195,0.1); border-left: 4px solid #8e7cc3; color: #555; }}
-
-        .container {{ max-width: 600px; margin: 0 auto; padding: 20px 15px 50px 15px; }}
-        .tweet-card {{ background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 25px; }}
+        .markdown-body blockquote {{
+            margin: 0 0 10px 0;
+            padding: 8px 14px;
+            background: rgba(139, 92, 246, 0.08);
+            border-left: 3px solid #8b5cf6;
+            color: #475569;
+            border-radius: 0 6px 6px 0;
+        }}
+        
+        .container {{ max-width: 620px; margin: 0 auto; padding: 18px 14px 60px 14px; }}
+        .tweet-card {{
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 18px 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+            margin-bottom: 20px;
+        }}
         .header {{ display: flex; align-items: center; margin-bottom: 12px; }}
         .names {{ display: flex; flex-direction: column; }}
-        .name {{ font-weight: 700; font-size: 1.1rem; color: var(--text); }}
-        .handle {{ color: var(--muted); font-size: 0.95rem; margin-top: 2px; }}
-        .content {{ font-size: 1.1rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }}
-        .media-container {{ margin-top: 10px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; background: #000; }}
-        .media-item {{ width: 100%; height: auto; display: block; max-height: 500px; object-fit: contain; }}
-        .stats {{ margin-top: 15px; color: var(--muted); font-size: 0.95rem; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px; font-weight: 500; margin-bottom: 15px; }}
-        .btn-link {{ display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }}
-        .btn-link:active {{ transform: scale(0.98); background: #1a8cd8; }}
-        .time-stamp {{ text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }}
+        .name {{ font-weight: 700; font-size: 1.05rem; color: var(--text); }}
+        .handle {{ color: var(--muted); font-size: 0.9rem; margin-top: 2px; }}
+        .content {{ font-size: 1.05rem; color: var(--text); line-height: 1.55; white-space: pre-wrap; word-wrap: break-word; }}
+        .media-container {{
+            margin-top: 12px;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            margin-bottom: 10px;
+            background: #000;
+        }}
+        .media-item {{ width: 100%; height: auto; display: block; max-height: 520px; object-fit: contain; }}
+        .stats {{
+            margin-top: 14px;
+            color: var(--muted);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border);
+            padding-top: 12px;
+            display: flex;
+            gap: 20px;
+            font-weight: 500;
+            margin-bottom: 14px;
+        }}
+        .btn-link {{
+            display: block;
+            background: var(--x-blue);
+            color: #fff;
+            text-align: center;
+            padding: 11px;
+            border-radius: 24px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+        }}
+        .btn-link:active {{ transform: scale(0.98); opacity: 0.9; }}
+        .time-stamp {{ text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 16px; font-weight: 500; }}
     </style>
 </head>
 <body>
@@ -175,9 +308,8 @@ def generate_page_wrapper(content_html, page_title, now_str):
     
     <script id="core-engine">
         let syncTimeout = null;
-
         const AI_PROMPT = "请分析以下英文段落，并严格按照以下 Markdown 格式输出（不要输出任何额外的废话）：\\n\\n### 📌 完整翻译\\n\\n[此处填写完整翻译]\\n\\n### 📌 Key Expressions\\n\\n- **[单词或短语]**\\n  = [中文释义]\\n  （[可选的补充说明，如倒装结构或语境等]）\\n\\n段落内容：\\n";
-
+        
         async function fetchGroq(text, apiKey, modelName) {{
             const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {{
                 method: 'POST',
@@ -219,20 +351,18 @@ def generate_page_wrapper(content_html, page_title, now_str):
         async function fetchCustomAI(text, url, apiKey, modelName) {{
             let headers = {{ 'Content-Type': 'application/json' }};
             let bodyData = {{}};
-
             if (url.includes('anthropic.com')) {{
-                if(apiKey) headers['x-api-key'] = apiKey;
+                headers['x-api-key'] = apiKey;
                 headers['anthropic-version'] = '2023-06-01';
                 headers['anthropic-dangerous-direct-browser-access'] = 'true';
                 bodyData = {{
-                    model: modelName || "claude-3-haiku-20240307",
+                    model: modelName,
                     max_tokens: 2000,
                     messages: [{{ role: 'user', content: AI_PROMPT + '"' + text + '"' }}]
                 }};
-            }}
-            else if (url.includes('generativelanguage.googleapis.com')) {{
+            }} else if (url.includes('generativelanguage.googleapis.com')) {{
                 let targetUrl = url;
-                if (apiKey && !targetUrl.includes('key=')) {{
+                if (!targetUrl.includes('key=')) {{
                     targetUrl += (targetUrl.includes('?') ? '&' : '?') + 'key=' + apiKey;
                 }}
                 const res = await fetch(targetUrl, {{
@@ -248,11 +378,10 @@ def generate_page_wrapper(content_html, page_title, now_str):
                     return json.candidates[0].content.parts[0].text.trim();
                 }}
                 throw new Error('Gemini 返回数据异常');
-            }}
-            else {{
-                if(apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
+            }} else {{
+                headers['Authorization'] = 'Bearer ' + apiKey;
                 bodyData = {{
-                    model: modelName || "gpt-3.5-turbo",
+                    model: modelName,
                     messages: [
                         {{ role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' }},
                         {{ role: 'user', content: AI_PROMPT + '"' + text + '"' }}
@@ -260,23 +389,19 @@ def generate_page_wrapper(content_html, page_title, now_str):
                     temperature: 0.3
                 }};
             }}
-
             const res = await fetch(url, {{
                 method: 'POST',
                 headers: headers,
                 body: JSON.stringify(bodyData)
             }});
-
             if (!res.ok) throw new Error('自定义 AI 接口报错: ' + res.status);
             const json = await res.json();
-
             if (json.content && Array.isArray(json.content) && json.content[0]?.text) {{
                 return json.content[0].text.trim();
             }}
             if (json.choices && json.choices.length > 0) {{
                 return json.choices[0].message.content.trim();
             }}
-
             throw new Error('自定义 AI 返回结构不符合预期');
         }}
 
@@ -284,23 +409,22 @@ def generate_page_wrapper(content_html, page_title, now_str):
             const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
             const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
             const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+            const groqModel = localStorage.getItem('GROQ_MODEL') || '';
+            const glmModel = localStorage.getItem('GLM_MODEL') || '';
             const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
             const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
-            
-            const groqModel = localStorage.getItem('GROQ_MODEL') || 'llama-3.3-70b-versatile';
-            const glmModel = localStorage.getItem('GLM_MODEL') || 'glm-4-flash';
             const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
 
             const runGroq = async () => {{
-                if (!groqKey || !groqModel) throw new Error("Groq 配置不完整");
+                if (!groqKey || !groqModel) throw new Error("Groq API Key 未配置");
                 return await fetchGroq(text, groqKey, groqModel);
             }};
             const runGLM = async () => {{
-                if (!glmKey || !glmModel) throw new Error("智谱GLM 配置不完整");
+                if (!glmKey || !glmModel) throw new Error("智谱GLM API Key 未配置");
                 return await fetchGLM(text, glmKey, glmModel);
             }};
             const runCustom = async () => {{
-                if (!customUrl) throw new Error("自定义 AI 配置不完整(至少需要填写URL)");
+                if (!customUrl || !customKey || !customModel) throw new Error("自定义 AI 配置不完整");
                 return await fetchCustomAI(text, customUrl, customKey, customModel);
             }};
 
@@ -349,7 +473,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 }});
             }};
             removeRelingo(clone);
-            removeRelingo(clone); 
+            removeRelingo(clone);
             
             clone.querySelectorAll('script').forEach(s => {{
                 if (!s.src.includes('marked.min.js') && s.id !== 'core-engine') s.remove();
@@ -357,16 +481,15 @@ def generate_page_wrapper(content_html, page_title, now_str):
             clone.querySelectorAll('style').forEach(s => {{
                 if (s.id !== 'core-style') s.remove();
             }});
-
             clone.querySelectorAll('.ai-toggle').forEach(t => t.classList.remove('loading'));
             
             const liveTAs = document.querySelectorAll('.anno-edit');
-            clone.querySelectorAll('.anno-edit').forEach((ta, i) => {{ 
+            clone.querySelectorAll('.anno-edit').forEach((ta, i) => {{
                 if(liveTAs[i]) ta.textContent = liveTAs[i].value;
                 const box = ta.closest('.anno-box');
                 if (box) box.style.display = 'none';
                 const view = box ? box.querySelector('.anno-view') : null;
-                if (view) view.innerHTML = ''; 
+                if (view) view.innerHTML = '';
             }});
             
             clone.querySelectorAll('.anno-toggle').forEach(t => {{
@@ -389,20 +512,18 @@ def generate_page_wrapper(content_html, page_title, now_str):
             
             if (!isTranslation) {{
                 statusMsg.style.display = 'inline-block';
-                statusMsg.style.backgroundColor = '#2ea44f';
+                statusMsg.style.backgroundColor = '#16a34a';
                 statusMsg.innerText = '📡 同步中...';
             }}
-
             const pathParts = window.location.pathname.split('/');
             const fileName = pathParts.pop();
             const month = pathParts.pop();
             const year = pathParts.pop();
             const fileRelPath = year + '/' + month + '/' + fileName;
-
+            
             try {{
                 let finalHTML = '';
                 let sha = '';
-                
                 const getRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), {{
                     headers: {{ 'Authorization': 'Bearer ' + ghToken }}, cache: 'no-store'
                 }});
@@ -413,9 +534,9 @@ def generate_page_wrapper(content_html, page_title, now_str):
                     const cleanHTML = decodeURIComponent(escape(atob(fileData.content)));
                     const parser = new DOMParser();
                     const cleanDoc = parser.parseFromString(cleanHTML, 'text/html');
-
                     const liveTAs = document.querySelectorAll('.anno-edit');
                     const cleanTAs = cleanDoc.querySelectorAll('.anno-edit');
+                    
                     liveTAs.forEach((liveTa, i) => {{
                         if (cleanTAs[i]) {{
                             cleanTAs[i].textContent = liveTa.value;
@@ -425,7 +546,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
                             if (view) view.innerHTML = '';
                         }}
                     }});
-
+                    
                     const liveContents = document.querySelectorAll('.content');
                     const cleanContents = cleanDoc.querySelectorAll('.content');
                     liveContents.forEach((liveC, i) => {{
@@ -450,25 +571,23 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         const ta = t.closest('.content-wrap').querySelector('.anno-edit');
                         if (ta && ta.textContent.trim()) t.classList.add('has-anno');
                     }});
-
                     finalHTML = '<!DOCTYPE html>\\n<html lang="zh-CN">\\n' + cleanDoc.documentElement.innerHTML + '\\n</html>';
                 }} else {{
                     finalHTML = getFallbackCleanHTML();
                 }}
-
+                
                 const putRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {{
                     method: 'PUT',
                     headers: {{ 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' }},
                     body: JSON.stringify({{ message: isTranslation ? 'Auto-solidify translation' : 'Auto-save annotation', content: btoa(unescape(encodeURIComponent(finalHTML))), sha: sha || undefined }})
                 }});
-
                 if(!putRes.ok) throw new Error('Put failed');
-
+                
                 if (isTranslation) {{
                     transBtn.innerText = '🌐 已翻译并固化';
-                    transBtn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
+                    transBtn.style.cssText = 'background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd;';
                 }} else {{
-                    statusMsg.style.backgroundColor = '#2ea44f';
+                    statusMsg.style.backgroundColor = '#16a34a';
                     statusMsg.innerText = '✅ 云端已同步';
                     setTimeout(() => {{ if (statusMsg.innerText === '✅ 云端已同步') statusMsg.style.display = 'none'; }}, 3000);
                 }}
@@ -477,7 +596,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 if (isTranslation) {{
                     transBtn.innerText = '⚠️ 仅本地翻译';
                 }} else {{
-                    statusMsg.style.backgroundColor = '#e74c3c';
+                    statusMsg.style.backgroundColor = '#ef4444';
                     statusMsg.innerText = '❌ 同步失败(点击重试)';
                     statusMsg.style.cursor = 'pointer';
                     statusMsg.onclick = () => {{ statusMsg.onclick = null; statusMsg.style.cursor = 'default'; syncToCloud(false); }};
@@ -488,7 +607,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
         function scheduleSync() {{
             const statusMsg = document.getElementById('sync-status');
             statusMsg.style.display = 'inline-block';
-            statusMsg.style.backgroundColor = '#f39c12';
+            statusMsg.style.backgroundColor = '#f59e0b';
             statusMsg.innerText = '⏳ 自动同步中...';
             statusMsg.style.cursor = 'default';
             statusMsg.onclick = null;
@@ -503,7 +622,6 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 const toggle = wrap.querySelector('.anno-toggle');
                 const aiToggle = wrap.querySelector('.ai-toggle');
                 const box = wrap.querySelector('.anno-box');
-
                 if (!view || !edit || !toggle || !box) return;
 
                 const rawText = edit.value.trim();
@@ -517,59 +635,47 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         e.preventDefault();
                         e.stopPropagation();
                         if (aiToggle.classList.contains('loading')) return;
-
+                        if (edit.value.trim() !== '') {{
+                            if (!confirm('⚠️ 批注框已有内容，使用 AI 解析将覆盖原有内容。确定要继续吗？')) {{
+                                return;
+                            }}
+                        }}
                         const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
                         const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
                         const glmKey = localStorage.getItem('GLM_API_KEY') || '';
                         const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
                         const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
                         
-                        const groqModel = localStorage.getItem('GROQ_MODEL') || '';
-                        const glmModel = localStorage.getItem('GLM_MODEL') || '';
-                        const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
-                        
                         let isReady = false;
-                        if (pref === 'custom' && customUrl) isReady = true;
-                        if (pref === 'groq' && groqKey && groqModel) isReady = true;
-                        if (pref === 'glm' && glmKey && glmModel) isReady = true;
-
-                        if (!isReady) {{
-                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\\n(提示：自定义AI至少需要填写 API Endpoint)');
+                        if (pref === 'custom' && customUrl && customKey) isReady = true;
+                        if (pref === 'groq' && groqKey) isReady = true;
+                        if (pref === 'glm' && glmKey) isReady = true;
+                        if (!isReady && !groqKey && !glmKey && !customKey) {{
+                            alert('⚠️ 请先返回【日历大厅】右上角的 ⚙️配置中心 设置 AI 接口 URL 和密钥！');
                             return;
                         }}
-
-                        const currentAnnoText = edit.value.trim();
-                        if (currentAnnoText) {{
-                            const isConfirm = confirm('检测到当前已有批注内容，是否使用 AI 重新解析并覆盖？\\n\\n（点击“确定”覆盖，“取消”保留原内容）');
-                            if (!isConfirm) return;
-                        }}
-
+                        
                         const pClone = wrap.querySelector('.content').cloneNode(true);
                         pClone.querySelectorAll('.anno-toggle, .ai-toggle, .translated-content').forEach(el => el.remove());
                         let pText = pClone.textContent.trim();
-                        
                         pText = pText.replace(/https?:\\/\\/\\S+/g, '').trim();
-
                         if (!pText) return;
-
+                        
                         aiToggle.classList.add('loading');
                         const statusMsg = document.getElementById('sync-status');
                         statusMsg.style.display = 'inline-block';
-                        statusMsg.style.backgroundColor = '#0969da';
+                        statusMsg.style.backgroundColor = '#0284c7';
                         statusMsg.innerText = '🤖 AI 思考中...';
-
+                        
                         try {{
                             const aiContent = await executeAIPipeline(pText);
-                            
                             box.style.display = 'block';
                             view.style.display = 'none';
                             edit.style.display = 'block';
                             edit.value = aiContent;
-                            
                             edit.focus();
                             edit.blur();
-                            
-                            statusMsg.style.backgroundColor = '#2ea44f';
+                            statusMsg.style.backgroundColor = '#16a34a';
                             statusMsg.innerText = '✅ AI 解析成功';
                             setTimeout(() => {{ if (statusMsg.innerText.includes('AI')) statusMsg.style.display = 'none'; }}, 2000);
                         }} catch (err) {{
@@ -585,27 +691,27 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 toggle.onclick = (e) => {{
                     e.preventDefault();
                     e.stopPropagation();
-                    if (box.style.display === 'block') {{ 
-                        box.style.display = 'none'; 
+                    if (box.style.display === 'block') {{
+                        box.style.display = 'none';
                     }} else {{
                         box.style.display = 'block';
-                        if (!edit.value.trim()) {{ 
-                            view.style.display = 'none'; 
-                            edit.style.display = 'block'; 
-                            setTimeout(() => {{ edit.focus(); }}, 150); 
-                        }} else {{ 
-                            view.style.display = 'block'; 
-                            edit.style.display = 'none'; 
+                        if (!edit.value.trim()) {{
+                            view.style.display = 'none';
+                            edit.style.display = 'block';
+                            setTimeout(() => {{ edit.focus(); }}, 150);
+                        }} else {{
+                            view.style.display = 'block';
+                            edit.style.display = 'none';
                         }}
                     }}
                 }};
 
-                const triggerEdit = (e) => {{ 
+                const triggerEdit = (e) => {{
                     if(e) {{ e.preventDefault(); e.stopPropagation(); }}
-                    view.style.display = 'none'; 
-                    edit.style.display = 'block'; 
-                    edit.value = edit.value; 
-                    setTimeout(() => {{ edit.focus(); }}, 150); 
+                    view.style.display = 'none';
+                    edit.style.display = 'block';
+                    edit.value = edit.value;
+                    setTimeout(() => {{ edit.focus(); }}, 150);
                 }};
 
                 view.addEventListener('dblclick', (e) => {{
@@ -616,12 +722,12 @@ def generate_page_wrapper(content_html, page_title, now_str):
 
                 let lastTap = 0;
                 view.addEventListener('touchstart', e => {{
-                    if (e.touches.length === 2) {{ triggerEdit(e); }} 
+                    if (e.touches.length === 2) {{ triggerEdit(e); }}
                     else if (e.touches.length === 1) {{
                         const currentTime = new Date().getTime();
-                        if (currentTime - lastTap < 500 && currentTime - lastTap > 0) {{ 
+                        if (currentTime - lastTap < 500 && currentTime - lastTap > 0) {{
                             e.preventDefault();
-                            box.style.display = 'none'; 
+                            box.style.display = 'none';
                         }}
                         lastTap = currentTime;
                     }}
@@ -632,65 +738,51 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         const newVal = edit.value.trim();
                         try {{ view.innerHTML = newVal ? ((typeof marked !== 'undefined') ? marked.parse(newVal) : newVal) : ''; }} catch(e){{}}
                         edit.style.display = 'none';
-                        if (newVal) {{ view.style.display = 'block'; toggle.classList.add('has-anno'); }} 
+                        if (newVal) {{ view.style.display = 'block'; toggle.classList.add('has-anno'); }}
                         else {{ view.style.display = 'none'; box.style.display = 'none'; toggle.classList.remove('has-anno'); }}
-
                         if (edit.getAttribute('data-old-val') !== newVal) {{
                             edit.setAttribute('data-old-val', newVal);
-                            scheduleSync(); 
+                            scheduleSync();
                         }}
                     }}, 150);
                 }});
                 edit.setAttribute('data-old-val', rawText);
             }});
         }}
-        
-        if (document.readyState === 'loading') {{
-            document.addEventListener('DOMContentLoaded', initAnnotations);
-        }} else {{
-            initAnnotations();
-        }}
+        window.addEventListener('load', initAnnotations);
 
         async function translateAll() {{
             const btn = document.getElementById('translate-btn');
             if(btn.hasAttribute('disabled')) return;
             btn.innerText = '⏳ 翻译中...';
             btn.setAttribute('disabled', 'true');
-
             let translatedCount = 0;
             const contents = document.querySelectorAll('.content');
             for (let i = 0; i < contents.length; i++) {{
                 const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
-                
                 const cloneText = content.cloneNode(true);
                 cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle, .ai-toggle').forEach(el => el.remove());
                 let textToTranslate = cloneText.innerText;
-                
                 textToTranslate = textToTranslate.replace(/https?:\\/\\/\\S+/g, '').trim();
                 let checkText = textToTranslate.replace(/\\p{{Extended_Pictographic}}/gu, '').trim();
-                
                 if (!checkText) continue;
-
                 try {{
                     const res = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t', {{
                         method: 'POST',
                         headers: {{ 'Content-Type': 'application/x-www-form-urlencoded' }},
                         body: 'q=' + encodeURIComponent(textToTranslate)
                     }});
-                    
                     const data = await res.json();
                     let translatedText = '';
                     if (data && data[0]) {{
                         data[0].forEach(item => {{ if (item[0]) translatedText += item[0]; }});
                     }}
-
                     if (translatedText) {{
                         const transDiv = document.createElement('div');
                         transDiv.className = 'translated-content';
-                        transDiv.style.cssText = 'color: #0f1419; font-size: 1.05rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
+                        transDiv.style.cssText = 'color: #0f172a; font-size: 0.98rem; border-top: 1px solid #e2e8f0; background: #f8fafc; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
                         transDiv.innerHTML = translatedText;
-                        
                         content.parentNode.insertBefore(transDiv, content.nextSibling);
                         content.setAttribute('data-translated', 'true');
                         translatedCount++;
@@ -699,14 +791,11 @@ def generate_page_wrapper(content_html, page_title, now_str):
                     console.error('翻译失败:', e);
                 }}
             }}
-            
             if (translatedCount === 0) {{
                 btn.innerText = '✅ 已全部翻译';
                 return;
             }}
-
             btn.innerText = '⏳ 固化至云端...';
-            
             syncToCloud(true);
         }}
     </script>
@@ -721,19 +810,15 @@ def save_single_tweet_local(tweet_id, now_obj):
         if 'error' in res:
             print(f"❌ 抓取失败: {res.get('error')}")
             return False
-
         year_str, month_str = str(now_obj.year), str(now_obj.month)
         target_dir = os.path.join(BASE_DIR, year_str, month_str)
         os.makedirs(target_dir, exist_ok=True)
-
         time_hms = now_obj.strftime('%H%M%S')
         filename = f"{now_obj.year}_{now_obj.month}_{now_obj.day}_{time_hms}_{tweet_id}_x.html"
         html_path = os.path.join(target_dir, filename)
         now_str = now_obj.strftime("%Y-%m-%d %H:%M")
-
         card_html = generate_tweet_card(res, tweet_id)
         page_html = generate_page_wrapper(card_html, f"Tweet by {res.get('user_name', 'Unknown')}", now_str)
-
         with open(html_path, "w", encoding="utf-8") as f:
             f.write(page_html)
         print(f"✅ 单条推文已归档: {html_path}")
@@ -747,15 +832,12 @@ def save_batch_tweets_local(username, tweet_ids, now_obj):
     year_str, month_str = str(now_obj.year), str(now_obj.month)
     target_dir = os.path.join(BASE_DIR, year_str, month_str)
     os.makedirs(target_dir, exist_ok=True)
-
     time_hms = now_obj.strftime('%H%M%S')
     filename = f"{now_obj.year}_{now_obj.month}_{now_obj.day}_{time_hms}_batch_{username}_x.html"
     html_path = os.path.join(target_dir, filename)
     now_str = now_obj.strftime("%Y-%m-%d %H:%M")
-
     cards_html = ""
     success_count = 0
-
     print(f"⏳ 正在生成 @{username} 的原创推文瀑布流卡片...")
     for tid in tweet_ids:
         api_url = f"https://api.vxtwitter.com/Twitter/status/{tid}"
@@ -766,21 +848,17 @@ def save_batch_tweets_local(username, tweet_ids, now_obj):
                 success_count += 1
         except Exception:
             pass
-
     if success_count == 0:
         print("❌ 无法获取任何推文详情，放弃生成。")
         return False
-
     page_html = generate_page_wrapper(cards_html, f"Tweets by @{username}", now_str)
-
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(page_html)
     print(f"✅ 瀑布流集锦已生成 (包含 {success_count} 条): {html_path}")
     return True
 
-
 def generate_index():
-    """日历枢纽生成器 + 前端 JS"""
+    """日历枢纽生成器 + 前端 JS (现代化 UI 重构版)"""
     archive_data = {}
     if os.path.exists(BASE_DIR):
         years = [d for d in os.listdir(BASE_DIR) if d.isdigit()]
@@ -797,7 +875,6 @@ def generate_index():
                             f_day = str(int(parts[2]))
                             time_str = f"{parts[3][:2]}:{parts[3][2:4]}"
                             file_path = f"{year}/{month}/{file}"
-
                             if "batch" in file:
                                 if "custom" in file:
                                     title = f"🐦 {time_str} 自定义组合推文"
@@ -806,11 +883,9 @@ def generate_index():
                                     title = f"🐦 {time_str} 推文集：@{username}"
                             else:
                                 title = f"🐦 {time_str} 灵感推文"
-
                             if f_year not in archive_data: archive_data[f_year] = {}
                             if f_month not in archive_data[f_year]: archive_data[f_year][f_month] = {}
                             if f_day not in archive_data[f_year][f_month]: archive_data[f_year][f_month][f_day] = []
-
                             archive_data[f_year][f_month][f_day].append({
                                 "time": time_str,
                                 "path": file_path,
@@ -820,172 +895,507 @@ def generate_index():
                         pass
 
     json_data = json.dumps(archive_data)
-
+    
     html_template = """<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- 强制禁用缓存，防止再次读取旧版本生成器 -->
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
     <title>X 语料日历枢纽</title>
     <style>
-        :root { --bg: #f5f5f7; --text: #333; --muted: #888; --primary: #1d9bf0; --border: #e0e0e0; --card: #fff; }
-        body, html { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; -webkit-font-smoothing: antialiased; background: var(--bg); margin: 0; padding: 0; color: var(--text); }
-        .container { max-width: 600px; margin: 0 auto; padding-bottom: 20px; }
-        
-        .manual-fetch-bar { background: var(--card); padding: 12px 15px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 20; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .fetch-input { flex: 1; padding: 10px 15px; border: 1px solid #ccc; border-radius: 20px; font-size: 14px; outline: none; background: #f9f9f9; transition: border 0.2s; }
-        .fetch-input:focus { border-color: var(--primary); background: #fff; }
-        .settings-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 5px; }
-        
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 100; justify-content: center; align-items: center; padding: 16px; backdrop-filter: blur(4px); }
-        .modal-content { background: var(--card); border-radius: 20px; padding: 24px; width: 100%; max-width: 500px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); max-height: 85vh; overflow-y: auto; position: relative; box-sizing: border-box; }
-        .modal-title { margin: 0 0 8px 0; font-size: 20px; font-weight: 700; color: #111; }
-        .modal-subtitle { font-size: 13px; color: #666; margin-top: 0; margin-bottom: 20px; line-height: 1.4; }
-        
-        .section-card { background: #f9fafb; border: 1px solid #eee; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-        .section-title { font-size: 14px; font-weight: 700; color: var(--primary); margin: 0 0 12px 0; display: flex; align-items: center; gap: 6px; }
-
-        .form-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
-        .form-col { flex: 1; min-width: 150px; display: flex; flex-direction: column; gap: 6px; }
-        
-        .form-group { margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px; }
-        .form-group label, .form-col label { font-size: 13px; color: #444; font-weight: 600; margin: 0; }
-        .form-control { 
-            width: 100%; box-sizing: border-box; padding: 10px 12px; 
-            border: 1px solid #d1d5db; border-radius: 10px; font-size: 14px; 
-            outline: none; transition: all 0.2s; background: #fff; font-family: inherit; 
+        :root {
+            --bg: #f8fafc;
+            --text: #0f172a;
+            --text-secondary: #475569;
+            --muted: #94a3b8;
+            --primary: #0284c7;
+            --primary-hover: #0369a1;
+            --primary-light: #e0f2fe;
+            --border: #e2e8f0;
+            --card: #ffffff;
+            --card-subtle: #f1f5f9;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+            --shadow-md: 0 4px 16px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 30px rgba(0,0,0,0.1);
         }
-        .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(29, 155, 240, 0.1); }
-        select.form-control { cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: calc(100% - 12px) center; }
-        
-        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; position: sticky; bottom: 0; background: var(--card); padding-top: 12px; border-top: 1px solid #eee; }
-        .btn { padding: 10px 20px; border-radius: 10px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
-        .btn-cancel { background: #f1f3f5; color: #333; }
-        .btn-cancel:active { background: #e9ecef; }
-        .btn-save { background: var(--primary); color: #fff; }
-        .btn-save:active { transform: scale(0.96); opacity: 0.9; }
-
-        @media (max-width: 480px) {
-            .form-row { flex-direction: column; gap: 12px; }
-            .modal-content { padding: 20px; }
+        * { box-sizing: border-box; }
+        body, html {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            background: var(--bg);
+            margin: 0;
+            padding: 0;
+            color: var(--text);
         }
-
-        .controls { background: var(--bg); padding: 15px 20px; display: flex; justify-content: center; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); }
-        .control-btn { background: var(--primary); color: #fff; border: none; border-radius: 6px; padding: 8px 12px; font-size: 14px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
-        .control-btn:active { opacity: 0.8; transform: scale(0.95); }
-        .select-box { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 15px; background: #fff; outline: none; font-weight: bold; cursor: pointer; }
-        .calendar-wrapper { background: var(--card); padding: 15px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
-        .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-weight: bold; font-size: 13px; color: var(--muted); margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #f0f0f0; }
-        .days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
-        .day-cell { aspect-ratio: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 16px; font-weight: 600; border-radius: 10px; cursor: pointer; position: relative; transition: all 0.2s; }
+        .container {
+            max-width: 620px;
+            margin: 0 auto;
+            padding-bottom: 30px;
+        }
+        
+        /* 顶部导航与抓取条 */
+        .manual-fetch-bar {
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(16px);
+            padding: 12px 16px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            box-shadow: var(--shadow-sm);
+        }
+        .fetch-input {
+            flex: 1;
+            padding: 10px 18px;
+            border: 1px solid var(--border);
+            border-radius: 30px;
+            font-size: 14px;
+            outline: none;
+            background: var(--card-subtle);
+            color: var(--text);
+            transition: all 0.2s ease;
+        }
+        .fetch-input:focus {
+            border-color: var(--primary);
+            background: #fff;
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+        .settings-btn {
+            background: var(--card-subtle);
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        .settings-btn:active {
+            transform: scale(0.92);
+            background: #e2e8f0;
+        }
+        
+        /* 现代化弹窗体系 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.45);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+            backdrop-filter: blur(6px);
+            animation: fadeIn 0.2s ease-out;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        .modal-content {
+            background: var(--card);
+            border-radius: var(--radius-xl);
+            padding: 24px;
+            width: 100%;
+            max-width: 460px;
+            box-shadow: var(--shadow-lg);
+            max-height: 88vh;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+        }
+        .modal-title {
+            margin: 0 0 4px 0;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+        .modal-desc {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 0;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        
+        /* 表单与卡片容器 */
+        .section-card {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 14px;
+            margin-bottom: 16px;
+        }
+        .section-card-title {
+            margin: 0 0 12px 0;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .form-group {
+            margin-bottom: 14px;
+        }
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 13px;
+            outline: none;
+            transition: all 0.2s;
+            background: #fff;
+            color: var(--text);
+        }
+        .form-group select {
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+            cursor: pointer;
+        }
+        .form-group input:focus, .form-group select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+        
+        .batch-textarea {
+            width: 100%;
+            height: 180px;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 13px;
+            outline: none;
+            transition: all 0.2s;
+            resize: vertical;
+            background: #fff;
+            color: var(--text);
+            font-family: inherit;
+            line-height: 1.5;
+        }
+        .batch-textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+        
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 24px;
+            position: sticky;
+            bottom: -24px;
+            background: var(--card);
+            padding: 14px 0 0 0;
+            border-top: 1px solid var(--border);
+        }
+        .btn {
+            padding: 9px 18px;
+            border-radius: 20px;
+            border: none;
+            font-size: 13.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-cancel {
+            background: var(--card-subtle);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+        .btn-cancel:active { background: #e2e8f0; }
+        .btn-save {
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
+        }
+        .btn-save:hover { background: var(--primary-hover); }
+        .btn-save:active { transform: scale(0.97); }
+        
+        /* 日历控制区 */
+        .controls {
+            background: var(--bg);
+            padding: 16px 14px 12px 14px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+        .control-btn {
+            background: var(--card);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            box-shadow: var(--shadow-sm);
+        }
+        .control-btn:active {
+            transform: scale(0.95);
+            background: var(--card-subtle);
+        }
+        .select-box {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 14px;
+            background: #fff;
+            outline: none;
+            font-weight: 600;
+            color: var(--text);
+            cursor: pointer;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        /* 日历主面板 */
+        .calendar-wrapper {
+            background: var(--card);
+            padding: 18px 16px;
+            margin: 0 14px 16px 14px;
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-sm);
+        }
+        .weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            text-align: center;
+            font-weight: 600;
+            font-size: 12.5px;
+            color: var(--muted);
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .days-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+        }
+        .day-cell {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+            color: var(--text);
+        }
         .day-cell.empty { visibility: hidden; }
-        .day-cell.has-news { color: var(--text); }
-        .day-cell.no-news { color: #ccc; }
-        .day-cell.selected { background: #e8f5fd; border: 1px solid var(--primary); color: var(--primary); font-weight: bold; }
-        .day-cell.today { background: #f0f0f0; color: #333; }
-        .dot { width: 5px; height: 5px; background-color: var(--primary); border-radius: 50%; position: absolute; bottom: 6px; display: none; }
+        .day-cell.no-news { color: #cbd5e1; }
+        .day-cell.has-news { color: var(--text); font-weight: 700; }
+        .day-cell.selected {
+            background: var(--primary-light);
+            border: 1.5px solid var(--primary);
+            color: var(--primary);
+            font-weight: 700;
+        }
+        .day-cell.today {
+            background: #f1f5f9;
+        }
+        .dot {
+            width: 4px;
+            height: 4px;
+            background-color: var(--primary);
+            border-radius: 50%;
+            position: absolute;
+            bottom: 5px;
+            display: none;
+        }
         .day-cell.has-news .dot { display: block; }
-        .news-section { padding: 0 15px; }
         
-        .news-item-wrapper { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-        .news-item { flex: 1; background: var(--card); border-radius: 14px; padding: 18px 16px; margin-bottom: 0; display: flex; justify-content: space-between; align-items: center; text-decoration: none; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.03); border-left: 4px solid var(--primary); transition: all 0.2s; overflow: hidden; }
-        .news-item:active { transform: scale(0.98); background: #fafafa; }
-        .news-title { font-size: 15px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; font-weight: bold; flex: 1; }
-        .delete-btn { background: #ff3b30; color: white; border: none; border-radius: 10px; padding: 0 15px; height: 54px; font-size: 16px; cursor: pointer; display: none; transition: all 0.2s; flex-shrink: 0; }
+        /* 列表展示区 */
+        .news-section { padding: 0 14px; }
+        .news-item-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .news-item {
+            flex: 1;
+            background: var(--card);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-decoration: none;
+            color: var(--text);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--primary);
+            transition: all 0.2s;
+            overflow: hidden;
+        }
+        .news-item:active { transform: scale(0.99); background: #fafafa; }
+        .news-title {
+            font-size: 14.5px;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: left;
+            font-weight: 600;
+            flex: 1;
+        }
+        .delete-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            padding: 0 16px;
+            height: 52px;
+            font-size: 16px;
+            cursor: pointer;
+            display: none;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
         
-        .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; background: var(--card); border-radius: 14px; }
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--muted);
+            font-size: 13.5px;
+            background: var(--card);
+            border-radius: var(--radius-xl);
+            border: 1px dashed var(--border);
+        }
         
-        #loadingBar { height: 3px; background: var(--primary); width: 0%; transition: width 0.3s; position: absolute; top: 0; left: 0; z-index: 30; }
+        #loadingBar {
+            height: 3px;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.3s;
+            position: absolute;
+            top: 0; left: 0;
+            z-index: 60;
+        }
     </style>
 </head>
 <body>
     <div id="loadingBar"></div>
     <div class="manual-fetch-bar">
-        <input type="text" id="xUrlInput" class="fetch-input" placeholder="粘贴单条推文链接，回车归档..." autocomplete="off">
-        <button class="settings-btn" id="openSettingsBtn">⚙️</button>
+        <input type="text" id="xUrlInput" class="fetch-input" placeholder="粘贴推文或账号链接，回车归档..." autocomplete="off">
+        <button class="settings-btn" id="openSettingsBtn" title="配置中心">⚙️</button>
     </div>
 
+    <!-- 现代美观设置 Modal -->
     <div class="modal-overlay" id="settingsModal">
         <div class="modal-content">
-            <h3 class="modal-title">核心配置中心</h3>
-            <p class="modal-subtitle">所有密钥均安全储存在浏览器本地，无云端泄露风险。</p>
+            <h3 class="modal-title">⚙️ 核心配置中心</h3>
+            <p class="modal-desc">所有密钥均安全储存在浏览器本地，无云端泄露风险。</p>
             
+            <!-- GitHub 配置 -->
             <div class="section-card">
-                <h4 class="section-title">📦 GitHub 同步配置</h4>
+                <div class="section-card-title">🐙 GitHub 仓库同步</div>
                 <div class="form-group">
                     <label>Personal Access Token</label>
-                    <input type="password" id="cfgGhToken" class="form-control" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+                    <input type="password" id="cfgGhToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
                 </div>
                 <div class="form-row">
-                    <div class="form-col">
-                        <label>GitHub 用户名</label>
-                        <input type="text" id="cfgGhOwner" class="form-control" placeholder="例如: moodHappy">
+                    <div class="form-group">
+                        <label>用户名 / 组织名</label>
+                        <input type="text" id="cfgGhOwner" placeholder="例如: moodHappy">
                     </div>
-                    <div class="form-col">
-                        <label>GitHub 仓库名</label>
-                        <input type="text" id="cfgGhRepo" class="form-control" placeholder="例如: x-vibe">
+                    <div class="form-group">
+                        <label>仓库名称</label>
+                        <input type="text" id="cfgGhRepo" placeholder="例如: x-vibe">
                     </div>
                 </div>
             </div>
 
+            <!-- 首选引擎设置 -->
+            <div class="form-group">
+                <label>首选 AI 引擎 (失败自动无缝降级)</label>
+                <select id="cfgPrefAI">
+                    <option value="custom">🌐 自定义 AI (OpenAI标准/Gemini/Claude)</option>
+                    <option value="groq">Groq</option>
+                    <option value="glm">智谱 (GLM)</option>
+                </select>
+            </div>
+
+            <!-- 自定义 AI 配置面板 -->
             <div class="section-card">
-                <h4 class="section-title">🧠 AI 解析引擎</h4>
+                <div class="section-card-title">🔌 自定义 AI 接入</div>
                 <div class="form-group">
-                    <label>首选 AI 引擎 (失败将自动降级)</label>
-                    <select id="cfgPrefAI" class="form-control">
-                        <option value="custom">🌐 自定义 AI (兼容OpenAI/Gemini/Claude)</option>
-                        <option value="groq">⚡ Groq</option>
-                        <option value="glm">🌌 智谱 (GLM)</option>
-                    </select>
+                    <label>API Endpoint (包含完整 URL 路径)</label>
+                    <input type="text" id="cfgCustomUrl" placeholder="如: https://api.openai.com/v1/chat/completions">
                 </div>
-                
-                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed #ddd;">
-                    <label style="font-size: 13px; color: #1d9bf0; font-weight: 700; margin-bottom: 8px; display: block;">🔌 自定义接口配置</label>
+                <div class="form-row">
                     <div class="form-group">
-                        <label style="font-weight:normal; color:#666;">API Endpoint (含路径)</label>
-                        <input type="text" id="cfgCustomUrl" class="form-control" placeholder="如: https://api.chatanywhere.tech/v1/chat/completions">
+                        <label>API Key</label>
+                        <input type="password" id="cfgCustomKey" placeholder="sk-xxxxxx">
                     </div>
-                    <div class="form-row">
-                        <div class="form-col">
-                            <label style="font-weight:normal; color:#666;">API Key (不需要Key则留空)</label>
-                            <input type="password" id="cfgCustomKey" class="form-control" placeholder="sk-xxxxxx">
-                        </div>
-                        <div class="form-col">
-                            <label style="font-weight:normal; color:#666;">模型名称</label>
-                            <input type="text" id="cfgCustomModel" class="form-control" placeholder="如: gpt-4o-mini">
-                        </div>
+                    <div class="form-group">
+                        <label>模型名称</label>
+                        <input type="text" id="cfgCustomModel" placeholder="如: gpt-4o-mini">
                     </div>
                 </div>
+            </div>
 
-                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed #ddd;">
-                    <label style="font-size: 13px; color: #1d9bf0; font-weight: 700; margin-bottom: 8px; display: block;">⚡ Groq 配置</label>
-                    <div class="form-row">
-                        <div class="form-col">
-                            <label style="font-weight:normal; color:#666;">API Key</label>
-                            <input type="password" id="cfgGroqKey" class="form-control" placeholder="gsk_xxxxxxxxxxxxxxxxxxxx">
-                        </div>
-                        <div class="form-col">
-                            <label style="font-weight:normal; color:#666;">模型名称</label>
-                            <input type="text" id="cfgGroqModel" class="form-control" placeholder="如: llama-3.3-70b-versatile">
-                        </div>
+            <!-- 预设 Groq 配置 -->
+            <div class="section-card">
+                <div class="section-card-title">⚡ Groq 引擎配置</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Groq API Key</label>
+                        <input type="password" id="cfgGroqKey" placeholder="gsk_xxxxxxxxxx">
+                    </div>
+                    <div class="form-group">
+                        <label>模型名称</label>
+                        <input type="text" id="cfgGroqModel" placeholder="如: llama-3.3-70b-versatile">
                     </div>
                 </div>
+            </div>
 
-                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed #ddd;">
-                    <label style="font-size: 13px; color: #1d9bf0; font-weight: 700; margin-bottom: 8px; display: block;">🌌 智谱 GLM 配置</label>
-                    <div class="form-row">
-                        <div class="form-col">
-                            <label style="font-weight:normal; color:#666;">API Key</label>
-                            <input type="password" id="cfgGlmKey" class="form-control" placeholder="填写智谱 API Key">
-                        </div>
-                        <div class="form-col">
-                            <label style="font-weight:normal; color:#666;">模型名称</label>
-                            <input type="text" id="cfgGlmModel" class="form-control" placeholder="如: glm-4-flash">
-                        </div>
+            <!-- 预设 智谱 GLM 配置 -->
+            <div class="section-card">
+                <div class="section-card-title">🇨🇳 智谱 GLM 配置</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>智谱 GLM Key</label>
+                        <input type="password" id="cfgGlmKey" placeholder="填写智谱 API Key">
+                    </div>
+                    <div class="form-group">
+                        <label>模型名称</label>
+                        <input type="text" id="cfgGlmModel" placeholder="如: glm-4-flash">
                     </div>
                 </div>
             </div>
@@ -1000,11 +1410,13 @@ def generate_index():
     <!-- 自定义批量归档 Modal -->
     <div class="modal-overlay" id="batchModal">
         <div class="modal-content">
-            <h3 class="modal-title">自定义组合归档</h3>
-            <p class="modal-subtitle">贴入多个推文链接（支持直接粘贴整段文字），将自动提取最多 10 条同步为单个文件。</p>
+            <h3 class="modal-title">📦 自定义组合归档</h3>
+            <p class="modal-desc">贴入多个推文链接（支持混排文字），将自动识别提取前 10 条推文并合并归档。</p>
+            
             <div class="form-group">
-                <textarea id="batchInputArea" class="form-control" style="height: 160px; resize: vertical;" placeholder="在此粘贴多个推文链接...\\n\\n例如：\\nhttps://x.com/i/status/2078970469194092723\\nhttps://x.com/i/status/2079072889853321448"></textarea>
+                <textarea id="batchInputArea" class="batch-textarea" placeholder="在此粘贴多个推文链接...&#10;&#10;例如：&#10;https://x.com/user/status/123456789&#10;https://x.com/user/status/987654321"></textarea>
             </div>
+            
             <div class="modal-actions">
                 <button class="btn btn-cancel" id="closeBatchBtn">取消</button>
                 <button class="btn btn-save" id="submitBatchBtn">抓取并合并同步</button>
@@ -1025,10 +1437,12 @@ def generate_index():
             <button class="control-btn" id="nextBtn">&gt;</button>
             <button class="control-btn" id="todayBtn">今天</button>
         </div>
+
         <div class="calendar-wrapper">
             <div class="weekdays"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
             <div class="days-grid" id="daysGrid"></div>
         </div>
+
         <div class="news-section"><div id="newsList"></div></div>
     </div>
 
@@ -1049,9 +1463,9 @@ def generate_index():
             const allYears = new Set(Object.keys(archiveData).map(Number));
             for(let i = -5; i <= 50; i++) allYears.add(today.getFullYear() + i);
             
-            Array.from(allYears).sort((a, b) => b - a).forEach(y => { 
-                const opt = document.createElement('option'); 
-                opt.value = y; opt.textContent = y + ' 年'; yearSelect.appendChild(opt); 
+            Array.from(allYears).sort((a, b) => b - a).forEach(y => {
+                const opt = document.createElement('option');
+                opt.value = y; opt.textContent = y + ' 年'; yearSelect.appendChild(opt);
             });
         }
 
@@ -1061,17 +1475,15 @@ def generate_index():
 
             document.getElementById('yearSelect').value = AppState.year;
             document.getElementById('monthSelect').value = AppState.month;
-
             const daysGrid = document.getElementById('daysGrid');
             const newsList = document.getElementById('newsList');
-
             daysGrid.innerHTML = ''; newsList.innerHTML = '';
 
             try {
                 const firstDay = new Date(AppState.year, AppState.month - 1, 1).getDay() || 7;
-                for (let i = 1; i < firstDay; i++) { 
-                    const emptyCell = document.createElement('div'); 
-                    emptyCell.className = 'day-cell empty'; daysGrid.appendChild(emptyCell); 
+                for (let i = 1; i < firstDay; i++) {
+                    const emptyCell = document.createElement('div');
+                    emptyCell.className = 'day-cell empty'; daysGrid.appendChild(emptyCell);
                 }
                 
                 const monthData = (archiveData[AppState.year] && archiveData[AppState.year][AppState.month]) || {};
@@ -1099,7 +1511,6 @@ def generate_index():
                     dayData.forEach((news, index) => {
                         const wrapper = document.createElement('div'); wrapper.className = 'news-item-wrapper';
                         const a = document.createElement('a'); a.href = news.path; a.className = 'news-item';
-                        
                         a.innerHTML = `<span class="news-title">${news.title}</span>`;
                         wrapper.appendChild(a);
 
@@ -1159,7 +1570,9 @@ def generate_index():
             document.getElementById('cfgGlmModel').value = localStorage.getItem('GLM_MODEL') || '';
             document.getElementById('settingsModal').style.display = 'flex';
         });
+
         document.getElementById('closeSettingsBtn').addEventListener('click', () => { document.getElementById('settingsModal').style.display = 'none'; });
+        
         document.getElementById('saveSettingsBtn').addEventListener('click', () => {
             localStorage.setItem('GH_TOKEN', document.getElementById('cfgGhToken').value.trim());
             localStorage.setItem('GH_OWNER', document.getElementById('cfgGhOwner').value.trim());
@@ -1175,9 +1588,9 @@ def generate_index():
             localStorage.setItem('GROQ_MODEL', document.getElementById('cfgGroqModel').value.trim());
             localStorage.setItem('GLM_MODEL', document.getElementById('cfgGlmModel').value.trim());
             document.getElementById('settingsModal').style.display = 'none';
-            alert('✅ 配置已本地保存！');
+            alert('配置已成功保存在本地！');
         });
-        
+
         document.getElementById('closeBatchBtn').addEventListener('click', () => { document.getElementById('batchModal').style.display = 'none'; });
 
         async function syncDeleteToGithub(fileRelPath) {
@@ -1185,6 +1598,7 @@ def generate_index():
             const ghOwner = localStorage.getItem('GH_OWNER');
             const ghRepo = localStorage.getItem('GH_REPO');
             if (!ghToken || !ghOwner || !ghRepo) return alert('本地已删除，但未配置 GitHub Token，远端不会变更。');
+            
             try {
                 const loadingBar = document.getElementById('loadingBar'); loadingBar.style.width = '20%';
                 const targetFilePath = `docs/${fileRelPath}`;
@@ -1237,7 +1651,6 @@ def generate_index():
                     }
                 });
             }
-
             return `
         <div class="tweet-card">
             <div class="header">
@@ -1269,56 +1682,49 @@ def generate_index():
     <meta charset="UTF-8">
     <meta name="referrer" content="no-referrer">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- 强制子页面也不走缓存 -->
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
     <title>${pageTitle}</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"><\\/script>
     <style id="core-style">
-        :root { --bg: #f2f2f7; --card: #ffffff; --text: #0f1419; --muted: #536471; --border: #eff3f4; --x-blue: #1d9bf0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
-        .nav-back { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: var(--card); border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .nav-back a { text-decoration: none; color: white; background: #000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
-        .translate-btn { background: #f2f2f7; color: #0f1419; border: 1px solid #ccc; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: 0.2s; flex-shrink: 0; outline: none; }
-        .translate-btn:active { background: #e5e5ea; transform: scale(0.95); }
-        .translate-btn[disabled] { opacity: 0.8; cursor: not-allowed; }
-        
-        .sync-status { padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; display: none; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-        
-        .anno-toggle, .ai-toggle { display: inline-block; padding: 4px 8px; margin-left: 4px; cursor: pointer; opacity: 0.3; font-size: 0.9rem; vertical-align: middle; transition: all 0.2s; user-select: none; -webkit-tap-highlight-color: transparent; }
-        .anno-toggle:hover, .ai-toggle:hover { opacity: 0.9; transform: scale(1.1); }
+        :root { --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --muted: #64748b; --border: #e2e8f0; --x-blue: #1d9bf0; }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+        .nav-back { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+        .nav-back a { text-decoration: none; color: white; background: #0f172a; padding: 8px 18px; border-radius: 20px; font-weight: 600; font-size: 0.88rem; }
+        .translate-btn { background: #ffffff; color: var(--text); border: 1px solid var(--border); padding: 8px 16px; border-radius: 20px; font-weight: 600; font-size: 0.88rem; cursor: pointer; transition: 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+        .translate-btn:active { transform: scale(0.96); background: #f1f5f9; }
+        .translate-btn[disabled] { opacity: 0.6; cursor: not-allowed; }
+        .sync-status { padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; display: none; color: #fff; }
+        .anno-toggle, .ai-toggle { display: inline-flex; align-items: center; justify-content: center; padding: 2px 6px; margin-left: 6px; cursor: pointer; opacity: 0.35; font-size: 0.95rem; vertical-align: middle; transition: all 0.2s; user-select: none; }
+        .anno-toggle:hover, .ai-toggle:hover { opacity: 1; transform: scale(1.15); }
         .anno-toggle.has-anno { opacity: 1; }
-        .anno-toggle::after { content: "🔴"; }
-        .ai-toggle { opacity: 0.6; padding: 4px 4px; }
+        .anno-toggle::after { content: "🔴"; font-size: 0.8rem; }
+        .ai-toggle { opacity: 0.7; }
         .ai-toggle::after { content: "🤖"; }
         .ai-toggle.loading::after { content: "⏳"; display: inline-block; animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
-        
-        .anno-box { display: none; margin-top: 10px; background: #f8f6ff; border-left: 4px solid #8e7cc3; padding: 12px 16px; border-radius: 0 6px 6px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.02); text-align: left; }
-        .anno-view { font-size: 1.05rem; line-height: 1.6; color: #4a4a4a; min-height: 24px; }
-        .anno-edit { width: 100%; min-height: 120px; padding: 10px; font-family: monospace; font-size: 1rem; border: 1px dashed #8e7cc3; border-radius: 6px; box-sizing: border-box; resize: vertical; display: none; background: #fff; color: #333; outline: none; }
-        .anno-edit:focus { border: 1px solid #8e7cc3; box-shadow: 0 0 0 3px rgba(142,124,195,0.1); }
+        .anno-box { display: none; margin-top: 14px; background: #f8fafc; border-left: 4px solid #8b5cf6; padding: 14px 16px; border-radius: 0 12px 12px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.02); text-align: left; }
+        .anno-view { font-size: 0.95rem; line-height: 1.6; color: #334155; min-height: 24px; }
+        .anno-edit { width: 100%; min-height: 120px; padding: 12px; font-family: inherit; font-size: 0.95rem; border: 1px dashed #cbd5e1; border-radius: 8px; box-sizing: border-box; resize: vertical; display: none; background: #fff; color: #1e293b; outline: none; }
+        .anno-edit:focus { border-color: #8b5cf6; box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15); }
         .markdown-body p { margin-top: 0; margin-bottom: 8px; }
         .markdown-body p:last-child { margin-bottom: 0; }
         .markdown-body p:empty { display: none; }
-        .markdown-body h1, .markdown-body h2, .markdown-body h3 { color: #8e7cc3; font-size: 1.15rem; margin: 10px 0 8px 0; border-bottom: 1px dashed #e0d8f0; padding-bottom: 4px; }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 { color: #7c3aed; font-size: 1.05rem; margin: 12px 0 8px 0; border-bottom: 1px dashed #e2e8f0; padding-bottom: 4px; }
         .markdown-body ul, .markdown-body ol { margin: 0 0 8px 0; padding-left: 20px; }
-        .markdown-body blockquote { margin: 0 0 10px 0; padding: 10px 15px; background: rgba(142,124,195,0.1); border-left: 4px solid #8e7cc3; color: #555; }
-
-        .container { max-width: 600px; margin: 0 auto; padding: 20px 15px 50px 15px; }
-        .tweet-card { background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 25px; }
+        .markdown-body blockquote { margin: 0 0 10px 0; padding: 8px 14px; background: rgba(139, 92, 246, 0.08); border-left: 3px solid #8b5cf6; color: #475569; border-radius: 0 6px 6px 0; }
+        .container { max-width: 620px; margin: 0 auto; padding: 18px 14px 60px 14px; }
+        .tweet-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); margin-bottom: 20px; }
         .header { display: flex; align-items: center; margin-bottom: 12px; }
         .names { display: flex; flex-direction: column; }
-        .name { font-weight: 700; font-size: 1.1rem; color: var(--text); }
-        .handle { color: var(--muted); font-size: 0.95rem; margin-top: 2px; }
-        .content { font-size: 1.1rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
-        .media-container { margin-top: 10px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; background: #000; }
-        .media-item { width: 100%; height: auto; display: block; max-height: 500px; object-fit: contain; }
-        .stats { margin-top: 15px; color: var(--muted); font-size: 0.95rem; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px; font-weight: 500; margin-bottom: 15px; }
-        .btn-link { display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }
-        .btn-link:active { transform: scale(0.98); background: #1a8cd8; }
-        .time-stamp { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }
+        .name { font-weight: 700; font-size: 1.05rem; color: var(--text); }
+        .handle { color: var(--muted); font-size: 0.9rem; margin-top: 2px; }
+        .content { font-size: 1.05rem; color: var(--text); line-height: 1.55; white-space: pre-wrap; word-wrap: break-word; }
+        .media-container { margin-top: 12px; border-radius: 14px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; background: #000; }
+        .media-item { width: 100%; height: auto; display: block; max-height: 520px; object-fit: contain; }
+        .stats { margin-top: 14px; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--border); padding-top: 12px; display: flex; gap: 20px; font-weight: 500; margin-bottom: 14px; }
+        .btn-link { display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 11px; border-radius: 24px; text-decoration: none; font-weight: 600; font-size: 0.95rem; transition: all 0.2s; }
+        .btn-link:active { transform: scale(0.98); opacity: 0.9; }
+        .time-stamp { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 16px; font-weight: 500; }
     </style>
 </head>
 <body>
@@ -1333,12 +1739,10 @@ def generate_index():
         <div class="time-stamp">归档时间: ${now_str}</div>
         ${contentHtml}
     </div>
-    
     <script id="core-engine">
         let syncTimeout = null;
-
         const AI_PROMPT = "请分析以下英文段落，并严格按照以下 Markdown 格式输出（不要输出任何额外的废话）：\\\\n\\\\n### 📌 完整翻译\\\\n\\\\n[此处填写完整翻译]\\\\n\\\\n### 📌 Key Expressions\\\\n\\\\n- **[单词或短语]**\\\\n  = [中文释义]\\\\n  （[可选的补充说明，如倒装结构或语境等]）\\\\n\\\\n段落内容：\\\\n";
-
+        
         async function fetchGroq(text, apiKey, modelName) {
             const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
                 method: 'POST',
@@ -1380,19 +1784,18 @@ def generate_index():
         async function fetchCustomAI(text, url, apiKey, modelName) {
             let headers = { 'Content-Type': 'application/json' };
             let bodyData = {};
-
             if (url.includes('anthropic.com')) {
-                if(apiKey) headers['x-api-key'] = apiKey;
+                headers['x-api-key'] = apiKey;
                 headers['anthropic-version'] = '2023-06-01';
                 headers['anthropic-dangerous-direct-browser-access'] = 'true';
                 bodyData = {
-                    model: modelName || "claude-3-haiku-20240307",
+                    model: modelName,
                     max_tokens: 2000,
                     messages: [{ role: 'user', content: AI_PROMPT + '"' + text + '"' }]
                 };
             } else if (url.includes('generativelanguage.googleapis.com')) {
                 let targetUrl = url;
-                if (apiKey && !targetUrl.includes('key=')) {
+                if (!targetUrl.includes('key=')) {
                     targetUrl += (targetUrl.includes('?') ? '&' : '?') + 'key=' + apiKey;
                 }
                 const res = await fetch(targetUrl, {
@@ -1409,9 +1812,9 @@ def generate_index():
                 }
                 throw new Error('Gemini 返回数据异常');
             } else {
-                if(apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
+                headers['Authorization'] = 'Bearer ' + apiKey;
                 bodyData = {
-                    model: modelName || "gpt-3.5-turbo",
+                    model: modelName,
                     messages: [
                         { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
                         { role: 'user', content: AI_PROMPT + '"' + text + '"' }
@@ -1419,23 +1822,19 @@ def generate_index():
                     temperature: 0.3
                 };
             }
-
             const res = await fetch(url, {
                 method: 'POST',
                 headers: headers,
                 body: JSON.stringify(bodyData)
             });
-
             if (!res.ok) throw new Error('自定义 AI 接口报错: ' + res.status);
             const json = await res.json();
-
             if (json.content && Array.isArray(json.content) && json.content[0]?.text) {
                 return json.content[0].text.trim();
             }
             if (json.choices && json.choices.length > 0) {
                 return json.choices[0].message.content.trim();
             }
-
             throw new Error('自定义 AI 返回结构不符合预期');
         }
 
@@ -1443,23 +1842,22 @@ def generate_index():
             const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
             const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
             const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+            const groqModel = localStorage.getItem('GROQ_MODEL') || '';
+            const glmModel = localStorage.getItem('GLM_MODEL') || '';
             const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
             const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
-            
-            const groqModel = localStorage.getItem('GROQ_MODEL') || 'llama-3.3-70b-versatile';
-            const glmModel = localStorage.getItem('GLM_MODEL') || 'glm-4-flash';
             const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
 
             const runGroq = async () => {
-                if (!groqKey || !groqModel) throw new Error("Groq 配置不完整");
+                if (!groqKey || !groqModel) throw new Error("Groq API Key 未配置");
                 return await fetchGroq(text, groqKey, groqModel);
             };
             const runGLM = async () => {
-                if (!glmKey || !glmModel) throw new Error("智谱GLM 配置不完整");
+                if (!glmKey || !glmModel) throw new Error("智谱GLM API Key 未配置");
                 return await fetchGLM(text, glmKey, glmModel);
             };
             const runCustom = async () => {
-                if (!customUrl) throw new Error("自定义 AI 配置不完整(至少需要填写URL)");
+                if (!customUrl || !customKey || !customModel) throw new Error("自定义 AI 配置不完整");
                 return await fetchCustomAI(text, customUrl, customKey, customModel);
             };
 
@@ -1476,20 +1874,17 @@ def generate_index():
                         return await runGLM();
                     }
                     throw err;
-                }
-            } else if (pref === 'groq') {
+                }} else if (pref === 'groq') {
                 try { return await runGroq(); } catch (err) {
                     console.warn("首选 Groq 失败，尝试降级到智谱:", err);
                     if (glmKey && glmModel) { document.getElementById('sync-status').innerText = '⚠️ Groq异常，正降级为智谱...'; return await runGLM(); }
                     throw err;
-                }
-            } else {
+                }} else {
                 try { return await runGLM(); } catch (err) {
                     console.warn("首选 智谱 失败，尝试降级到Groq:", err);
                     if (groqKey && groqModel) { document.getElementById('sync-status').innerText = '⚠️ 智谱异常，正降级为Groq...'; return await runGroq(); }
                     throw err;
-                }
-            }
+                }}
         }
 
         function getFallbackCleanHTML() {
@@ -1508,7 +1903,7 @@ def generate_index():
                 });
             };
             removeRelingo(clone);
-            removeRelingo(clone); 
+            removeRelingo(clone);
             
             clone.querySelectorAll('script').forEach(s => {
                 if (!s.src.includes('marked.min.js') && s.id !== 'core-engine') s.remove();
@@ -1516,16 +1911,15 @@ def generate_index():
             clone.querySelectorAll('style').forEach(s => {
                 if (s.id !== 'core-style') s.remove();
             });
-
             clone.querySelectorAll('.ai-toggle').forEach(t => t.classList.remove('loading'));
             
             const liveTAs = document.querySelectorAll('.anno-edit');
-            clone.querySelectorAll('.anno-edit').forEach((ta, i) => { 
+            clone.querySelectorAll('.anno-edit').forEach((ta, i) => {
                 if(liveTAs[i]) ta.textContent = liveTAs[i].value;
                 const box = ta.closest('.anno-box');
                 if (box) box.style.display = 'none';
                 const view = box ? box.querySelector('.anno-view') : null;
-                if (view) view.innerHTML = ''; 
+                if (view) view.innerHTML = '';
             });
             
             clone.querySelectorAll('.anno-toggle').forEach(t => {
@@ -1548,20 +1942,18 @@ def generate_index():
             
             if (!isTranslation) {
                 statusMsg.style.display = 'inline-block';
-                statusMsg.style.backgroundColor = '#2ea44f';
+                statusMsg.style.backgroundColor = '#16a34a';
                 statusMsg.innerText = '📡 同步中...';
             }
-
             const pathParts = window.location.pathname.split('/');
             const fileName = pathParts.pop();
             const month = pathParts.pop();
             const year = pathParts.pop();
             const fileRelPath = year + '/' + month + '/' + fileName;
-
+            
             try {
                 let finalHTML = '';
                 let sha = '';
-                
                 const getRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath + '?t=' + Date.now(), {
                     headers: { 'Authorization': 'Bearer ' + ghToken }, cache: 'no-store'
                 });
@@ -1572,9 +1964,9 @@ def generate_index():
                     const cleanHTML = decodeURIComponent(escape(atob(fileData.content)));
                     const parser = new DOMParser();
                     const cleanDoc = parser.parseFromString(cleanHTML, 'text/html');
-
                     const liveTAs = document.querySelectorAll('.anno-edit');
                     const cleanTAs = cleanDoc.querySelectorAll('.anno-edit');
+                    
                     liveTAs.forEach((liveTa, i) => {
                         if (cleanTAs[i]) {
                             cleanTAs[i].textContent = liveTa.value;
@@ -1584,7 +1976,7 @@ def generate_index():
                             if (view) view.innerHTML = '';
                         }
                     });
-
+                    
                     const liveContents = document.querySelectorAll('.content');
                     const cleanContents = cleanDoc.querySelectorAll('.content');
                     liveContents.forEach((liveC, i) => {
@@ -1609,25 +2001,23 @@ def generate_index():
                         const ta = t.closest('.content-wrap').querySelector('.anno-edit');
                         if (ta && ta.textContent.trim()) t.classList.add('has-anno');
                     });
-
                     finalHTML = '<!DOCTYPE html>\\\\n<html lang="zh-CN">\\\\n' + cleanDoc.documentElement.innerHTML + '\\\\n</html>';
                 } else {
                     finalHTML = getFallbackCleanHTML();
                 }
-
+                
                 const putRes = await fetch('https://api.github.com/repos/' + ghOwner + '/' + ghRepo + '/contents/docs/' + fileRelPath, {
                     method: 'PUT',
                     headers: { 'Authorization': 'Bearer ' + ghToken, 'Content-Type': 'application/json' },
                     body: JSON.stringify({ message: isTranslation ? 'Auto-solidify translation' : 'Auto-save annotation', content: btoa(unescape(encodeURIComponent(finalHTML))), sha: sha || undefined })
                 });
-
                 if(!putRes.ok) throw new Error('Put failed');
-
+                
                 if (isTranslation) {
                     transBtn.innerText = '🌐 已翻译并固化';
-                    transBtn.style.cssText = 'background: #e8f5fd; color: #1d9bf0; border: 1px solid #1d9bf0;';
+                    transBtn.style.cssText = 'background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd;';
                 } else {
-                    statusMsg.style.backgroundColor = '#2ea44f';
+                    statusMsg.style.backgroundColor = '#16a34a';
                     statusMsg.innerText = '✅ 云端已同步';
                     setTimeout(() => { if (statusMsg.innerText === '✅ 云端已同步') statusMsg.style.display = 'none'; }, 3000);
                 }
@@ -1636,7 +2026,7 @@ def generate_index():
                 if (isTranslation) {
                     transBtn.innerText = '⚠️ 仅本地翻译';
                 } else {
-                    statusMsg.style.backgroundColor = '#e74c3c';
+                    statusMsg.style.backgroundColor = '#ef4444';
                     statusMsg.innerText = '❌ 同步失败(点击重试)';
                     statusMsg.style.cursor = 'pointer';
                     statusMsg.onclick = () => { statusMsg.onclick = null; statusMsg.style.cursor = 'default'; syncToCloud(false); };
@@ -1647,7 +2037,7 @@ def generate_index():
         function scheduleSync() {
             const statusMsg = document.getElementById('sync-status');
             statusMsg.style.display = 'inline-block';
-            statusMsg.style.backgroundColor = '#f39c12';
+            statusMsg.style.backgroundColor = '#f59e0b';
             statusMsg.innerText = '⏳ 自动同步中...';
             statusMsg.style.cursor = 'default';
             statusMsg.onclick = null;
@@ -1662,7 +2052,6 @@ def generate_index():
                 const toggle = wrap.querySelector('.anno-toggle');
                 const aiToggle = wrap.querySelector('.ai-toggle');
                 const box = wrap.querySelector('.anno-box');
-
                 if (!view || !edit || !toggle || !box) return;
 
                 const rawText = edit.value.trim();
@@ -1670,65 +2059,53 @@ def generate_index():
                     toggle.classList.add('has-anno');
                     try { view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; } catch(e){}
                 }
-                
+
                 if (aiToggle) {
                     aiToggle.addEventListener('click', async (e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         if (aiToggle.classList.contains('loading')) return;
-
+                        if (edit.value.trim() !== '') {
+                            if (!confirm('⚠️ 批注框已有内容，使用 AI 解析将覆盖原有内容。确定要继续吗？')) {
+                                return;
+                            }
+                        }
                         const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
                         const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
                         const glmKey = localStorage.getItem('GLM_API_KEY') || '';
                         const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
                         const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
                         
-                        const groqModel = localStorage.getItem('GROQ_MODEL') || 'llama-3.3-70b-versatile';
-                        const glmModel = localStorage.getItem('GLM_MODEL') || 'glm-4-flash';
-                        const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
-                        
                         let isReady = false;
-                        if (pref === 'custom' && customUrl) isReady = true;
-                        if (pref === 'groq' && groqKey && groqModel) isReady = true;
-                        if (pref === 'glm' && glmKey && glmModel) isReady = true;
-
-                        if (!isReady) {
-                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\\n(提示：自定义AI至少需要填写 API Endpoint)');
+                        if (pref === 'custom' && customUrl && customKey) isReady = true;
+                        if (pref === 'groq' && groqKey) isReady = true;
+                        if (pref === 'glm' && glmKey) isReady = true;
+                        if (!isReady && !groqKey && !glmKey && !customKey) {
+                            alert('⚠️ 请先返回【日历大厅】右上角的 ⚙️配置中心 设置 AI 接口 URL 和密钥！');
                             return;
                         }
-
-                        const currentAnnoText = edit.value.trim();
-                        if (currentAnnoText) {
-                            const isConfirm = confirm('检测到当前已有批注内容，是否使用 AI 重新解析并覆盖？\\n\\n（点击“确定”覆盖，“取消”保留原内容）');
-                            if (!isConfirm) return;
-                        }
-
+                        
                         const pClone = wrap.querySelector('.content').cloneNode(true);
                         pClone.querySelectorAll('.anno-toggle, .ai-toggle, .translated-content').forEach(el => el.remove());
                         let pText = pClone.textContent.trim();
-                        
                         pText = pText.replace(/https?:\\\\/\\\\/\\\\S+/g, '').trim();
-
                         if (!pText) return;
-
+                        
                         aiToggle.classList.add('loading');
                         const statusMsg = document.getElementById('sync-status');
                         statusMsg.style.display = 'inline-block';
-                        statusMsg.style.backgroundColor = '#0969da';
+                        statusMsg.style.backgroundColor = '#0284c7';
                         statusMsg.innerText = '🤖 AI 思考中...';
-
+                        
                         try {
                             const aiContent = await executeAIPipeline(pText);
-                            
                             box.style.display = 'block';
                             view.style.display = 'none';
                             edit.style.display = 'block';
                             edit.value = aiContent;
-                            
                             edit.focus();
                             edit.blur();
-                            
-                            statusMsg.style.backgroundColor = '#2ea44f';
+                            statusMsg.style.backgroundColor = '#16a34a';
                             statusMsg.innerText = '✅ AI 解析成功';
                             setTimeout(() => { if (statusMsg.innerText.includes('AI')) statusMsg.style.display = 'none'; }, 2000);
                         } catch (err) {
@@ -1744,27 +2121,27 @@ def generate_index():
                 toggle.onclick = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    if (box.style.display === 'block') { 
-                        box.style.display = 'none'; 
+                    if (box.style.display === 'block') {
+                        box.style.display = 'none';
                     } else {
                         box.style.display = 'block';
-                        if (!edit.value.trim()) { 
-                            view.style.display = 'none'; 
-                            edit.style.display = 'block'; 
-                            setTimeout(() => { edit.focus(); }, 150); 
-                        } else { 
-                            view.style.display = 'block'; 
-                            edit.style.display = 'none'; 
+                        if (!edit.value.trim()) {
+                            view.style.display = 'none';
+                            edit.style.display = 'block';
+                            setTimeout(() => { edit.focus(); }, 150);
+                        } else {
+                            view.style.display = 'block';
+                            edit.style.display = 'none';
                         }
                     }
                 };
 
-                const triggerEdit = (e) => { 
+                const triggerEdit = (e) => {
                     if(e) { e.preventDefault(); e.stopPropagation(); }
-                    view.style.display = 'none'; 
-                    edit.style.display = 'block'; 
-                    edit.value = edit.value; 
-                    setTimeout(() => { edit.focus(); }, 150); 
+                    view.style.display = 'none';
+                    edit.style.display = 'block';
+                    edit.value = edit.value;
+                    setTimeout(() => { edit.focus(); }, 150);
                 };
 
                 view.addEventListener('dblclick', (e) => {
@@ -1775,12 +2152,12 @@ def generate_index():
 
                 let lastTap = 0;
                 view.addEventListener('touchstart', e => {
-                    if (e.touches.length === 2) { triggerEdit(e); } 
+                    if (e.touches.length === 2) { triggerEdit(e); }
                     else if (e.touches.length === 1) {
                         const currentTime = new Date().getTime();
-                        if (currentTime - lastTap < 500 && currentTime - lastTap > 0) { 
+                        if (currentTime - lastTap < 500 && currentTime - lastTap > 0) {
                             e.preventDefault();
-                            box.style.display = 'none'; 
+                            box.style.display = 'none';
                         }
                         lastTap = currentTime;
                     }
@@ -1791,65 +2168,51 @@ def generate_index():
                         const newVal = edit.value.trim();
                         try { view.innerHTML = newVal ? ((typeof marked !== 'undefined') ? marked.parse(newVal) : newVal) : ''; } catch(e){}
                         edit.style.display = 'none';
-                        if (newVal) { view.style.display = 'block'; toggle.classList.add('has-anno'); } 
+                        if (newVal) { view.style.display = 'block'; toggle.classList.add('has-anno'); }
                         else { view.style.display = 'none'; box.style.display = 'none'; toggle.classList.remove('has-anno'); }
-
                         if (edit.getAttribute('data-old-val') !== newVal) {
                             edit.setAttribute('data-old-val', newVal);
-                            scheduleSync(); 
+                            scheduleSync();
                         }
                     }, 150);
                 });
                 edit.setAttribute('data-old-val', rawText);
             });
         }
-        
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initAnnotations);
-        } else {
-            initAnnotations();
-        }
+        window.addEventListener('load', initAnnotations);
 
         async function translateAll() {
             const btn = document.getElementById('translate-btn');
             if(btn.hasAttribute('disabled')) return;
             btn.innerText = '⏳ 翻译中...';
             btn.setAttribute('disabled', 'true');
-
             let translatedCount = 0;
             const contents = document.querySelectorAll('.content');
             for (let i = 0; i < contents.length; i++) {
                 const content = contents[i];
                 if (content.getAttribute('data-translated') === 'true') continue;
-                
                 const cloneText = content.cloneNode(true);
                 cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle, .ai-toggle').forEach(el => el.remove());
                 let textToTranslate = cloneText.innerText;
-                
                 textToTranslate = textToTranslate.replace(/https?:\\\\/\\\\/\\\\S+/g, '').trim();
                 let checkText = textToTranslate.replace(/\\\\p{Extended_Pictographic}/gu, '').trim();
-                
                 if (!checkText) continue;
-
                 try {
                     const res = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                         body: 'q=' + encodeURIComponent(textToTranslate)
                     });
-                    
                     const data = await res.json();
                     let translatedText = '';
                     if (data && data[0]) {
                         data[0].forEach(item => { if (item[0]) translatedText += item[0]; });
                     }
-
                     if (translatedText) {
                         const transDiv = document.createElement('div');
                         transDiv.className = 'translated-content';
-                        transDiv.style.cssText = 'color: #0f1419; font-size: 1.05rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
+                        transDiv.style.cssText = 'color: #0f172a; font-size: 0.98rem; border-top: 1px solid #e2e8f0; background: #f8fafc; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
                         transDiv.innerHTML = translatedText;
-                        
                         content.parentNode.insertBefore(transDiv, content.nextSibling);
                         content.setAttribute('data-translated', 'true');
                         translatedCount++;
@@ -1858,23 +2221,19 @@ def generate_index():
                     console.error('翻译失败:', e);
                 }
             }
-            
             if (translatedCount === 0) {
                 btn.innerText = '✅ 已全部翻译';
                 return;
             }
-
             btn.innerText = '⏳ 固化至云端...';
-            
             syncToCloud(true);
         }
-    <\\/script>
+        <\\/script>
 </body>
 </html>`;
         }
-        // ------------------------------------
 
-        // === 处理前端自定义组合批量模板同步 ===
+        // --- 前端自定义组合归档提交 ---
         document.getElementById('submitBatchBtn').addEventListener('click', async () => {
             const inputText = document.getElementById('batchInputArea').value;
             let tweetIdsToProcess = [];
@@ -1887,12 +2246,10 @@ def generate_index():
             });
             
             tweetIdsToProcess = tweetIdsToProcess.slice(0, 10);
-
             if (tweetIdsToProcess.length === 0) {
                 alert('请至少粘贴一条有效的推文链接！');
                 return;
             }
-
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
             const ghRepo = localStorage.getItem('GH_REPO');
@@ -1902,7 +2259,6 @@ def generate_index():
                 document.getElementById('settingsModal').style.display = 'flex';
                 return;
             }
-
             document.getElementById('batchModal').style.display = 'none';
             const loadingBar = document.getElementById('loadingBar');
             loadingBar.style.width = '10%';
@@ -1914,28 +2270,22 @@ def generate_index():
                 const dayStr = AppState.day.toString();
                 const hhmmStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
                 const hhmmssFile = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0') + String(now.getSeconds()).padStart(2, '0');
-
                 let combinedCardsHtml = "";
                 let validCount = 0;
-
                 for (let i = 0; i < tweetIdsToProcess.length; i++) {
                     loadingBar.style.width = `${10 + (60 / tweetIdsToProcess.length) * i}%`;
                     const tweetId = tweetIdsToProcess[i];
                     const vRes = await fetch(`https://api.vxtwitter.com/Twitter/status/${tweetId}`);
                     const tweet = await vRes.json();
                     if (tweet.error) continue;
-                    
                     combinedCardsHtml += generateTweetCard(tweet, tweetId);
                     validCount++;
                 }
-
                 if (validCount === 0) throw new Error("所有推文数据抓取失败，请检查链接是否正确。");
-
                 const finalHtmlOutput = generatePageWrapper(combinedCardsHtml, `Custom Batch Tweets`, hhmmStr);
                 const filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_batch_custom_x.html`;
                 const fileRelPath = `${yearStr}/${monthStr}/${filename}`;
                 const indexTitle = `🐦 ${hhmmStr} 自定义组合推文 (${validCount}条)`;
-
                 loadingBar.style.width = '80%';
                 const putHtmlRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/${fileRelPath}`, {
                     method: 'PUT',
@@ -1944,23 +2294,19 @@ def generate_index():
                 });
                 
                 if (!putHtmlRes.ok) throw new Error("HTML 文件上传 GitHub 失败");
-
                 loadingBar.style.width = '90%';
                 const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `Bearer ${ghToken}` } });
                 const idxData = await idxRes.json();
                 const idxContent = decodeURIComponent(escape(atob(idxData.content.replace(/\\n/g, ''))));
-
                 const dataStart = idxContent.indexOf('/*DATA_START*/') + 14;
                 const dataEnd = idxContent.indexOf('/*DATA_END*/');
                 const archiveObj = JSON.parse(idxContent.substring(dataStart, dataEnd));
-
                 if (!archiveObj[yearStr]) archiveObj[yearStr] = {};
                 if (!archiveObj[yearStr][monthStr]) archiveObj[yearStr][monthStr] = {};
                 if (!archiveObj[yearStr][monthStr][dayStr]) archiveObj[yearStr][monthStr][dayStr] = [];
                 
                 const newItem = { time: hhmmStr, path: fileRelPath, title: indexTitle };
                 archiveObj[yearStr][monthStr][dayStr].unshift(newItem);
-
                 const newIdxContent = idxContent.substring(0, dataStart) + JSON.stringify(archiveObj) + idxContent.substring(dataEnd);
                 
                 const putIdxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
@@ -1970,41 +2316,43 @@ def generate_index():
                 });
                 
                 if (!putIdxRes.ok) throw new Error("更新 index.html 失败！");
-
                 if (!archiveData[yearStr]) archiveData[yearStr] = {};
                 if (!archiveData[yearStr][monthStr]) archiveData[yearStr][monthStr] = {};
                 if (!archiveData[yearStr][monthStr][dayStr]) archiveData[yearStr][monthStr][dayStr] = [];
                 archiveData[yearStr][monthStr][dayStr].unshift(newItem);
-
-                forceRender(); 
+                forceRender();
                 loadingBar.style.width = '100%';
                 alert(`🎉 成功！已为您组合并归档 ${validCount} 条推文。`);
                 setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
-
             } catch (err) {
                 alert('❌ 操作失败: ' + err.message);
                 loadingBar.style.width = '0%';
             }
         });
 
-        // X 推文前端单条抓取逻辑（已剔除账号批量功能）
+        // --- X 推文前端单条/账号瀑布流抓取逻辑 ---
         document.getElementById('xUrlInput').addEventListener('keypress', async function (e) {
             if (e.key === 'Enter') {
                 const url = this.value.trim();
-                
                 if (!url) {
                     document.getElementById('batchInputArea').value = '';
                     document.getElementById('batchModal').style.display = 'flex';
                     return;
                 }
-                
                 const statusMatch = url.match(/status\\/(\\d+)/);
-                if (!statusMatch) {
-                    return alert('❌ 无法识别链接格式，目前仅支持抓取包含 status 的单条推文链接！\\n(如需批量多条归档，请使用旁边的⚙️配置中心和组合归档功能)');
-                }
+                const userMatch = url.match(/(?:x|twitter)\\.com\\/([A-Za-z0-9_]+)\\/?$/);
                 
-                let tweetIdsToProcess = [statusMatch[1]];
-
+                let tweetIdsToProcess = [];
+                let isBatch = false;
+                let username = "";
+                if (statusMatch) {
+                    tweetIdsToProcess.push(statusMatch[1]);
+                } else if (userMatch && !['i', 'home', 'explore', 'notifications'].includes(userMatch[1].toLowerCase())) {
+                    isBatch = true;
+                    username = userMatch[1];
+                } else {
+                    return alert('❌ 无法识别的 X (Twitter) 链接或格式不正确');
+                }
                 const ghToken = localStorage.getItem('GH_TOKEN');
                 const ghOwner = localStorage.getItem('GH_OWNER');
                 const ghRepo = localStorage.getItem('GH_REPO');
@@ -2013,20 +2361,58 @@ def generate_index():
                     document.getElementById('settingsModal').style.display = 'flex';
                     return;
                 }
-
                 const loadingBar = document.getElementById('loadingBar');
                 loadingBar.style.width = '5%';
                 this.disabled = true;
-
                 try {
-                    loadingBar.style.width = '60%';
-                    const tweetId = tweetIdsToProcess[0];
-                    const vRes = await fetch(`https://api.vxtwitter.com/Twitter/status/${tweetId}`);
-                    const tweet = await vRes.json();
-                    if (tweet.error) throw new Error(tweet.error);
-                    
-                    const singleCardHtml = generateTweetCard(tweet, tweetId);
-                    
+                    if (isBatch) {
+                        loadingBar.style.width = '15%';
+                        try {
+                            const rssUrl = `https://rsshub.rssforever.com/twitter/user/${username}/exclude_rts_replies`;
+                            const rssRes = await fetch(rssUrl);
+                            if (rssRes.ok) {
+                                const rssText = await rssRes.text();
+                                const matches = [...rssText.matchAll(/status\\/(\\d+)/g)];
+                                matches.forEach(m => {
+                                    if (!tweetIdsToProcess.includes(m[1])) tweetIdsToProcess.push(m[1]);
+                                });
+                            }
+                        } catch(err) { console.warn("RSSHub fetch failed"); }
+                        loadingBar.style.width = '25%';
+                        if (tweetIdsToProcess.length === 0) {
+                            const synUrl = encodeURIComponent(`https://syndication.twitter.com/srv/timeline-profile/screen-name/${username}`);
+                            const proxies = [
+                                `https://api.allorigins.win/raw?url=${synUrl}`,
+                                `https://corsproxy.io/?url=${synUrl}`,
+                                `https://api.codetabs.com/v1/proxy?quest=${decodeURIComponent(synUrl)}`
+                            ];
+                            for (let proxy of proxies) {
+                                try {
+                                    const res = await fetch(proxy);
+                                    if (!res.ok) continue;
+                                    const text = await res.text();
+                                    const match = text.match(/<script id="__NEXT_DATA__" type="application\\/json">(.*?)<\\/script>/);
+                                    if (match) {
+                                        const parsed = JSON.parse(match[1]);
+                                        const timelineEntries = parsed.props?.pageProps?.timeline?.entries || [];
+                                        timelineEntries.forEach(entry => {
+                                            const tweet = entry.content?.tweet;
+                                            const tid = tweet?.id_str;
+                                            const screenName = tweet?.user?.screen_name;
+                                            if (tid && screenName && screenName.toLowerCase() === username.toLowerCase() && !tweetIdsToProcess.includes(tid)) {
+                                                tweetIdsToProcess.push(tid);
+                                            }
+                                        });
+                                        if (tweetIdsToProcess.length > 0) break;
+                                    }
+                                } catch(err) { console.warn(`Proxy failed:`, proxy); }
+                            }
+                        }
+                        tweetIdsToProcess = tweetIdsToProcess.slice(0, 10);
+                        if (tweetIdsToProcess.length === 0) {
+                            throw new Error("前端代理节点全数遭浏览器拦截，请关闭广告拦截器/防追踪护盾，或更换网络后重试。");
+                        }
+                    }
                     const now = new Date();
                     const yearStr = AppState.year.toString();
                     const monthStr = AppState.month.toString();
@@ -2034,57 +2420,77 @@ def generate_index():
                     const hhmmStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
                     const hhmmssFile = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0') + String(now.getSeconds()).padStart(2, '0');
                     
-                    const finalHtmlOutput = generatePageWrapper(singleCardHtml, `Tweet by ${tweet.user_name}`, hhmmStr);
-                    const filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_${tweetId}_x.html`;
-                    const fileRelPath = `${yearStr}/${monthStr}/${filename}`;
-                    const indexTitle = `🐦 ${hhmmStr} 灵感推文`;
-
+                    let filename = "";
+                    let fileRelPath = "";
+                    let finalHtmlOutput = "";
+                    let indexTitle = "";
+                    
+                    if (isBatch) {
+                        let combinedCardsHtml = "";
+                        let validCount = 0;
+                        for (let i = 0; i < tweetIdsToProcess.length; i++) {
+                            loadingBar.style.width = `${30 + (50 / tweetIdsToProcess.length) * i}%`;
+                            const tweetId = tweetIdsToProcess[i];
+                            const vRes = await fetch(`https://api.vxtwitter.com/Twitter/status/${tweetId}`);
+                            const tweet = await vRes.json();
+                            if (tweet.error) continue;
+                            combinedCardsHtml += generateTweetCard(tweet, tweetId);
+                            validCount++;
+                        }
+                        if (validCount === 0) throw new Error("所有推文数据抓取失败");
+                        finalHtmlOutput = generatePageWrapper(combinedCardsHtml, `Tweets by @${username}`, hhmmStr);
+                        filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_batch_${username}_x.html`;
+                        fileRelPath = `${yearStr}/${monthStr}/${filename}`;
+                        indexTitle = `🐦 ${hhmmStr} 推文集：@${username}`;
+                    } else {
+                        loadingBar.style.width = '60%';
+                        const tweetId = tweetIdsToProcess[0];
+                        const vRes = await fetch(`https://api.vxtwitter.com/Twitter/status/${tweetId}`);
+                        const tweet = await vRes.json();
+                        if (tweet.error) throw new Error(tweet.error);
+                        const singleCardHtml = generateTweetCard(tweet, tweetId);
+                        finalHtmlOutput = generatePageWrapper(singleCardHtml, `Tweet by ${tweet.user_name}`, hhmmStr);
+                        filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_${tweetId}_x.html`;
+                        fileRelPath = `${yearStr}/${monthStr}/${filename}`;
+                        indexTitle = `🐦 ${hhmmStr} 灵感推文`;
+                    }
                     loadingBar.style.width = '85%';
                     const putHtmlRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/${fileRelPath}`, {
                         method: 'PUT',
                         headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: `Add single tweet HTML`, content: btoa(unescape(encodeURIComponent(finalHtmlOutput))) })
+                        body: JSON.stringify({ message: `Add ${isBatch ? 'batch' : 'single'} tweet HTML`, content: btoa(unescape(encodeURIComponent(finalHtmlOutput))) })
                     });
-                    
                     if (!putHtmlRes.ok) throw new Error("HTML 文件上传 GitHub 失败");
-
                     loadingBar.style.width = '95%';
                     const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `Bearer ${ghToken}` } });
                     const idxData = await idxRes.json();
                     const idxContent = decodeURIComponent(escape(atob(idxData.content.replace(/\\n/g, ''))));
-
                     const dataStart = idxContent.indexOf('/*DATA_START*/') + 14;
                     const dataEnd = idxContent.indexOf('/*DATA_END*/');
                     const archiveObj = JSON.parse(idxContent.substring(dataStart, dataEnd));
-
                     if (!archiveObj[yearStr]) archiveObj[yearStr] = {};
                     if (!archiveObj[yearStr][monthStr]) archiveObj[yearStr][monthStr] = {};
                     if (!archiveObj[yearStr][monthStr][dayStr]) archiveObj[yearStr][monthStr][dayStr] = [];
                     
                     const newItem = { time: hhmmStr, path: fileRelPath, title: indexTitle };
                     archiveObj[yearStr][monthStr][dayStr].unshift(newItem);
-
                     const newIdxContent = idxContent.substring(0, dataStart) + JSON.stringify(archiveObj) + idxContent.substring(dataEnd);
                     
                     const putIdxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
                         method: 'PUT',
                         headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: `Update index.html with new single entry`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
+                        body: JSON.stringify({ message: `Update index.html with new ${isBatch ? 'batch' : 'single'} entry`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
                     });
-                    
                     if (!putIdxRes.ok) throw new Error("更新 index.html 失败！");
-
                     if (!archiveData[yearStr]) archiveData[yearStr] = {};
                     if (!archiveData[yearStr][monthStr]) archiveData[yearStr][monthStr] = {};
                     if (!archiveData[yearStr][monthStr][dayStr]) archiveData[yearStr][monthStr][dayStr] = [];
                     archiveData[yearStr][monthStr][dayStr].unshift(newItem);
-
-                    forceRender(); 
+                    forceRender();
                     loadingBar.style.width = '100%';
-                    alert(`🎉 成功！已为您归档最新的原创单条推文。`);
+                    alert(`🎉 成功！已为您归档最新的原创 ${isBatch ? '账号瀑布流' : '单条推文'}。`);
                     this.value = '';
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
-
                 } catch (err) {
                     alert('❌ 操作失败: ' + err.message);
                     loadingBar.style.width = '0%';
@@ -2096,13 +2502,11 @@ def generate_index():
     </script>
 </body>
 </html>"""
-
+    
     html_template = html_template.replace('REPLACEME_JSON_DATA', json_data)
-
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首页日历 WebApp 已生成更新！")
-
+    print("🚀 首页日历 WebApp 已生成更新！(现代化 UI 已全面装配)")
 
 def git_push_to_github(msg="Auto-archive"):
     """自动调用本地系统的 Git 指令将更新推送到 GitHub"""
@@ -2118,7 +2522,6 @@ def git_push_to_github(msg="Auto-archive"):
         if not status.stdout.strip():
             print("ℹ️ 没有需要推播的更新。")
             return
-
         subprocess.run(["git", "commit", "-m", msg], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(["git", "push"], check=True)
         print("✅ 成功同步到 GitHub！网页版约在 1~3 分钟后刷新可见。")
@@ -2127,35 +2530,43 @@ def git_push_to_github(msg="Auto-archive"):
     except FileNotFoundError:
         print("❌ 系统找不到 Git，请确认您已安装 Git 并将其加入环境变量中。")
 
-
 def main():
     os.makedirs(BASE_DIR, exist_ok=True)
-    
     generate_index()
-
     print("\n=======================================")
     print("🐦 X (Twitter) 语料日历 - 后台录入")
-    print("提示：粘贴 [单推文链接] 即可抓取单条推文 (批量请走前端 WebApp)")
+    print("提示1：粘贴 [单推文链接] 即可抓取单条推文")
+    print("提示2：粘贴 [账号首页链接] 将为您生成该账号最新 10 条原创推文的瀑布流网页！")
     print("=======================================")
-
     while True:
-        url = input("\n👉 粘贴 X 推文 (输入 q 退出): ").strip()
+        url = input("\n👉 粘贴 X 推文或账号链接 (输入 q 退出): ").strip()
         if url.lower() == 'q':
             break
         if not url:
             continue
-
         status_match = re.search(r'status/(\d+)', url)
+        user_match = re.search(r'(?:x|twitter)\.com/([A-Za-z0-9_]+)', url)
         now = datetime.now(tz_utc_8)
-
+        
         if status_match:
             tweet_id = status_match.group(1)
             if save_single_tweet_local(tweet_id, now):
                 generate_index()
                 git_push_to_github(f"Archive single tweet {tweet_id}")
+        elif user_match:
+            username = user_match.group(1)
+            if username.lower() in ['i', 'home', 'explore', 'notifications', 'messages']:
+                print("❌ 链接无效，请输入真实的账号首页")
+                continue
+            tweet_ids = get_user_tweet_ids(username, limit=10)
+            if not tweet_ids:
+                print("❌ 找不到该账号的原创推文或解析时间线失败。")
+                continue
+            if save_batch_tweets_local(username, tweet_ids, now):
+                generate_index()
+                git_push_to_github(f"Batch archive {len(tweet_ids)} tweets from {username}")
         else:
-            print("❌ 无法识别的推文链接，仅支持单条推文状态链接 (如: x.com/user/status/123)。")
-
+            print("❌ 无法识别的链接格式。")
 
 if __name__ == "__main__":
     main()
