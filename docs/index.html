@@ -14,7 +14,6 @@
         .fetch-input:focus { border-color: var(--primary); background: #fff; }
         .settings-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 5px; }
         
-        /* 现代化 Modal UI 开始 */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 100; justify-content: center; align-items: center; padding: 16px; backdrop-filter: blur(4px); }
         .modal-content { background: var(--card); border-radius: 20px; padding: 24px; width: 100%; max-width: 500px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); max-height: 85vh; overflow-y: auto; position: relative; box-sizing: border-box; }
         .modal-title { margin: 0 0 8px 0; font-size: 20px; font-weight: 700; color: #111; }
@@ -37,7 +36,7 @@
         select.form-control { cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: calc(100% - 12px) center; }
         
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; position: sticky; bottom: 0; background: var(--card); padding-top: 12px; border-top: 1px solid #eee; }
-        .btn { padding: 10px 20px; border-radius: 10px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn { padding: 10px 20px; border-radius: 10px; border: none; font-size: 14px; font-weight: 600; cursor: transition: 0.2s; }
         .btn-cancel { background: #f1f3f5; color: #333; }
         .btn-cancel:active { background: #e9ecef; }
         .btn-save { background: var(--primary); color: #fff; }
@@ -47,7 +46,6 @@
             .form-row { flex-direction: column; gap: 12px; }
             .modal-content { padding: 20px; }
         }
-        /* 现代化 Modal UI 结束 */
 
         .controls { background: var(--bg); padding: 15px 20px; display: flex; justify-content: center; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); }
         .control-btn { background: var(--primary); color: #fff; border: none; border-radius: 6px; padding: 8px 12px; font-size: 14px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
@@ -80,7 +78,7 @@
 <body>
     <div id="loadingBar"></div>
     <div class="manual-fetch-bar">
-        <input type="text" id="xUrlInput" class="fetch-input" placeholder="粘贴推文或账号链接，回车归档..." autocomplete="off">
+        <input type="text" id="xUrlInput" class="fetch-input" placeholder="粘贴单条推文链接，回车归档..." autocomplete="off">
         <button class="settings-btn" id="openSettingsBtn">⚙️</button>
     </div>
 
@@ -172,6 +170,7 @@
         </div>
     </div>
 
+    <!-- 自定义批量归档 Modal -->
     <div class="modal-overlay" id="batchModal">
         <div class="modal-content">
             <h3 class="modal-title">自定义组合归档</h3>
@@ -207,7 +206,7 @@
     </div>
 
     <script>
-        const archiveData = /*DATA_START*/{"2026":{"7":{"19":[{"time":"19:46","path":"2026/7/2026_7_19_194603_batch_custom_x.html","title":"🐦 19:46 自定义组合推文"},{"time":"18:27","path":"2026/7/2026_7_19_182731_batch_BBCWorld_x.html","title":"🐦 18:27 推文集：@BBCWorld"},{"time":"17:27","path":"2026/7/2026_7_19_172706_batch_custom_x.html","title":"🐦 17:27 自定义组合推文"}],"20":[{"time":"23:15","path":"2026/7/2026_7_20_231557_batch_custom_x.html","title":"🐦 23:15 自定义组合推文"},{"time":"23:07","path":"2026/7/2026_7_20_230719_batch_custom_x.html","title":"🐦 23:07 自定义组合推文"}],"22":[{"time":"01:18","path":"2026/7/2026_7_22_011835_batch_custom_x.html","title":"🐦 01:18 自定义组合推文"},{"time":"00:36","path":"2026/7/2026_7_22_003632_batch_custom_x.html","title":"🐦 00:36 自定义组合推文"}],"24":[{"time":"10:41","path":"2026/7/2026_7_24_104150_batch_custom_x.html","title":"🐦 10:41 自定义组合推文"}],"25":[{"time":"19:59","path":"2026/7/2026_7_25_195921_batch_custom_x.html","title":"🐦 19:59 自定义组合推文"},{"time":"17:42","path":"2026/7/2026_7_25_174207_batch_Reuters_x.html","title":"🐦 17:42 推文集：@Reuters"},{"time":"09:40","path":"2026/7/2026_7_25_094029_batch_custom_x.html","title":"🐦 09:40 自定义组合推文"}],"27":[{"time":"17:21","path":"2026/7/2026_7_27_172107_batch_custom_x.html","title":"🐦 17:21 自定义组合推文"},{"time":"02:45","path":"2026/7/2026_7_27_024520_study_x.html","title":"🐦 02:45 灵感推文"},{"time":"02:34","path":"2026/7/2026_7_27_023447_study_x.html","title":"🐦 02:34 灵感推文"},{"time":"00:41","path":"2026/7/2026_7_27_004154_batch_custom_x.html","title":"🐦 00:41 自定义组合推文"}],"28":[{"time":"21:49","path":"2026/7/2026_7_28_214909_batch_custom_x.html","title":"🐦 21:49 自定义组合推文"},{"time":"00:07","path":"2026/7/2026_7_28_000718_batch_custom_x.html","title":"🐦 00:07 自定义组合推文"}],"29":[{"time":"18:46","path":"2026/7/2026_7_29_184631_batch_custom_x.html","title":"🐦 18:46 自定义组合推文"},{"time":"08:18","path":"2026/7/2026_7_29_081853_batch_custom_x.html","title":"🐦 08:18 自定义组合推文"}],"30":[{"time":"19:44","path":"2026/7/2026_7_30_194437_batch_custom_x.html","title":"🐦 19:44 自定义组合推文"},{"time":"18:20","path":"2026/7/2026_7_30_182019_study_x.html","title":"🐦 18:20 灵感推文"},{"time":"17:03","path":"2026/7/2026_7_30_170340_study_x.html","title":"🐦 17:03 灵感推文"}],"31":[{"time":"16:35","path":"2026/7/2026_7_31_163526_study_x.html","title":"🐦 16:35 灵感推文"},{"time":"15:24","path":"2026/7/2026_7_31_152415_study_x.html","title":"🐦 15:24 灵感推文"},{"time":"14:42","path":"2026/7/2026_7_31_144221_study_x.html","title":"🐦 14:42 灵感推文"},{"time":"11:22","path":"2026/7/2026_7_31_112203_batch_custom_x.html","title":"🐦 11:22 自定义组合推文"},{"time":"02:21","path":"2026/7/2026_7_31_022154_study_x.html","title":"🐦 02:21 灵感推文"},{"time":"01:47","path":"2026/7/2026_7_31_014742_batch_custom_x.html","title":"🐦 01:47 自定义组合推文"}]},"8":{"1":[{"time":"23:08","path":"2026/8/2026_8_1_230818_batch_custom_x.html","title":"🐦 23:08 自定义组合推文"},{"time":"08:08","path":"2026/8/2026_8_1_080825_batch_custom_x.html","title":"🐦 08:08 自定义组合推文"},{"time":"08:04","path":"2026/8/2026_8_1_080408_study_x.html","title":"🐦 08:04 灵感推文"}],"2":[{"time":"11:37","path":"2026/8/2026_8_2_113712_study_x.html","title":"🐦 11:37 灵感推文"}],"4":[{"time":"19:50","path":"2026/8/2026_8_4_195008_batch_custom_x.html","title":"🐦 19:50 自定义组合推文"},{"time":"17:20","path":"2026/8/2026_8_4_172040_batch_custom_x.html","title":"🐦 17:20 自定义组合推文"}],"5":[{"time":"12:53","path":"2026/8/2026_8_5_125312_batch_custom_x.html","title":"🐦 12:53 自定义组合推文"},{"time":"00:26","path":"2026/8/2026_8_5_002619_batch_custom_x.html","title":"🐦 00:26 自定义组合推文"}],"17":[{"time":"02:48","path":"2026/8/2026_8_17_024818_batch_custom_x.html","title":"🐦 02:48 自定义组合推文"}],"18":[{"time":"02:58","path":"2026/8/2026_8_18_025807_study_x.html","title":"🐦 02:58 灵感推文"},{"time":"01:56","path":"2026/8/2026_8_18_015624_batch_custom_x.html","title":"🐦 01:56 自定义组合推文"}],"26":[{"time":"22:48","path":"2026/8/2026_8_26_224841_batch_custom_x.html","title":"🐦 22:48 自定义组合推文"},{"time":"22:40","path":"2026/8/2026_8_26_224033_study_x.html","title":"🐦 22:40 灵感推文"}],"28":[{"time":"14:17","path":"2026/8/2026_8_28_141732_study_x.html","title":"🐦 14:17 灵感推文"}]},"9":{"2":[{"time":"21:13","path":"2026/9/2026_9_2_211302_batch_custom_x.html","title":"🐦 21:13 自定义组合推文 (1条)"},{"time":"19:29","path":"2026/9/2026_9_2_192925_study_x.html","title":"🐦 19:29 灵感推文"}]}}}/*DATA_END*/;
+        const archiveData = /*DATA_START*/{"2026": {"9": {"2": [{"time": "21:13", "path": "2026/9/2026_9_2_211302_batch_custom_x.html", "title": "\ud83d\udc26 21:13 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "19:29", "path": "2026/9/2026_9_2_192925_study_x.html", "title": "\ud83d\udc26 19:29 \u7075\u611f\u63a8\u6587"}]}, "7": {"31": [{"time": "16:35", "path": "2026/7/2026_7_31_163526_study_x.html", "title": "\ud83d\udc26 16:35 \u7075\u611f\u63a8\u6587"}, {"time": "15:24", "path": "2026/7/2026_7_31_152415_study_x.html", "title": "\ud83d\udc26 15:24 \u7075\u611f\u63a8\u6587"}, {"time": "14:42", "path": "2026/7/2026_7_31_144221_study_x.html", "title": "\ud83d\udc26 14:42 \u7075\u611f\u63a8\u6587"}, {"time": "11:22", "path": "2026/7/2026_7_31_112203_batch_custom_x.html", "title": "\ud83d\udc26 11:22 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "02:21", "path": "2026/7/2026_7_31_022154_study_x.html", "title": "\ud83d\udc26 02:21 \u7075\u611f\u63a8\u6587"}, {"time": "01:47", "path": "2026/7/2026_7_31_014742_batch_custom_x.html", "title": "\ud83d\udc26 01:47 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "30": [{"time": "19:44", "path": "2026/7/2026_7_30_194437_batch_custom_x.html", "title": "\ud83d\udc26 19:44 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "18:20", "path": "2026/7/2026_7_30_182019_study_x.html", "title": "\ud83d\udc26 18:20 \u7075\u611f\u63a8\u6587"}, {"time": "17:03", "path": "2026/7/2026_7_30_170340_study_x.html", "title": "\ud83d\udc26 17:03 \u7075\u611f\u63a8\u6587"}], "29": [{"time": "18:46", "path": "2026/7/2026_7_29_184631_batch_custom_x.html", "title": "\ud83d\udc26 18:46 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "08:18", "path": "2026/7/2026_7_29_081853_batch_custom_x.html", "title": "\ud83d\udc26 08:18 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "28": [{"time": "21:49", "path": "2026/7/2026_7_28_214909_batch_custom_x.html", "title": "\ud83d\udc26 21:49 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "00:07", "path": "2026/7/2026_7_28_000718_batch_custom_x.html", "title": "\ud83d\udc26 00:07 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "27": [{"time": "17:21", "path": "2026/7/2026_7_27_172107_batch_custom_x.html", "title": "\ud83d\udc26 17:21 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "02:45", "path": "2026/7/2026_7_27_024520_study_x.html", "title": "\ud83d\udc26 02:45 \u7075\u611f\u63a8\u6587"}, {"time": "02:34", "path": "2026/7/2026_7_27_023447_study_x.html", "title": "\ud83d\udc26 02:34 \u7075\u611f\u63a8\u6587"}, {"time": "00:41", "path": "2026/7/2026_7_27_004154_batch_custom_x.html", "title": "\ud83d\udc26 00:41 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "25": [{"time": "19:59", "path": "2026/7/2026_7_25_195921_batch_custom_x.html", "title": "\ud83d\udc26 19:59 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "17:42", "path": "2026/7/2026_7_25_174207_batch_Reuters_x.html", "title": "\ud83d\udc26 17:42 \u63a8\u6587\u96c6\uff1a@Reuters"}, {"time": "09:40", "path": "2026/7/2026_7_25_094029_batch_custom_x.html", "title": "\ud83d\udc26 09:40 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "24": [{"time": "10:41", "path": "2026/7/2026_7_24_104150_batch_custom_x.html", "title": "\ud83d\udc26 10:41 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "22": [{"time": "01:18", "path": "2026/7/2026_7_22_011835_batch_custom_x.html", "title": "\ud83d\udc26 01:18 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "00:36", "path": "2026/7/2026_7_22_003632_batch_custom_x.html", "title": "\ud83d\udc26 00:36 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "20": [{"time": "23:15", "path": "2026/7/2026_7_20_231557_batch_custom_x.html", "title": "\ud83d\udc26 23:15 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "23:07", "path": "2026/7/2026_7_20_230719_batch_custom_x.html", "title": "\ud83d\udc26 23:07 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "19": [{"time": "19:46", "path": "2026/7/2026_7_19_194603_batch_custom_x.html", "title": "\ud83d\udc26 19:46 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "18:27", "path": "2026/7/2026_7_19_182731_batch_BBCWorld_x.html", "title": "\ud83d\udc26 18:27 \u63a8\u6587\u96c6\uff1a@BBCWorld"}, {"time": "17:27", "path": "2026/7/2026_7_19_172706_batch_custom_x.html", "title": "\ud83d\udc26 17:27 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}]}, "8": {"5": [{"time": "12:53", "path": "2026/8/2026_8_5_125312_batch_custom_x.html", "title": "\ud83d\udc26 12:53 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "00:26", "path": "2026/8/2026_8_5_002619_batch_custom_x.html", "title": "\ud83d\udc26 00:26 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "4": [{"time": "19:50", "path": "2026/8/2026_8_4_195008_batch_custom_x.html", "title": "\ud83d\udc26 19:50 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "17:20", "path": "2026/8/2026_8_4_172040_batch_custom_x.html", "title": "\ud83d\udc26 17:20 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "2": [{"time": "11:37", "path": "2026/8/2026_8_2_113712_study_x.html", "title": "\ud83d\udc26 11:37 \u7075\u611f\u63a8\u6587"}], "28": [{"time": "14:17", "path": "2026/8/2026_8_28_141732_study_x.html", "title": "\ud83d\udc26 14:17 \u7075\u611f\u63a8\u6587"}], "26": [{"time": "22:48", "path": "2026/8/2026_8_26_224841_batch_custom_x.html", "title": "\ud83d\udc26 22:48 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "22:40", "path": "2026/8/2026_8_26_224033_study_x.html", "title": "\ud83d\udc26 22:40 \u7075\u611f\u63a8\u6587"}], "1": [{"time": "23:08", "path": "2026/8/2026_8_1_230818_batch_custom_x.html", "title": "\ud83d\udc26 23:08 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "08:08", "path": "2026/8/2026_8_1_080825_batch_custom_x.html", "title": "\ud83d\udc26 08:08 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}, {"time": "08:04", "path": "2026/8/2026_8_1_080408_study_x.html", "title": "\ud83d\udc26 08:04 \u7075\u611f\u63a8\u6587"}], "18": [{"time": "02:58", "path": "2026/8/2026_8_18_025807_study_x.html", "title": "\ud83d\udc26 02:58 \u7075\u611f\u63a8\u6587"}, {"time": "01:56", "path": "2026/8/2026_8_18_015624_batch_custom_x.html", "title": "\ud83d\udc26 01:56 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}], "17": [{"time": "02:48", "path": "2026/8/2026_8_17_024818_batch_custom_x.html", "title": "\ud83d\udc26 02:48 \u81ea\u5b9a\u4e49\u7ec4\u5408\u63a8\u6587"}]}}}/*DATA_END*/;
         const today = new Date();
         
         const AppState = {
@@ -382,7 +381,7 @@
             } catch(e) { console.error(e); alert('删除同步失败: ' + e.message); document.getElementById('loadingBar').style.width = '0%'; }
         }
 
-        // --- HTML 模板组装 (JS 动态生成版，更新了 AI 校验逻辑) ---
+        // --- HTML 模板组装 (JS 动态生成版) ---
         function generateTweetCard(tweet, tweetId) {
             const author = tweet.user_name || 'Unknown';
             const handle = tweet.user_screen_name || 'unknown';
@@ -869,7 +868,7 @@
                         if (pref === 'glm' && glmKey && glmModel) isReady = true;
 
                         if (!isReady) {
-                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\n(请确保填入了 URL 和 模型名称)');
+                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\n(请确保至少填入了 URL 和 模型名称)');
                             return;
                         }
 
@@ -973,7 +972,13 @@
                 edit.setAttribute('data-old-val', rawText);
             });
         }
-        window.addEventListener('load', initAnnotations);
+        
+        // 【核心修复】：放弃 load 等待，DOM 骨架渲染完成立即挂载按钮，彻底根治 10 条模式下的图片阻塞问题
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initAnnotations);
+        } else {
+            initAnnotations();
+        }
 
         async function translateAll() {
             const btn = document.getElementById('translate-btn');
@@ -1039,7 +1044,7 @@
         }
         // ------------------------------------
 
-        // === 核心：处理前端自定义批量模板同步 ===
+        // === 处理前端自定义组合批量模板同步 ===
         document.getElementById('submitBatchBtn').addEventListener('click', async () => {
             const inputText = document.getElementById('batchInputArea').value;
             let tweetIdsToProcess = [];
@@ -1152,7 +1157,7 @@
             }
         });
 
-        // X 推文前端抓取逻辑
+        // X 推文前端单条抓取逻辑（已剔除账号批量功能）
         document.getElementById('xUrlInput').addEventListener('keypress', async function (e) {
             if (e.key === 'Enter') {
                 const url = this.value.trim();
@@ -1164,20 +1169,11 @@
                 }
                 
                 const statusMatch = url.match(/status\/(\d+)/);
-                const userMatch = url.match(/(?:x|twitter)\.com\/([A-Za-z0-9_]+)\/?$/);
-                
-                let tweetIdsToProcess = [];
-                let isBatch = false;
-                let username = "";
-
-                if (statusMatch) {
-                    tweetIdsToProcess.push(statusMatch[1]);
-                } else if (userMatch && !['i', 'home', 'explore', 'notifications'].includes(userMatch[1].toLowerCase())) {
-                    isBatch = true;
-                    username = userMatch[1];
-                } else {
-                    return alert('❌ 无法识别的 X (Twitter) 链接或格式不正确');
+                if (!statusMatch) {
+                    return alert('❌ 无法识别链接格式，目前仅支持抓取包含 status 的单条推文链接！\n(如需批量多条归档，请使用旁边的⚙️配置中心和组合归档功能)');
                 }
+                
+                let tweetIdsToProcess = [statusMatch[1]];
 
                 const ghToken = localStorage.getItem('GH_TOKEN');
                 const ghOwner = localStorage.getItem('GH_OWNER');
@@ -1193,60 +1189,14 @@
                 this.disabled = true;
 
                 try {
-                    if (isBatch) {
-                        loadingBar.style.width = '15%';
-                        try {
-                            const rssUrl = `https://rsshub.rssforever.com/twitter/user/${username}/exclude_rts_replies`;
-                            const rssRes = await fetch(rssUrl);
-                            if (rssRes.ok) {
-                                const rssText = await rssRes.text();
-                                const matches = [...rssText.matchAll(/status\/(\d+)/g)];
-                                matches.forEach(m => {
-                                    if (!tweetIdsToProcess.includes(m[1])) tweetIdsToProcess.push(m[1]);
-                                });
-                            }
-                        } catch(err) { console.warn("RSSHub fetch failed"); }
-
-                        loadingBar.style.width = '25%';
-
-                        if (tweetIdsToProcess.length === 0) {
-                            const synUrl = encodeURIComponent(`https://syndication.twitter.com/srv/timeline-profile/screen-name/${username}`);
-                            const proxies = [
-                                `https://api.allorigins.win/raw?url=${synUrl}`,
-                                `https://corsproxy.io/?url=${synUrl}`,
-                                `https://api.codetabs.com/v1/proxy?quest=${decodeURIComponent(synUrl)}`
-                            ];
-
-                            for (let proxy of proxies) {
-                                try {
-                                    const res = await fetch(proxy);
-                                    if (!res.ok) continue;
-                                    const text = await res.text();
-                                    const match = text.match(/<script id="__NEXT_DATA__" type="application\/json">(.*?)<\/script>/);
-                                    if (match) {
-                                        const parsed = JSON.parse(match[1]);
-                                        const timelineEntries = parsed.props?.pageProps?.timeline?.entries || [];
-                                        timelineEntries.forEach(entry => {
-                                            const tweet = entry.content?.tweet;
-                                            const tid = tweet?.id_str;
-                                            const screenName = tweet?.user?.screen_name;
-                                            
-                                            if (tid && screenName && screenName.toLowerCase() === username.toLowerCase() && !tweetIdsToProcess.includes(tid)) {
-                                                tweetIdsToProcess.push(tid);
-                                            }
-                                        });
-                                        if (tweetIdsToProcess.length > 0) break;
-                                    }
-                                } catch(err) { console.warn(`Proxy failed:`, proxy); }
-                            }
-                        }
-
-                        tweetIdsToProcess = tweetIdsToProcess.slice(0, 10);
-                        if (tweetIdsToProcess.length === 0) {
-                            throw new Error("前端代理节点全数遭浏览器拦截，请关闭广告拦截器/防追踪护盾，或更换网络后重试。");
-                        }
-                    }
-
+                    loadingBar.style.width = '60%';
+                    const tweetId = tweetIdsToProcess[0];
+                    const vRes = await fetch(`https://api.vxtwitter.com/Twitter/status/${tweetId}`);
+                    const tweet = await vRes.json();
+                    if (tweet.error) throw new Error(tweet.error);
+                    
+                    const singleCardHtml = generateTweetCard(tweet, tweetId);
+                    
                     const now = new Date();
                     const yearStr = AppState.year.toString();
                     const monthStr = AppState.month.toString();
@@ -1254,52 +1204,16 @@
                     const hhmmStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
                     const hhmmssFile = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0') + String(now.getSeconds()).padStart(2, '0');
                     
-                    let filename = "";
-                    let fileRelPath = "";
-                    let finalHtmlOutput = "";
-                    let indexTitle = "";
-                    
-                    if (isBatch) {
-                        let combinedCardsHtml = "";
-                        let validCount = 0;
-                        
-                        for (let i = 0; i < tweetIdsToProcess.length; i++) {
-                            loadingBar.style.width = `${30 + (50 / tweetIdsToProcess.length) * i}%`;
-                            const tweetId = tweetIdsToProcess[i];
-                            const vRes = await fetch(`https://api.vxtwitter.com/Twitter/status/${tweetId}`);
-                            const tweet = await vRes.json();
-                            if (tweet.error) continue;
-                            
-                            combinedCardsHtml += generateTweetCard(tweet, tweetId);
-                            validCount++;
-                        }
-                        
-                        if (validCount === 0) throw new Error("所有推文数据抓取失败");
-                        
-                        finalHtmlOutput = generatePageWrapper(combinedCardsHtml, `Tweets by @${username}`, hhmmStr);
-                        filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_batch_${username}_x.html`;
-                        fileRelPath = `${yearStr}/${monthStr}/${filename}`;
-                        indexTitle = `🐦 ${hhmmStr} 推文集：@${username}`;
-                        
-                    } else {
-                        loadingBar.style.width = '60%';
-                        const tweetId = tweetIdsToProcess[0];
-                        const vRes = await fetch(`https://api.vxtwitter.com/Twitter/status/${tweetId}`);
-                        const tweet = await vRes.json();
-                        if (tweet.error) throw new Error(tweet.error);
-                        
-                        const singleCardHtml = generateTweetCard(tweet, tweetId);
-                        finalHtmlOutput = generatePageWrapper(singleCardHtml, `Tweet by ${tweet.user_name}`, hhmmStr);
-                        filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_${tweetId}_x.html`;
-                        fileRelPath = `${yearStr}/${monthStr}/${filename}`;
-                        indexTitle = `🐦 ${hhmmStr} 灵感推文`;
-                    }
+                    const finalHtmlOutput = generatePageWrapper(singleCardHtml, `Tweet by ${tweet.user_name}`, hhmmStr);
+                    const filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmssFile}_${tweetId}_x.html`;
+                    const fileRelPath = `${yearStr}/${monthStr}/${filename}`;
+                    const indexTitle = `🐦 ${hhmmStr} 灵感推文`;
 
                     loadingBar.style.width = '85%';
                     const putHtmlRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/${fileRelPath}`, {
                         method: 'PUT',
                         headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: `Add ${isBatch ? 'batch' : 'single'} tweet HTML`, content: btoa(unescape(encodeURIComponent(finalHtmlOutput))) })
+                        body: JSON.stringify({ message: `Add single tweet HTML`, content: btoa(unescape(encodeURIComponent(finalHtmlOutput))) })
                     });
                     
                     if (!putHtmlRes.ok) throw new Error("HTML 文件上传 GitHub 失败");
@@ -1325,7 +1239,7 @@
                     const putIdxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
                         method: 'PUT',
                         headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: `Update index.html with new ${isBatch ? 'batch' : 'single'} entry`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
+                        body: JSON.stringify({ message: `Update index.html with new single entry`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
                     });
                     
                     if (!putIdxRes.ok) throw new Error("更新 index.html 失败！");
@@ -1337,7 +1251,7 @@
 
                     forceRender(); 
                     loadingBar.style.width = '100%';
-                    alert(`🎉 成功！已为您归档最新的原创 ${isBatch ? '账号瀑布流' : '单条推文'}。`);
+                    alert(`🎉 成功！已为您归档最新的原创单条推文。`);
                     this.value = '';
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
 

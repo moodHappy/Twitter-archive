@@ -816,7 +816,6 @@ As a Barça fan I can’t even</span><span class="anno-toggle has-anno"></span><
                     try { view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; } catch(e){}
                 }
 
-                // --- AI 按钮逻辑 ---
                 if (aiToggle) {
                     aiToggle.addEventListener('click', async (e) => {
                         e.preventDefault();
@@ -949,7 +948,13 @@ As a Barça fan I can’t even</span><span class="anno-toggle has-anno"></span><
                 edit.setAttribute('data-old-val', rawText);
             });
         }
-        window.addEventListener('load', initAnnotations);
+        
+        // 【核心修复】：放弃 load 等待，DOM 渲染完成立即激活按钮，防止被加载慢的图片彻底卡死阻塞！
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initAnnotations);
+        } else {
+            initAnnotations();
+        }
 
         async function translateAll() {
             const btn = document.getElementById('translate-btn');

@@ -142,7 +142,8 @@
                     max_tokens: 2000,
                     messages: [{ role: 'user', content: AI_PROMPT + '"' + text + '"' }]
                 };
-            } else if (url.includes('generativelanguage.googleapis.com')) {
+            }
+            else if (url.includes('generativelanguage.googleapis.com')) {
                 let targetUrl = url;
                 if (apiKey && !targetUrl.includes('key=')) {
                     targetUrl += (targetUrl.includes('?') ? '&' : '?') + 'key=' + apiKey;
@@ -160,7 +161,8 @@
                     return json.candidates[0].content.parts[0].text.trim();
                 }
                 throw new Error('Gemini 返回数据异常');
-            } else {
+            }
+            else {
                 if(apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
                 bodyData = {
                     model: modelName,
@@ -422,7 +424,7 @@
                     toggle.classList.add('has-anno');
                     try { view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; } catch(e){}
                 }
-                
+
                 if (aiToggle) {
                     aiToggle.addEventListener('click', async (e) => {
                         e.preventDefault();
@@ -451,8 +453,7 @@
                         if (pref === 'glm' && glmKey && glmModel) isReady = true;
 
                         if (!isReady) {
-                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！
-(请确保填入了 URL 和 模型名称)');
+                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\n(请确保至少填入了 URL 和 模型名称)');
                             return;
                         }
 
@@ -556,7 +557,13 @@
                 edit.setAttribute('data-old-val', rawText);
             });
         }
-        window.addEventListener('load', initAnnotations);
+        
+        // 【核心修复】：放弃 load 等待，DOM 渲染完成立即激活按钮，防止被加载慢的图片彻底卡死阻塞！
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initAnnotations);
+        } else {
+            initAnnotations();
+        }
 
         async function translateAll() {
             const btn = document.getElementById('translate-btn');
