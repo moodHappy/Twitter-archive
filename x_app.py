@@ -1,4 +1,3 @@
-
 import os
 import requests
 import json
@@ -113,56 +112,55 @@ def generate_page_wrapper(content_html, page_title, now_str):
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style id="core-style">
         :root {{ --bg: #f2f2f7; --card: #ffffff; --text: #0f1419; --muted: #536471; --border: #eff3f4; --x-blue: #1d9bf0; }}
-        body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }}
-        .nav-back {{ display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; background: rgba(255,255,255,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0,0,0,0.06); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.03); }}
-        .nav-back a {{ text-decoration: none; color: white; background: #000; padding: 8px 18px; border-radius: 20px; font-weight: 600; font-size: 0.88rem; flex-shrink: 0; transition: opacity 0.2s; }}
-        .nav-back a:active {{ opacity: 0.7; }}
-        .translate-btn {{ background: #f2f2f7; color: #0f1419; border: 1px solid #d1d1d6; padding: 8px 16px; border-radius: 20px; font-weight: 600; font-size: 0.88rem; cursor: pointer; transition: all 0.2s; flex-shrink: 0; outline: none; }}
-        .translate-btn:active {{ background: #e5e5ea; transform: scale(0.96); }}
-        .translate-btn[disabled] {{ opacity: 0.7; cursor: not-allowed; }}
+        body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }}
+        .nav-back {{ display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: var(--card); border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }}
+        .nav-back a {{ text-decoration: none; color: white; background: #000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }}
+        .translate-btn {{ background: #f2f2f7; color: #0f1419; border: 1px solid #ccc; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: 0.2s; flex-shrink: 0; outline: none; }}
+        .translate-btn:active {{ background: #e5e5ea; transform: scale(0.95); }}
+        .translate-btn[disabled] {{ opacity: 0.8; cursor: not-allowed; }}
         
-        .sync-status {{ padding: 6px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; display: none; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }}
+        .sync-status {{ padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; display: none; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }}
         
-        .anno-toggle, .ai-toggle {{ display: inline-block; padding: 4px 6px; margin-left: 4px; cursor: pointer; opacity: 0.4; font-size: 0.95rem; vertical-align: middle; transition: all 0.2s; user-select: none; -webkit-tap-highlight-color: transparent; }}
-        .anno-toggle:hover, .ai-toggle:hover {{ opacity: 1; transform: scale(1.15); }}
+        .anno-toggle, .ai-toggle {{ display: inline-block; padding: 4px 8px; margin-left: 4px; cursor: pointer; opacity: 0.3; font-size: 0.9rem; vertical-align: middle; transition: all 0.2s; user-select: none; -webkit-tap-highlight-color: transparent; }}
+        .anno-toggle:hover, .ai-toggle:hover {{ opacity: 0.9; transform: scale(1.1); }}
         .anno-toggle.has-anno {{ opacity: 1; }}
         .anno-toggle::after {{ content: "🔴"; }}
-        .ai-toggle {{ opacity: 0.7; }}
+        .ai-toggle {{ opacity: 0.6; padding: 4px 4px; }}
         .ai-toggle::after {{ content: "🤖"; }}
         .ai-toggle.loading::after {{ content: "⏳"; display: inline-block; animation: spin 1s linear infinite; }}
         @keyframes spin {{ 100% {{ transform: rotate(360deg); }} }}
         
-        .anno-box {{ display: none; margin-top: 12px; background: #f9f8ff; border-left: 4px solid #8e7cc3; padding: 14px 18px; border-radius: 0 10px 10px 0; box-shadow: 0 2px 10px rgba(142,124,195,0.06); text-align: left; }}
-        .anno-view {{ font-size: 1rem; line-height: 1.65; color: #374151; min-height: 24px; }}
-        .anno-edit {{ width: 100%; min-height: 130px; padding: 12px; font-family: monospace; font-size: 0.95rem; border: 1.5px dashed #8e7cc3; border-radius: 8px; box-sizing: border-box; resize: vertical; display: none; background: #fff; color: #333; outline: none; }}
-        .anno-edit:focus {{ border: 1.5px solid #8e7cc3; box-shadow: 0 0 0 3px rgba(142,124,195,0.15); }}
+        .anno-box {{ display: none; margin-top: 10px; background: #f8f6ff; border-left: 4px solid #8e7cc3; padding: 12px 16px; border-radius: 0 6px 6px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.02); text-align: left; }}
+        .anno-view {{ font-size: 1.05rem; line-height: 1.6; color: #4a4a4a; min-height: 24px; }}
+        .anno-edit {{ width: 100%; min-height: 120px; padding: 10px; font-family: monospace; font-size: 1rem; border: 1px dashed #8e7cc3; border-radius: 6px; box-sizing: border-box; resize: vertical; display: none; background: #fff; color: #333; outline: none; }}
+        .anno-edit:focus {{ border: 1px solid #8e7cc3; box-shadow: 0 0 0 3px rgba(142,124,195,0.1); }}
         
         .markdown-body p {{ margin-top: 0; margin-bottom: 8px; }}
         .markdown-body p:last-child {{ margin-bottom: 0; }}
         .markdown-body p:empty {{ display: none; }}
-        .markdown-body h1, .markdown-body h2, .markdown-body h3 {{ color: #735aa8; font-size: 1.1rem; margin: 12px 0 8px 0; border-bottom: 1px dashed #ded8ed; padding-bottom: 4px; }}
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 {{ color: #8e7cc3; font-size: 1.15rem; margin: 10px 0 8px 0; border-bottom: 1px dashed #e0d8f0; padding-bottom: 4px; }}
         .markdown-body ul, .markdown-body ol {{ margin: 0 0 8px 0; padding-left: 20px; }}
-        .markdown-body blockquote {{ margin: 0 0 10px 0; padding: 10px 14px; background: rgba(142,124,195,0.08); border-left: 4px solid #8e7cc3; color: #4b5563; border-radius: 0 6px 6px 0; }}
+        .markdown-body blockquote {{ margin: 0 0 10px 0; padding: 10px 15px; background: rgba(142,124,195,0.1); border-left: 4px solid #8e7cc3; color: #555; }}
 
-        .container {{ max-width: 600px; margin: 0 auto; padding: 16px 14px 50px 14px; }}
-        .tweet-card {{ background: var(--card); border-radius: 18px; padding: 18px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); margin-bottom: 20px; border: 1px solid rgba(0,0,0,0.03); }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px 15px 50px 15px; }}
+        .tweet-card {{ background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 25px; }}
         .header {{ display: flex; align-items: center; margin-bottom: 12px; }}
         .names {{ display: flex; flex-direction: column; }}
-        .name {{ font-weight: 700; font-size: 1.05rem; color: var(--text); }}
-        .handle {{ color: var(--muted); font-size: 0.9rem; margin-top: 2px; }}
-        .content {{ font-size: 1.05rem; color: var(--text); line-height: 1.55; white-space: pre-wrap; word-wrap: break-word; }}
-        .media-container {{ margin-top: 12px; border-radius: 14px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 12px; background: #000; }}
+        .name {{ font-weight: 700; font-size: 1.1rem; color: var(--text); }}
+        .handle {{ color: var(--muted); font-size: 0.95rem; margin-top: 2px; }}
+        .content {{ font-size: 1.1rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }}
+        .media-container {{ margin-top: 10px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; background: #000; }}
         .media-item {{ width: 100%; height: auto; display: block; max-height: 500px; object-fit: contain; }}
-        .stats {{ margin-top: 14px; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--border); padding-top: 12px; display: flex; gap: 20px; font-weight: 500; margin-bottom: 14px; }}
-        .btn-link {{ display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 11px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 0.95rem; transition: all 0.2s; }}
+        .stats {{ margin-top: 15px; color: var(--muted); font-size: 0.95rem; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px; font-weight: 500; margin-bottom: 15px; }}
+        .btn-link {{ display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }}
         .btn-link:active {{ transform: scale(0.98); background: #1a8cd8; }}
-        .time-stamp {{ text-align: center; color: var(--muted); font-size: 0.82rem; margin-bottom: 14px; font-weight: 500; }}
+        .time-stamp {{ text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }}
     </style>
 </head>
 <body>
     <div class="nav-back">
         <a href="../../index.html">🔙 返回</a>
-        <div style="display:flex; align-items:center; gap:8px;">
+        <div style="display:flex; align-items:center; gap:10px;">
             <span class="sync-status" id="sync-status">📡 同步中...</span>
             <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 一键翻译</button>
         </div>
@@ -182,7 +180,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 method: 'POST',
                 headers: {{ 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' }},
                 body: JSON.stringify({{
-                    model: modelName || 'llama-3.3-70b-versatile',
+                    model: modelName,
                     messages: [
                         {{ role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' }},
                         {{ role: 'user', content: AI_PROMPT + '"' + text + '"' }}
@@ -201,7 +199,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 method: 'POST',
                 headers: {{ 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' }},
                 body: JSON.stringify({{
-                    model: modelName || 'glm-4-flash',
+                    model: modelName,
                     messages: [
                         {{ role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' }},
                         {{ role: 'user', content: AI_PROMPT + '"' + text + '"' }}
@@ -220,18 +218,18 @@ def generate_page_wrapper(content_html, page_title, now_str):
             let bodyData = {{}};
 
             if (url.includes('anthropic.com')) {{
-                headers['x-api-key'] = apiKey;
+                if(apiKey) headers['x-api-key'] = apiKey;
                 headers['anthropic-version'] = '2023-06-01';
                 headers['anthropic-dangerous-direct-browser-access'] = 'true';
                 bodyData = {{
-                    model: modelName || 'claude-3-5-sonnet-20241022',
+                    model: modelName,
                     max_tokens: 2000,
                     messages: [{{ role: 'user', content: AI_PROMPT + '"' + text + '"' }}]
                 }};
             }}
             else if (url.includes('generativelanguage.googleapis.com')) {{
                 let targetUrl = url;
-                if (!targetUrl.includes('key=')) {{
+                if (apiKey && !targetUrl.includes('key=')) {{
                     targetUrl += (targetUrl.includes('?') ? '&' : '?') + 'key=' + apiKey;
                 }}
                 const res = await fetch(targetUrl, {{
@@ -249,7 +247,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 throw new Error('Gemini 返回数据异常');
             }}
             else {{
-                headers['Authorization'] = 'Bearer ' + apiKey;
+                if(apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
                 bodyData = {{
                     model: modelName,
                     messages: [
@@ -266,41 +264,40 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 body: JSON.stringify(bodyData)
             }});
 
-            if (!res.ok) throw new Error('自定义接口报错: ' + res.status + ' (' + res.statusText + ')');
+            if (!res.ok) throw new Error('自定义 AI 接口报错: ' + res.status);
             const json = await res.json();
 
             if (json.content && Array.isArray(json.content) && json.content[0]?.text) {{
                 return json.content[0].text.trim();
             }}
-            if (json.choices && json.choices.length > 0 && json.choices[0].message?.content) {{
+            if (json.choices && json.choices.length > 0) {{
                 return json.choices[0].message.content.trim();
             }}
 
-            throw new Error('自定义 AI 返回结构不符合标准 JSON 格式');
+            throw new Error('自定义 AI 返回结构不符合预期');
         }}
 
         async function executeAIPipeline(text) {{
             const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
-            const groqKey = (localStorage.getItem('GROQ_API_KEY') || '').trim();
-            const glmKey = (localStorage.getItem('GLM_API_KEY') || '').trim();
-            const groqModel = (localStorage.getItem('GROQ_MODEL') || 'llama-3.3-70b-versatile').trim();
-            const glmModel = (localStorage.getItem('GLM_MODEL') || 'glm-4-flash').trim();
-            const customUrl = (localStorage.getItem('CUSTOM_API_URL') || '').trim();
-            const customKey = (localStorage.getItem('CUSTOM_API_KEY') || '').trim();
-            const customModel = (localStorage.getItem('CUSTOM_MODEL') || '').trim();
+            const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
+            const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+            const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
+            const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
+            
+            const groqModel = localStorage.getItem('GROQ_MODEL') || '';
+            const glmModel = localStorage.getItem('GLM_MODEL') || '';
+            const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
 
             const runGroq = async () => {{
-                if (!groqKey) throw new Error("Groq API Key 未配置");
+                if (!groqKey || !groqModel) throw new Error("Groq 配置不完整");
                 return await fetchGroq(text, groqKey, groqModel);
             }};
             const runGLM = async () => {{
-                if (!glmKey) throw new Error("智谱 GLM API Key 未配置");
+                if (!glmKey || !glmModel) throw new Error("智谱GLM 配置不完整");
                 return await fetchGLM(text, glmKey, glmModel);
             }};
             const runCustom = async () => {{
-                if (!customUrl) throw new Error("自定义 AI 的 API Endpoint 不能为空");
-                if (!customKey) throw new Error("自定义 AI 的 API Key 不能为空");
-                if (!customModel) throw new Error("自定义 AI 的 模型名称 不能为空");
+                if (!customUrl || !customModel) throw new Error("自定义 AI 配置不完整(需指定URL和模型)");
                 return await fetchCustomAI(text, customUrl, customKey, customModel);
             }};
 
@@ -309,33 +306,25 @@ def generate_page_wrapper(content_html, page_title, now_str):
                     return await runCustom();
                 }} catch (err) {{
                     console.warn("自定义 AI 失败，尝试降级:", err);
-                    if (groqKey) {{
-                        document.getElementById('sync-status').innerText = '⚠️ 自定义异常，降级为 Groq...';
-                        try {{ return await runGroq(); }} catch(e2) {{ if (glmKey) return await runGLM(); throw e2; }}
-                    }} else if (glmKey) {{
-                        document.getElementById('sync-status').innerText = '⚠️ 自定义异常，降级为智谱...';
+                    if (groqKey && groqModel) {{
+                        document.getElementById('sync-status').innerText = '⚠️ 自定义异常，正降级为Groq...';
+                        try {{ return await runGroq(); }} catch(e2) {{ if (glmKey && glmModel) return await runGLM(); throw e2; }}
+                    }} else if (glmKey && glmModel) {{
+                        document.getElementById('sync-status').innerText = '⚠️ 自定义异常，正降级为智谱...';
                         return await runGLM();
                     }}
                     throw err;
                 }}
             }} else if (pref === 'groq') {{
                 try {{ return await runGroq(); }} catch (err) {{
-                    console.warn("Groq 失败，尝试降级:", err);
-                    if (customUrl && customKey && customModel) {{
-                        return await runCustom();
-                    }} else if (glmKey) {{
-                        return await runGLM();
-                    }}
+                    console.warn("首选 Groq 失败，尝试降级到智谱:", err);
+                    if (glmKey && glmModel) {{ document.getElementById('sync-status').innerText = '⚠️ Groq异常，正降级为智谱...'; return await runGLM(); }}
                     throw err;
                 }}
             }} else {{
                 try {{ return await runGLM(); }} catch (err) {{
-                    console.warn("智谱 失败，尝试降级:", err);
-                    if (customUrl && customKey && customModel) {{
-                        return await runCustom();
-                    }} else if (groqKey) {{
-                        return await runGroq();
-                    }}
+                    console.warn("首选 智谱 失败，尝试降级到Groq:", err);
+                    if (groqKey && groqModel) {{ document.getElementById('sync-status').innerText = '⚠️ 智谱异常，正降级为Groq...'; return await runGroq(); }}
                     throw err;
                 }}
             }}
@@ -520,6 +509,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
                     try {{ view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; }} catch(e){{}}
                 }}
 
+                // --- AI 按钮逻辑 ---
                 if (aiToggle) {{
                     aiToggle.addEventListener('click', async (e) => {{
                         e.preventDefault();
@@ -533,28 +523,29 @@ def generate_page_wrapper(content_html, page_title, now_str):
                         }}
 
                         const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
-                        const groqKey = (localStorage.getItem('GROQ_API_KEY') || '').trim();
-                        const glmKey = (localStorage.getItem('GLM_API_KEY') || '').trim();
-                        const customUrl = (localStorage.getItem('CUSTOM_API_URL') || '').trim();
-                        const customKey = (localStorage.getItem('CUSTOM_API_KEY') || '').trim();
-                        const customModel = (localStorage.getItem('CUSTOM_MODEL') || '').trim();
+                        const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
+                        const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+                        const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
+                        const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
+                        
+                        const groqModel = localStorage.getItem('GROQ_MODEL') || '';
+                        const glmModel = localStorage.getItem('GLM_MODEL') || '';
+                        const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
+                        
+                        let isReady = false;
+                        if (pref === 'custom' && customUrl && customModel) isReady = true;
+                        if (pref === 'groq' && groqKey && groqModel) isReady = true;
+                        if (pref === 'glm' && glmKey && glmModel) isReady = true;
 
-                        if (pref === 'custom' && (!customUrl || !customKey || !customModel)) {{
-                            alert('⚠️ 你选择了【自定义 AI】，但配置不完整！\\n请返回日历主页点击右上角 ⚙️ 填写 Endpoint、API Key 和模型名称。');
-                            return;
-                        }}
-                        if (pref === 'groq' && !groqKey) {{
-                            alert('⚠️ 你选择了【Groq】，但未填写 Groq API Key！\\n请返回日历主页点击 ⚙️ 配置。');
-                            return;
-                        }}
-                        if (pref === 'glm' && !glmKey) {{
-                            alert('⚠️ 你选择了【智谱 GLM】，但未填写智谱 API Key！\\n请返回日历主页点击 ⚙️ 配置。');
+                        if (!isReady) {{
+                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\\n(需填入 URL 及 模型名称)');
                             return;
                         }}
 
                         const pClone = wrap.querySelector('.content').cloneNode(true);
                         pClone.querySelectorAll('.anno-toggle, .ai-toggle, .translated-content').forEach(el => el.remove());
                         let pText = pClone.textContent.trim();
+                        
                         pText = pText.replace(/https?:\\/\\/\\S+/g, '').trim();
 
                         if (!pText) return;
@@ -668,6 +659,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
                 const cloneText = content.cloneNode(true);
                 cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle, .ai-toggle').forEach(el => el.remove());
                 let textToTranslate = cloneText.innerText;
+                
                 textToTranslate = textToTranslate.replace(/https?:\\/\\/\\S+/g, '').trim();
                 let checkText = textToTranslate.replace(/\\p{{Extended_Pictographic}}/gu, '').trim();
                 
@@ -689,7 +681,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
                     if (translatedText) {{
                         const transDiv = document.createElement('div');
                         transDiv.className = 'translated-content';
-                        transDiv.style.cssText = 'color: #0f1419; font-size: 1rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
+                        transDiv.style.cssText = 'color: #0f1419; font-size: 1.05rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
                         transDiv.innerHTML = translatedText;
                         
                         content.parentNode.insertBefore(transDiv, content.nextSibling);
@@ -707,6 +699,7 @@ def generate_page_wrapper(content_html, page_title, now_str):
             }}
 
             btn.innerText = '⏳ 固化至云端...';
+            
             syncToCloud(true);
         }}
     </script>
@@ -778,8 +771,9 @@ def save_batch_tweets_local(username, tweet_ids, now_obj):
     print(f"✅ 瀑布流集锦已生成 (包含 {success_count} 条): {html_path}")
     return True
 
+
 def generate_index():
-    """日历枢纽生成器 + 前端 JS (全面采用现代化 UI 审美设计)"""
+    """日历枢纽生成器 + 前端 JS (现代化设置界面升级版)"""
     archive_data = {}
     if os.path.exists(BASE_DIR):
         years = [d for d in os.listdir(BASE_DIR) if d.isdigit()]
@@ -808,7 +802,7 @@ def generate_index():
 
                             if f_year not in archive_data: archive_data[f_year] = {}
                             if f_month not in archive_data[f_year]: archive_data[f_year][f_month] = {}
-                            if f_day not in archive_data[f_year]: archive_data[f_year][f_month][f_day] = []
+                            if f_day not in archive_data[f_year][f_month]: archive_data[f_year][f_month][f_day] = []
 
                             archive_data[f_year][f_month][f_day].append({
                                 "time": time_str,
@@ -824,478 +818,186 @@ def generate_index():
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>X 语料日历枢纽</title>
     <style>
-        :root {
-            --bg: #f4f5f7;
-            --card: #ffffff;
-            --card-sub: #f8fafc;
-            --text-primary: #1e293b;
-            --text-secondary: #64748b;
-            --text-muted: #94a3b8;
-            --primary: #0284c7;
-            --primary-hover: #0369a1;
-            --primary-light: #e0f2fe;
-            --border: #e2e8f0;
-            --border-focus: #38bdf8;
-            --radius-md: 12px;
-            --radius-lg: 18px;
-            --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
-            --shadow-md: 0 6px 18px rgba(0,0,0,0.06);
-            --shadow-lg: 0 15px 35px rgba(0,0,0,0.12);
-        }
+        :root { --bg: #f5f5f7; --text: #333; --muted: #888; --primary: #1d9bf0; --border: #e0e0e0; --card: #fff; }
+        body, html { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; -webkit-font-smoothing: antialiased; background: var(--bg); margin: 0; padding: 0; color: var(--text); }
+        .container { max-width: 600px; margin: 0 auto; padding-bottom: 20px; }
         
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        .manual-fetch-bar { background: var(--card); padding: 12px 15px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 20; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .fetch-input { flex: 1; padding: 10px 15px; border: 1px solid #ccc; border-radius: 20px; font-size: 14px; outline: none; background: #f9f9f9; transition: border 0.2s; }
+        .fetch-input:focus { border-color: var(--primary); background: #fff; }
+        .settings-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 5px; }
         
-        body, html {
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            -webkit-font-smoothing: antialiased;
-            background: var(--bg);
-            color: var(--text-primary);
-        }
+        /* 现代化 Modal UI 开始 */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 100; justify-content: center; align-items: center; padding: 16px; backdrop-filter: blur(4px); }
+        .modal-content { background: var(--card); border-radius: 20px; padding: 24px; width: 100%; max-width: 500px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); max-height: 85vh; overflow-y: auto; position: relative; box-sizing: border-box; }
+        .modal-title { margin: 0 0 8px 0; font-size: 20px; font-weight: 700; color: #111; }
+        .modal-subtitle { font-size: 13px; color: #666; margin-top: 0; margin-bottom: 20px; line-height: 1.4; }
         
-        .container { max-width: 600px; margin: 0 auto; padding-bottom: 30px; }
-        
-        .manual-fetch-bar {
-            background: rgba(255, 255, 255, 0.92);
-            backdrop-filter: blur(16px);
-            padding: 12px 16px;
-            display: flex;
-            gap: 12px;
-            align-items: center;
-            border-bottom: 1px solid var(--border);
-            position: sticky;
-            top: 0;
-            z-index: 50;
-            box-shadow: var(--shadow-sm);
-        }
-        .fetch-input {
-            flex: 1;
-            padding: 10px 16px;
-            border: 1.5px solid var(--border);
-            border-radius: 24px;
-            font-size: 14px;
-            outline: none;
-            background: #f8fafc;
-            transition: all 0.25s ease;
-            color: var(--text-primary);
-        }
-        .fetch-input:focus {
-            border-color: var(--primary);
-            background: #ffffff;
-            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
-        }
-        .settings-btn {
-            background: #f1f5f9;
-            border: 1px solid var(--border);
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            flex-shrink: 0;
-        }
-        .settings-btn:active { transform: scale(0.92); background: #e2e8f0; }
-        
-        /* 模态弹窗与现代化审美表单 */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(15, 23, 42, 0.45);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-            padding: 16px;
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
-        }
-        .modal-content {
-            background: #ffffff;
-            border-radius: var(--radius-lg);
-            width: 100%;
-            max-width: 460px;
-            max-height: 88vh;
-            display: flex;
-            flex-direction: column;
-            box-shadow: var(--shadow-lg);
-            overflow: hidden;
-            animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        @keyframes modalFadeIn {
-            from { opacity: 0; transform: scale(0.96) translateY(10px); }
-            to { opacity: 1; transform: scale(1) translateY(0); }
-        }
-        .modal-header {
-            padding: 18px 20px 14px 20px;
-            border-bottom: 1px solid #f1f5f9;
-        }
-        .modal-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--text-primary);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .modal-subtitle {
-            font-size: 12px;
-            color: var(--text-secondary);
-            margin-top: 4px;
-        }
-        .modal-body {
-            padding: 16px 20px;
-            overflow-y: auto;
-            flex: 1;
-            -webkit-overflow-scrolling: touch;
-        }
-        
-        /* 表单美化与等宽网格排版 */
-        .config-card {
-            background: var(--card-sub);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            padding: 14px;
-            margin-bottom: 16px;
-        }
-        .config-card-title {
-            font-size: 13px;
-            font-weight: 700;
-            color: var(--primary);
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 12px;
-        }
-        .form-group {
-            margin-bottom: 12px;
-        }
-        .form-group:last-child {
-            margin-bottom: 0;
-        }
-        .form-group label {
-            display: block;
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--text-secondary);
-            margin-bottom: 5px;
-        }
-        .form-input, .form-select {
-            width: 100%;
-            height: 40px;
-            padding: 8px 12px;
-            border: 1.5px solid var(--border);
-            border-radius: 8px;
-            font-size: 13.5px;
-            outline: none;
-            background: #ffffff;
-            color: var(--text-primary);
-            transition: all 0.2s ease;
-            box-sizing: border-box;
-        }
-        .form-input:focus, .form-select:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12);
-        }
-        .form-select {
-            cursor: pointer;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 10px center;
-            background-size: 16px;
-            padding-right: 32px;
-            appearance: none;
-            -webkit-appearance: none;
-        }
-        .batch-textarea {
-            width: 100%;
-            height: 180px;
-            padding: 12px;
-            border: 1.5px solid var(--border);
-            border-radius: 10px;
-            font-size: 13.5px;
-            outline: none;
-            resize: vertical;
-            line-height: 1.5;
-            background: #ffffff;
-            transition: all 0.2s ease;
-            box-sizing: border-box;
-            font-family: inherit;
-        }
-        .batch-textarea:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12);
-        }
-        
-        .modal-footer {
-            padding: 14px 20px;
-            background: #ffffff;
-            border-top: 1px solid var(--border);
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-        }
-        .btn {
-            height: 38px;
-            padding: 0 18px;
-            border-radius: 8px;
-            border: none;
-            font-size: 13.5px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .btn-secondary {
-            background: #f1f5f9;
-            color: var(--text-primary);
-        }
-        .btn-secondary:active { background: #e2e8f0; }
-        .btn-primary {
-            background: var(--primary);
-            color: #ffffff;
-        }
-        .btn-primary:active { background: var(--primary-hover); transform: scale(0.98); }
+        .section-card { background: #f9fafb; border: 1px solid #eee; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+        .section-title { font-size: 14px; font-weight: 700; color: var(--primary); margin: 0 0 12px 0; display: flex; align-items: center; gap: 6px; }
 
-        /* 日历控制条与视图 */
-        .controls {
-            padding: 14px 16px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 8px;
-        }
-        .control-btn {
-            background: #ffffff;
-            color: var(--text-primary);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 7px 12px;
-            font-size: 13.5px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.2s;
-            box-shadow: var(--shadow-sm);
-        }
-        .control-btn:active { background: #f1f5f9; transform: scale(0.96); }
-        .select-box {
-            padding: 7px 10px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            font-size: 14px;
-            background: #ffffff;
-            outline: none;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: var(--shadow-sm);
-        }
+        .form-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+        .form-col { flex: 1; min-width: 150px; display: flex; flex-direction: column; gap: 6px; }
         
-        .calendar-wrapper {
-            background: var(--card);
-            padding: 16px;
-            margin: 0 14px 18px 14px;
-            border-radius: var(--radius-md);
-            box-shadow: var(--shadow-sm);
-            border: 1px solid rgba(0,0,0,0.03);
+        .form-group { margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px; }
+        .form-group label, .form-col label { font-size: 13px; color: #444; font-weight: 600; margin: 0; }
+        .form-control { 
+            width: 100%; box-sizing: border-box; padding: 10px 12px; 
+            border: 1px solid #d1d5db; border-radius: 10px; font-size: 14px; 
+            outline: none; transition: all 0.2s; background: #fff; font-family: inherit; 
         }
-        .weekdays {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            text-align: center;
-            font-weight: 600;
-            font-size: 13px;
-            color: var(--text-muted);
-            margin-bottom: 8px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid #f1f5f9;
+        .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(29, 155, 240, 0.1); }
+        select.form-control { cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: calc(100% - 12px) center; }
+        
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; position: sticky; bottom: 0; background: var(--card); padding-top: 12px; border-top: 1px solid #eee; }
+        .btn { padding: 10px 20px; border-radius: 10px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn-cancel { background: #f1f3f5; color: #333; }
+        .btn-cancel:active { background: #e9ecef; }
+        .btn-save { background: var(--primary); color: #fff; }
+        .btn-save:active { transform: scale(0.96); opacity: 0.9; }
+
+        @media (max-width: 480px) {
+            .form-row { flex-direction: column; gap: 12px; }
+            .modal-content { padding: 20px; }
         }
-        .days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-        .day-cell {
-            aspect-ratio: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            font-size: 15px;
-            font-weight: 600;
-            border-radius: 10px;
-            cursor: pointer;
-            position: relative;
-            transition: all 0.18s ease;
-        }
+        /* 现代化 Modal UI 结束 */
+
+        .controls { background: var(--bg); padding: 15px 20px; display: flex; justify-content: center; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); }
+        .control-btn { background: var(--primary); color: #fff; border: none; border-radius: 6px; padding: 8px 12px; font-size: 14px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+        .control-btn:active { opacity: 0.8; transform: scale(0.95); }
+        .select-box { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 15px; background: #fff; outline: none; font-weight: bold; cursor: pointer; }
+        .calendar-wrapper { background: var(--card); padding: 15px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+        .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-weight: bold; font-size: 13px; color: var(--muted); margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #f0f0f0; }
+        .days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+        .day-cell { aspect-ratio: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 16px; font-weight: 600; border-radius: 10px; cursor: pointer; position: relative; transition: all 0.2s; }
         .day-cell.empty { visibility: hidden; }
-        .day-cell.has-news { color: var(--text-primary); }
-        .day-cell.no-news { color: var(--text-muted); }
-        .day-cell.selected {
-            background: var(--primary-light);
-            border: 1.5px solid var(--primary);
-            color: var(--primary);
-            font-weight: 700;
-        }
-        .day-cell.today { background: #f1f5f9; color: var(--text-primary); }
-        .dot { width: 5px; height: 5px; background-color: var(--primary); border-radius: 50%; position: absolute; bottom: 5px; display: none; }
+        .day-cell.has-news { color: var(--text); }
+        .day-cell.no-news { color: #ccc; }
+        .day-cell.selected { background: #e8f5fd; border: 1px solid var(--primary); color: var(--primary); font-weight: bold; }
+        .day-cell.today { background: #f0f0f0; color: #333; }
+        .dot { width: 5px; height: 5px; background-color: var(--primary); border-radius: 50%; position: absolute; bottom: 6px; display: none; }
         .day-cell.has-news .dot { display: block; }
+        .news-section { padding: 0 15px; }
         
-        /* 列表区域 */
-        .news-section { padding: 0 14px; }
-        .news-item-wrapper { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-        .news-item {
-            flex: 1;
-            background: var(--card);
-            border-radius: 12px;
-            padding: 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            text-decoration: none;
-            color: var(--text-primary);
-            box-shadow: var(--shadow-sm);
-            border-left: 4px solid var(--primary);
-            transition: all 0.2s;
-            overflow: hidden;
-            border-top: 1px solid rgba(0,0,0,0.02);
-            border-right: 1px solid rgba(0,0,0,0.02);
-            border-bottom: 1px solid rgba(0,0,0,0.02);
-        }
-        .news-item:active { transform: scale(0.99); background: #fafafa; }
-        .news-title { font-size: 14.5px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; font-weight: 600; flex: 1; }
-        .delete-btn { background: #ef4444; color: white; border: none; border-radius: 10px; padding: 0 14px; height: 48px; font-size: 15px; cursor: pointer; display: none; transition: all 0.2s; flex-shrink: 0; }
-        .empty-state { text-align: center; padding: 36px 20px; color: var(--text-muted); font-size: 14px; background: var(--card); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); }
+        .news-item-wrapper { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+        .news-item { flex: 1; background: var(--card); border-radius: 14px; padding: 18px 16px; margin-bottom: 0; display: flex; justify-content: space-between; align-items: center; text-decoration: none; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.03); border-left: 4px solid var(--primary); transition: all 0.2s; overflow: hidden; }
+        .news-item:active { transform: scale(0.98); background: #fafafa; }
+        .news-title { font-size: 15px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; font-weight: bold; flex: 1; }
+        .delete-btn { background: #ff3b30; color: white; border: none; border-radius: 10px; padding: 0 15px; height: 54px; font-size: 16px; cursor: pointer; display: none; transition: all 0.2s; flex-shrink: 0; }
         
-        #loadingBar { height: 3px; background: var(--primary); width: 0%; transition: width 0.3s; position: fixed; top: 0; left: 0; z-index: 1001; }
+        .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; background: var(--card); border-radius: 14px; }
+        
+        #loadingBar { height: 3px; background: var(--primary); width: 0%; transition: width 0.3s; position: absolute; top: 0; left: 0; z-index: 30; }
     </style>
 </head>
 <body>
     <div id="loadingBar"></div>
-    
     <div class="manual-fetch-bar">
-        <input type="text" id="xUrlInput" class="fetch-input" placeholder="粘贴推文/账号链接，回车录入..." autocomplete="off">
-        <button class="settings-btn" id="openSettingsBtn" title="配置中心">⚙️</button>
+        <input type="text" id="xUrlInput" class="fetch-input" placeholder="粘贴推文或账号链接，回车归档..." autocomplete="off">
+        <button class="settings-btn" id="openSettingsBtn">⚙️</button>
     </div>
 
-    <!-- 核心配置 Modal -->
     <div class="modal-overlay" id="settingsModal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">⚙️ 核心配置中心</h3>
-                <div class="modal-subtitle">密钥安全加密保存在本地浏览器，不会上传至任何第三方服务器。</div>
-            </div>
+            <h3 class="modal-title">核心配置中心</h3>
+            <p class="modal-subtitle">所有密钥均安全储存在浏览器本地，无云端泄露风险。</p>
             
-            <div class="modal-body">
-                <!-- GitHub 配置卡片 -->
-                <div class="config-card">
-                    <div class="config-card-title">📦 GitHub 仓库同步设置</div>
-                    <div class="form-group">
-                        <label>Personal Access Token (PAT)</label>
-                        <input type="password" id="cfgGhToken" class="form-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+            <div class="section-card">
+                <h4 class="section-title">📦 GitHub 同步配置</h4>
+                <div class="form-group">
+                    <label>Personal Access Token</label>
+                    <input type="password" id="cfgGhToken" class="form-control" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+                </div>
+                <div class="form-row">
+                    <div class="form-col">
+                        <label>GitHub 用户名</label>
+                        <input type="text" id="cfgGhOwner" class="form-control" placeholder="例如: moodHappy">
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>GitHub 用户名</label>
-                            <input type="text" id="cfgGhOwner" class="form-input" placeholder="例如: moodHappy">
-                        </div>
-                        <div class="form-group">
-                            <label>仓库名</label>
-                            <input type="text" id="cfgGhRepo" class="form-input" placeholder="例如: Twitter-archive">
-                        </div>
+                    <div class="form-col">
+                        <label>GitHub 仓库名</label>
+                        <input type="text" id="cfgGhRepo" class="form-control" placeholder="例如: x-vibe">
                     </div>
                 </div>
+            </div>
 
-                <!-- 首选引擎选择 -->
+            <div class="section-card">
+                <h4 class="section-title">🧠 AI 解析引擎</h4>
                 <div class="form-group">
-                    <label>首选 AI 引擎 (解析失败时自动降级)</label>
-                    <select id="cfgPrefAI" class="form-select">
-                        <option value="custom">🌐 自定义 AI (兼容 OpenAI / Gemini / Claude)</option>
-                        <option value="groq">Groq</option>
-                        <option value="glm">智谱 (GLM)</option>
+                    <label>首选 AI 引擎 (失败将自动降级)</label>
+                    <select id="cfgPrefAI" class="form-control">
+                        <option value="custom">🌐 自定义 AI (兼容OpenAI/Gemini/Claude)</option>
+                        <option value="groq">⚡ Groq</option>
+                        <option value="glm">🌌 智谱 (GLM)</option>
                     </select>
                 </div>
-
-                <!-- 自定义 AI 配置面板 -->
-                <div class="config-card" style="border-color: #bae6fd; background: #f0f9ff;">
-                    <div class="config-card-title" style="color: #0284c7;">🔌 自定义 AI 接口参数</div>
+                
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed #ddd;">
+                    <label style="font-size: 13px; color: #1d9bf0; font-weight: 700; margin-bottom: 8px; display: block;">🔌 自定义接口配置</label>
                     <div class="form-group">
-                        <label>API Endpoint (包含完整路径)</label>
-                        <input type="text" id="cfgCustomUrl" class="form-input" placeholder="https://api.chatanywhere.tech/v1/chat/completions">
+                        <label style="font-weight:normal; color:#666;">API Endpoint (含路径)</label>
+                        <input type="text" id="cfgCustomUrl" class="form-control" placeholder="如: https://api.chatanywhere.tech/v1/chat/completions">
                     </div>
                     <div class="form-row">
-                        <div class="form-group">
-                            <label>API Key</label>
-                            <input type="password" id="cfgCustomKey" class="form-input" placeholder="sk-xxxxxx">
+                        <div class="form-col">
+                            <label style="font-weight:normal; color:#666;">API Key (不需要Key则留空)</label>
+                            <input type="password" id="cfgCustomKey" class="form-control" placeholder="sk-xxxxxx">
                         </div>
-                        <div class="form-group">
-                            <label>模型名称</label>
-                            <input type="text" id="cfgCustomModel" class="form-input" placeholder="如: gpt-4o-mini">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Groq 配置 -->
-                <div class="config-card">
-                    <div class="config-card-title" style="color:#475569;">⚡ Groq 云端接口</div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Groq API Key</label>
-                            <input type="password" id="cfgGroqKey" class="form-input" placeholder="gsk_xxxxxx">
-                        </div>
-                        <div class="form-group">
-                            <label>模型名称</label>
-                            <input type="text" id="cfgGroqModel" class="form-input" placeholder="llama-3.3-70b-versatile">
+                        <div class="form-col">
+                            <label style="font-weight:normal; color:#666;">模型名称</label>
+                            <input type="text" id="cfgCustomModel" class="form-control" placeholder="如: gpt-4o-mini">
                         </div>
                     </div>
                 </div>
 
-                <!-- 智谱 GLM 配置 -->
-                <div class="config-card">
-                    <div class="config-card-title" style="color:#475569;">🇨🇳 智谱 GLM 接口</div>
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed #ddd;">
+                    <label style="font-size: 13px; color: #1d9bf0; font-weight: 700; margin-bottom: 8px; display: block;">⚡ Groq 配置</label>
                     <div class="form-row">
-                        <div class="form-group">
-                            <label>智谱 API Key</label>
-                            <input type="password" id="cfgGlmKey" class="form-input" placeholder="智谱 API Key">
+                        <div class="form-col">
+                            <label style="font-weight:normal; color:#666;">API Key</label>
+                            <input type="password" id="cfgGroqKey" class="form-control" placeholder="gsk_xxxxxxxxxxxxxxxxxxxx">
                         </div>
-                        <div class="form-group">
-                            <label>模型名称</label>
-                            <input type="text" id="cfgGlmModel" class="form-input" placeholder="glm-4-flash">
+                        <div class="form-col">
+                            <label style="font-weight:normal; color:#666;">模型名称</label>
+                            <input type="text" id="cfgGroqModel" class="form-control" placeholder="如: llama-3.3-70b-versatile">
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed #ddd;">
+                    <label style="font-size: 13px; color: #1d9bf0; font-weight: 700; margin-bottom: 8px; display: block;">🌌 智谱 GLM 配置</label>
+                    <div class="form-row">
+                        <div class="form-col">
+                            <label style="font-weight:normal; color:#666;">API Key</label>
+                            <input type="password" id="cfgGlmKey" class="form-control" placeholder="填写智谱 API Key">
+                        </div>
+                        <div class="form-col">
+                            <label style="font-weight:normal; color:#666;">模型名称</label>
+                            <input type="text" id="cfgGlmModel" class="form-control" placeholder="如: glm-4-flash">
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="modal-footer">
-                <button class="btn btn-secondary" id="closeSettingsBtn">取消</button>
-                <button class="btn btn-primary" id="saveSettingsBtn">保存配置</button>
+            <div class="modal-actions">
+                <button class="btn btn-cancel" id="closeSettingsBtn">取消</button>
+                <button class="btn btn-save" id="saveSettingsBtn">保存配置</button>
             </div>
         </div>
     </div>
 
-    <!-- 自定义批量归档 Modal -->
     <div class="modal-overlay" id="batchModal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">📑 批量组合推文归档</h3>
-                <div class="modal-subtitle">粘贴多条推文链接或含链接的文本，自动提取前 10 条合并归档。</div>
+            <h3 class="modal-title">自定义组合归档</h3>
+            <p class="modal-subtitle">贴入多个推文链接（支持直接粘贴整段文字），将自动提取最多 10 条同步为单个文件。</p>
+            <div class="form-group">
+                <textarea id="batchInputArea" class="form-control" style="height: 160px; resize: vertical;" placeholder="在此粘贴多个推文链接...\\n\\n例如：\\nhttps://x.com/i/status/2078970469194092723\\nhttps://x.com/i/status/2079072889853321448"></textarea>
             </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <textarea id="batchInputArea" class="batch-textarea" placeholder="在此粘贴推文链接 (一行一条或包含链接的段落)...&#10;&#10;例如:&#10;https://x.com/user/status/123456789&#10;https://x.com/user/status/987654321"></textarea>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" id="closeBatchBtn">取消</button>
-                <button class="btn btn-primary" id="submitBatchBtn">合并并同步</button>
+            <div class="modal-actions">
+                <button class="btn btn-cancel" id="closeBatchBtn">取消</button>
+                <button class="btn btn-save" id="submitBatchBtn">抓取并合并同步</button>
             </div>
         </div>
     </div>
@@ -1434,7 +1136,7 @@ def generate_index():
         document.getElementById('openSettingsBtn').addEventListener('click', () => {
             document.getElementById('cfgGhToken').value = localStorage.getItem('GH_TOKEN') || '';
             document.getElementById('cfgGhOwner').value = localStorage.getItem('GH_OWNER') || 'moodHappy';
-            document.getElementById('cfgGhRepo').value = localStorage.getItem('GH_REPO') || 'Twitter-archive';
+            document.getElementById('cfgGhRepo').value = localStorage.getItem('GH_REPO') || '';
             
             document.getElementById('cfgPrefAI').value = localStorage.getItem('PREFERRED_AI') || 'custom';
             document.getElementById('cfgCustomUrl').value = localStorage.getItem('CUSTOM_API_URL') || '';
@@ -1443,8 +1145,8 @@ def generate_index():
             
             document.getElementById('cfgGroqKey').value = localStorage.getItem('GROQ_API_KEY') || '';
             document.getElementById('cfgGlmKey').value = localStorage.getItem('GLM_API_KEY') || '';
-            document.getElementById('cfgGroqModel').value = localStorage.getItem('GROQ_MODEL') || 'llama-3.3-70b-versatile';
-            document.getElementById('cfgGlmModel').value = localStorage.getItem('GLM_MODEL') || 'glm-4-flash';
+            document.getElementById('cfgGroqModel').value = localStorage.getItem('GROQ_MODEL') || '';
+            document.getElementById('cfgGlmModel').value = localStorage.getItem('GLM_MODEL') || '';
             document.getElementById('settingsModal').style.display = 'flex';
         });
         document.getElementById('closeSettingsBtn').addEventListener('click', () => { document.getElementById('settingsModal').style.display = 'none'; });
@@ -1463,7 +1165,7 @@ def generate_index():
             localStorage.setItem('GROQ_MODEL', document.getElementById('cfgGroqModel').value.trim());
             localStorage.setItem('GLM_MODEL', document.getElementById('cfgGlmModel').value.trim());
             document.getElementById('settingsModal').style.display = 'none';
-            alert('✅ 配置已成功保存至本地！');
+            alert('✅ 配置已本地保存！');
         });
         
         document.getElementById('closeBatchBtn').addEventListener('click', () => { document.getElementById('batchModal').style.display = 'none'; });
@@ -1496,7 +1198,7 @@ def generate_index():
             } catch(e) { console.error(e); alert('删除同步失败: ' + e.message); document.getElementById('loadingBar').style.width = '0%'; }
         }
 
-        // --- HTML 模板组装 (前端 JS 动态版) ---
+        // --- HTML 模板组装 (JS 动态生成版，更新了 AI 校验逻辑) ---
         function generateTweetCard(tweet, tweetId) {
             const author = tweet.user_name || 'Unknown';
             const handle = tweet.user_screen_name || 'unknown';
@@ -1561,56 +1263,54 @@ def generate_index():
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"><\\/script>
     <style id="core-style">
         :root { --bg: #f2f2f7; --card: #ffffff; --text: #0f1419; --muted: #536471; --border: #eff3f4; --x-blue: #1d9bf0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
-        .nav-back { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; background: rgba(255,255,255,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0,0,0,0.06); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.03); }
-        .nav-back a { text-decoration: none; color: white; background: #000; padding: 8px 18px; border-radius: 20px; font-weight: 600; font-size: 0.88rem; flex-shrink: 0; transition: opacity 0.2s; }
-        .nav-back a:active { opacity: 0.7; }
-        .translate-btn { background: #f2f2f7; color: #0f1419; border: 1px solid #d1d1d6; padding: 8px 16px; border-radius: 20px; font-weight: 600; font-size: 0.88rem; cursor: pointer; transition: all 0.2s; flex-shrink: 0; outline: none; }
-        .translate-btn:active { background: #e5e5ea; transform: scale(0.96); }
-        .translate-btn[disabled] { opacity: 0.7; cursor: not-allowed; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+        .nav-back { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: var(--card); border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .nav-back a { text-decoration: none; color: white; background: #000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
+        .translate-btn { background: #f2f2f7; color: #0f1419; border: 1px solid #ccc; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: 0.2s; flex-shrink: 0; outline: none; }
+        .translate-btn:active { background: #e5e5ea; transform: scale(0.95); }
+        .translate-btn[disabled] { opacity: 0.8; cursor: not-allowed; }
         
-        .sync-status { padding: 6px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; display: none; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+        .sync-status { padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; display: none; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
         
-        .anno-toggle, .ai-toggle { display: inline-block; padding: 4px 6px; margin-left: 4px; cursor: pointer; opacity: 0.4; font-size: 0.95rem; vertical-align: middle; transition: all 0.2s; user-select: none; -webkit-tap-highlight-color: transparent; }
-        .anno-toggle:hover, .ai-toggle:hover { opacity: 1; transform: scale(1.15); }
+        .anno-toggle, .ai-toggle { display: inline-block; padding: 4px 8px; margin-left: 4px; cursor: pointer; opacity: 0.3; font-size: 0.9rem; vertical-align: middle; transition: all 0.2s; user-select: none; -webkit-tap-highlight-color: transparent; }
+        .anno-toggle:hover, .ai-toggle:hover { opacity: 0.9; transform: scale(1.1); }
         .anno-toggle.has-anno { opacity: 1; }
         .anno-toggle::after { content: "🔴"; }
-        .ai-toggle { opacity: 0.7; }
+        .ai-toggle { opacity: 0.6; padding: 4px 4px; }
         .ai-toggle::after { content: "🤖"; }
         .ai-toggle.loading::after { content: "⏳"; display: inline-block; animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
         
-        .anno-box { display: none; margin-top: 12px; background: #f9f8ff; border-left: 4px solid #8e7cc3; padding: 14px 18px; border-radius: 0 10px 10px 0; box-shadow: 0 2px 10px rgba(142,124,195,0.06); text-align: left; }
-        .anno-view { font-size: 1rem; line-height: 1.65; color: #374151; min-height: 24px; }
-        .anno-edit { width: 100%; min-height: 130px; padding: 12px; font-family: monospace; font-size: 0.95rem; border: 1.5px dashed #8e7cc3; border-radius: 8px; box-sizing: border-box; resize: vertical; display: none; background: #fff; color: #333; outline: none; }
-        .anno-edit:focus { border: 1.5px solid #8e7cc3; box-shadow: 0 0 0 3px rgba(142,124,195,0.15); }
-        
+        .anno-box { display: none; margin-top: 10px; background: #f8f6ff; border-left: 4px solid #8e7cc3; padding: 12px 16px; border-radius: 0 6px 6px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.02); text-align: left; }
+        .anno-view { font-size: 1.05rem; line-height: 1.6; color: #4a4a4a; min-height: 24px; }
+        .anno-edit { width: 100%; min-height: 120px; padding: 10px; font-family: monospace; font-size: 1rem; border: 1px dashed #8e7cc3; border-radius: 6px; box-sizing: border-box; resize: vertical; display: none; background: #fff; color: #333; outline: none; }
+        .anno-edit:focus { border: 1px solid #8e7cc3; box-shadow: 0 0 0 3px rgba(142,124,195,0.1); }
         .markdown-body p { margin-top: 0; margin-bottom: 8px; }
         .markdown-body p:last-child { margin-bottom: 0; }
         .markdown-body p:empty { display: none; }
-        .markdown-body h1, .markdown-body h2, .markdown-body h3 { color: #735aa8; font-size: 1.1rem; margin: 12px 0 8px 0; border-bottom: 1px dashed #ded8ed; padding-bottom: 4px; }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 { color: #8e7cc3; font-size: 1.15rem; margin: 10px 0 8px 0; border-bottom: 1px dashed #e0d8f0; padding-bottom: 4px; }
         .markdown-body ul, .markdown-body ol { margin: 0 0 8px 0; padding-left: 20px; }
-        .markdown-body blockquote { margin: 0 0 10px 0; padding: 10px 14px; background: rgba(142,124,195,0.08); border-left: 4px solid #8e7cc3; color: #4b5563; border-radius: 0 6px 6px 0; }
+        .markdown-body blockquote { margin: 0 0 10px 0; padding: 10px 15px; background: rgba(142,124,195,0.1); border-left: 4px solid #8e7cc3; color: #555; }
 
-        .container { max-width: 600px; margin: 0 auto; padding: 16px 14px 50px 14px; }
-        .tweet-card { background: var(--card); border-radius: 18px; padding: 18px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); margin-bottom: 20px; border: 1px solid rgba(0,0,0,0.03); }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px 15px 50px 15px; }
+        .tweet-card { background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 25px; }
         .header { display: flex; align-items: center; margin-bottom: 12px; }
         .names { display: flex; flex-direction: column; }
-        .name { font-weight: 700; font-size: 1.05rem; color: var(--text); }
-        .handle { color: var(--muted); font-size: 0.9rem; margin-top: 2px; }
-        .content { font-size: 1.05rem; color: var(--text); line-height: 1.55; white-space: pre-wrap; word-wrap: break-word; }
-        .media-container { margin-top: 12px; border-radius: 14px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 12px; background: #000; }
+        .name { font-weight: 700; font-size: 1.1rem; color: var(--text); }
+        .handle { color: var(--muted); font-size: 0.95rem; margin-top: 2px; }
+        .content { font-size: 1.1rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
+        .media-container { margin-top: 10px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 10px; background: #000; }
         .media-item { width: 100%; height: auto; display: block; max-height: 500px; object-fit: contain; }
-        .stats { margin-top: 14px; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--border); padding-top: 12px; display: flex; gap: 20px; font-weight: 500; margin-bottom: 14px; }
-        .btn-link { display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 11px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 0.95rem; transition: all 0.2s; }
+        .stats { margin-top: 15px; color: var(--muted); font-size: 0.95rem; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px; font-weight: 500; margin-bottom: 15px; }
+        .btn-link { display: block; background: var(--x-blue); color: #fff; text-align: center; padding: 12px; border-radius: 24px; text-decoration: none; font-weight: 700; font-size: 1rem; transition: transform 0.2s; }
         .btn-link:active { transform: scale(0.98); background: #1a8cd8; }
-        .time-stamp { text-align: center; color: var(--muted); font-size: 0.82rem; margin-bottom: 14px; font-weight: 500; }
+        .time-stamp { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }
     </style>
 </head>
 <body>
     <div class="nav-back">
         <a href="../../index.html">🔙 返回</a>
-        <div style="display:flex; align-items:center; gap:8px;">
+        <div style="display:flex; align-items:center; gap:10px;">
             <span class="sync-status" id="sync-status">📡 同步中...</span>
             <button class="translate-btn" id="translate-btn" onclick="translateAll()">🌐 一键翻译</button>
         </div>
@@ -1630,7 +1330,7 @@ def generate_index():
                 method: 'POST',
                 headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    model: modelName || 'llama-3.3-70b-versatile',
+                    model: modelName,
                     messages: [
                         { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
                         { role: 'user', content: AI_PROMPT + '"' + text + '"' }
@@ -1649,7 +1349,7 @@ def generate_index():
                 method: 'POST',
                 headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    model: modelName || 'glm-4-flash',
+                    model: modelName,
                     messages: [
                         { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
                         { role: 'user', content: AI_PROMPT + '"' + text + '"' }
@@ -1668,17 +1368,17 @@ def generate_index():
             let bodyData = {};
 
             if (url.includes('anthropic.com')) {
-                headers['x-api-key'] = apiKey;
+                if(apiKey) headers['x-api-key'] = apiKey;
                 headers['anthropic-version'] = '2023-06-01';
                 headers['anthropic-dangerous-direct-browser-access'] = 'true';
                 bodyData = {
-                    model: modelName || 'claude-3-5-sonnet-20241022',
+                    model: modelName,
                     max_tokens: 2000,
                     messages: [{ role: 'user', content: AI_PROMPT + '"' + text + '"' }]
                 };
             } else if (url.includes('generativelanguage.googleapis.com')) {
                 let targetUrl = url;
-                if (!targetUrl.includes('key=')) {
+                if (apiKey && !targetUrl.includes('key=')) {
                     targetUrl += (targetUrl.includes('?') ? '&' : '?') + 'key=' + apiKey;
                 }
                 const res = await fetch(targetUrl, {
@@ -1695,7 +1395,7 @@ def generate_index():
                 }
                 throw new Error('Gemini 返回数据异常');
             } else {
-                headers['Authorization'] = 'Bearer ' + apiKey;
+                if(apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
                 bodyData = {
                     model: modelName,
                     messages: [
@@ -1712,41 +1412,40 @@ def generate_index():
                 body: JSON.stringify(bodyData)
             });
 
-            if (!res.ok) throw new Error('自定义接口报错: ' + res.status + ' (' + res.statusText + ')');
+            if (!res.ok) throw new Error('自定义 AI 接口报错: ' + res.status);
             const json = await res.json();
 
             if (json.content && Array.isArray(json.content) && json.content[0]?.text) {
                 return json.content[0].text.trim();
             }
-            if (json.choices && json.choices.length > 0 && json.choices[0].message?.content) {
+            if (json.choices && json.choices.length > 0) {
                 return json.choices[0].message.content.trim();
             }
 
-            throw new Error('自定义 AI 返回结构不符合标准 JSON 格式');
+            throw new Error('自定义 AI 返回结构不符合预期');
         }
 
         async function executeAIPipeline(text) {
             const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
-            const groqKey = (localStorage.getItem('GROQ_API_KEY') || '').trim();
-            const glmKey = (localStorage.getItem('GLM_API_KEY') || '').trim();
-            const groqModel = (localStorage.getItem('GROQ_MODEL') || 'llama-3.3-70b-versatile').trim();
-            const glmModel = (localStorage.getItem('GLM_MODEL') || 'glm-4-flash').trim();
-            const customUrl = (localStorage.getItem('CUSTOM_API_URL') || '').trim();
-            const customKey = (localStorage.getItem('CUSTOM_API_KEY') || '').trim();
-            const customModel = (localStorage.getItem('CUSTOM_MODEL') || '').trim();
+            const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
+            const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+            const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
+            const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
+            
+            const groqModel = localStorage.getItem('GROQ_MODEL') || '';
+            const glmModel = localStorage.getItem('GLM_MODEL') || '';
+            const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
 
             const runGroq = async () => {
-                if (!groqKey) throw new Error("Groq API Key 未配置");
+                if (!groqKey || !groqModel) throw new Error("Groq 配置不完整");
                 return await fetchGroq(text, groqKey, groqModel);
             };
             const runGLM = async () => {
-                if (!glmKey) throw new Error("智谱 GLM API Key 未配置");
+                if (!glmKey || !glmModel) throw new Error("智谱GLM 配置不完整");
                 return await fetchGLM(text, glmKey, glmModel);
             };
             const runCustom = async () => {
-                if (!customUrl) throw new Error("自定义 AI 的 API Endpoint 不能为空");
-                if (!customKey) throw new Error("自定义 AI 的 API Key 不能为空");
-                if (!customModel) throw new Error("自定义 AI 的 模型名称 不能为空");
+                if (!customUrl || !customModel) throw new Error("自定义 AI 配置不完整(需指定URL和模型)");
                 return await fetchCustomAI(text, customUrl, customKey, customModel);
             };
 
@@ -1755,33 +1454,25 @@ def generate_index():
                     return await runCustom();
                 } catch (err) {
                     console.warn("自定义 AI 失败，尝试降级:", err);
-                    if (groqKey) {
-                        document.getElementById('sync-status').innerText = '⚠️ 自定义异常，降级为 Groq...';
-                        try { return await runGroq(); } catch(e2) { if (glmKey) return await runGLM(); throw e2; }
-                    } else if (glmKey) {
-                        document.getElementById('sync-status').innerText = '⚠️ 自定义异常，降级为智谱...';
+                    if (groqKey && groqModel) {
+                        document.getElementById('sync-status').innerText = '⚠️ 自定义异常，正降级为Groq...';
+                        try { return await runGroq(); } catch(e2) { if (glmKey && glmModel) return await runGLM(); throw e2; }
+                    } else if (glmKey && glmModel) {
+                        document.getElementById('sync-status').innerText = '⚠️ 自定义异常，正降级为智谱...';
                         return await runGLM();
                     }
                     throw err;
                 }
             } else if (pref === 'groq') {
                 try { return await runGroq(); } catch (err) {
-                    console.warn("Groq 失败，尝试降级:", err);
-                    if (customUrl && customKey && customModel) {
-                        return await runCustom();
-                    } else if (glmKey) {
-                        return await runGLM();
-                    }
+                    console.warn("首选 Groq 失败，尝试降级到智谱:", err);
+                    if (glmKey && glmModel) { document.getElementById('sync-status').innerText = '⚠️ Groq异常，正降级为智谱...'; return await runGLM(); }
                     throw err;
                 }
             } else {
                 try { return await runGLM(); } catch (err) {
-                    console.warn("智谱 失败，尝试降级:", err);
-                    if (customUrl && customKey && customModel) {
-                        return await runCustom();
-                    } else if (groqKey) {
-                        return await runGroq();
-                    }
+                    console.warn("首选 智谱 失败，尝试降级到Groq:", err);
+                    if (groqKey && groqModel) { document.getElementById('sync-status').innerText = '⚠️ 智谱异常，正降级为Groq...'; return await runGroq(); }
                     throw err;
                 }
             }
@@ -1965,7 +1656,7 @@ def generate_index():
                     toggle.classList.add('has-anno');
                     try { view.innerHTML = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText; } catch(e){}
                 }
-
+                
                 if (aiToggle) {
                     aiToggle.addEventListener('click', async (e) => {
                         e.preventDefault();
@@ -1979,28 +1670,29 @@ def generate_index():
                         }
 
                         const pref = localStorage.getItem('PREFERRED_AI') || 'custom';
-                        const groqKey = (localStorage.getItem('GROQ_API_KEY') || '').trim();
-                        const glmKey = (localStorage.getItem('GLM_API_KEY') || '').trim();
-                        const customUrl = (localStorage.getItem('CUSTOM_API_URL') || '').trim();
-                        const customKey = (localStorage.getItem('CUSTOM_API_KEY') || '').trim();
-                        const customModel = (localStorage.getItem('CUSTOM_MODEL') || '').trim();
+                        const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
+                        const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+                        const customUrl = localStorage.getItem('CUSTOM_API_URL') || '';
+                        const customKey = localStorage.getItem('CUSTOM_API_KEY') || '';
+                        
+                        const groqModel = localStorage.getItem('GROQ_MODEL') || '';
+                        const glmModel = localStorage.getItem('GLM_MODEL') || '';
+                        const customModel = localStorage.getItem('CUSTOM_MODEL') || '';
+                        
+                        let isReady = false;
+                        if (pref === 'custom' && customUrl && customModel) isReady = true;
+                        if (pref === 'groq' && groqKey && groqModel) isReady = true;
+                        if (pref === 'glm' && glmKey && glmModel) isReady = true;
 
-                        if (pref === 'custom' && (!customUrl || !customKey || !customModel)) {
-                            alert('⚠️ 你选择了【自定义 AI】，但配置不完整！\\n请返回日历主页点击右上角 ⚙️ 填写 Endpoint、API Key 和模型名称。');
-                            return;
-                        }
-                        if (pref === 'groq' && !groqKey) {
-                            alert('⚠️ 你选择了【Groq】，但未填写 Groq API Key！\\n请返回日历主页点击 ⚙️ 配置。');
-                            return;
-                        }
-                        if (pref === 'glm' && !glmKey) {
-                            alert('⚠️ 你选择了【智谱 GLM】，但未填写智谱 API Key！\\n请返回日历主页点击 ⚙️ 配置。');
+                        if (!isReady) {
+                            alert('⚠️ 当前选择的 AI 引擎配置不完整，请返回【日历大厅】右上角的 ⚙️配置中心 检查！\\n(请确保填入了 URL 和 模型名称)');
                             return;
                         }
 
                         const pClone = wrap.querySelector('.content').cloneNode(true);
                         pClone.querySelectorAll('.anno-toggle, .ai-toggle, .translated-content').forEach(el => el.remove());
                         let pText = pClone.textContent.trim();
+                        
                         pText = pText.replace(/https?:\\\\/\\\\/\\\\S+/g, '').trim();
 
                         if (!pText) return;
@@ -2114,6 +1806,7 @@ def generate_index():
                 const cloneText = content.cloneNode(true);
                 cloneText.querySelectorAll('relin-highlight, relin-hc, .anno-toggle, .ai-toggle').forEach(el => el.remove());
                 let textToTranslate = cloneText.innerText;
+                
                 textToTranslate = textToTranslate.replace(/https?:\\\\/\\\\/\\\\S+/g, '').trim();
                 let checkText = textToTranslate.replace(/\\\\p{Extended_Pictographic}/gu, '').trim();
                 
@@ -2135,7 +1828,7 @@ def generate_index():
                     if (translatedText) {
                         const transDiv = document.createElement('div');
                         transDiv.className = 'translated-content';
-                        transDiv.style.cssText = 'color: #0f1419; font-size: 1rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
+                        transDiv.style.cssText = 'color: #0f1419; font-size: 1.05rem; border-top: 1px solid #eff3f4; background: #f8f9fa; padding: 12px; border-radius: 12px; margin-top: 12px; white-space: pre-wrap; word-wrap: break-word;';
                         transDiv.innerHTML = translatedText;
                         
                         content.parentNode.insertBefore(transDiv, content.nextSibling);
@@ -2153,14 +1846,16 @@ def generate_index():
             }
 
             btn.innerText = '⏳ 固化至云端...';
+            
             syncToCloud(true);
         }
     <\\/script>
 </body>
 </html>`;
         }
+        // ------------------------------------
 
-        // 处理自定义批量推文合并
+        // === 核心：处理前端自定义批量模板同步 ===
         document.getElementById('submitBatchBtn').addEventListener('click', async () => {
             const inputText = document.getElementById('batchInputArea').value;
             let tweetIdsToProcess = [];
@@ -2273,7 +1968,7 @@ def generate_index():
             }
         });
 
-        // X 推文前端回车监听
+        // X 推文前端抓取逻辑
         document.getElementById('xUrlInput').addEventListener('keypress', async function (e) {
             if (e.key === 'Enter') {
                 const url = this.value.trim();
@@ -2364,7 +2059,7 @@ def generate_index():
 
                         tweetIdsToProcess = tweetIdsToProcess.slice(0, 10);
                         if (tweetIdsToProcess.length === 0) {
-                            throw new Error("前端代理节点全数遭浏览器拦截，请关闭广告拦截器或更换网络后重试。");
+                            throw new Error("前端代理节点全数遭浏览器拦截，请关闭广告拦截器/防追踪护盾，或更换网络后重试。");
                         }
                     }
 
@@ -2478,7 +2173,7 @@ def generate_index():
 
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首页日历 WebApp 已生成更新！(现代化 UI 审美已就绪)")
+    print("🚀 首页日历 WebApp 已生成更新！(支持多行文本批量组合及现代化UI升级)")
 
 def git_push_to_github(msg="Auto-archive"):
     """自动调用本地系统的 Git 指令将更新推送到 GitHub"""
